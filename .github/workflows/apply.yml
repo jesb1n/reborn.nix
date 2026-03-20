@@ -1,0 +1,47 @@
+name: Terraform Apply
+
+on:
+  workflow_dispatch: # Manual trigger from GitHub Actions UI
+
+jobs:
+  apply:
+    name: Plan & Apply
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.9.1
+
+      - name: Configure S3 backend credentials
+        run: |
+          mkdir -p ~/.aws
+          cat > ~/.aws/credentials <<EOF
+          [default]
+          aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          EOF
+
+      - name: Terraform Init
+        run: tofu init
+
+      - name: Terraform Validate
+        run: tofu validate
+
+      - name: Terraform Plan
+        run: tofu plan -out=tfplan
+
+      - name: Terraform Apply
+        run: tofu apply -auto-approve tfplan
+
+      - name: Recover state on failure
+        if: failure()
+        run: |
+          if [ -f errored.tfstate ]; then
+            echo "Pushing errored.tfstate to remote backend..."
+            tofu state push errored.tfstate || true
+          fi

@@ -1,0 +1,18 @@
+# Terraform/OpenTofu
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+errored.tfstate
+crash.log
+crash.*.log
+
+# Sensitive files — NEVER commit these
+terraform.tfvars
+*.pem
+*.key
+
+# OS files
+.DS_Store
+Thumbs.db

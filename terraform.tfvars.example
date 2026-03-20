@@ -1,0 +1,15 @@
+tenancy_ocid = "ocid1.tenancy.oc1..aaaaaaaaexampleexampleexampleexampleexampleexample"
+user_ocid    = "ocid1.user.oc1..aaaaaaaaexampleexampleexampleexampleexampleexample"
+fingerprint  = "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
+region       = "us-ashburn-1"
+
+vcn_cidr_block      = "10.0.0.0/16"
+public_subnet_cidr  = "10.0.0.0/24"
+private_subnet_cidr = "10.0.1.0/24"
+nat_subnet_cidr     = "10.0.2.0/24"
+
+vcn_dns_label = "myvcn"
+project       = "myproject"
+
+ssh_authorized_keys = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleExampleExampleExampleExampleExampleEx user@hostname"
+user_ip_address     = "203.0.113.10/32"
