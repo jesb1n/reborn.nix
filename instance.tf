@@ -38,7 +38,7 @@ resource "oci_core_instance" "arm_instance" {
   }
   display_name = "${var.project}-arm-instance"
   create_vnic_details {
-    assign_public_ip = true
+    assign_public_ip = false
     subnet_id        = oci_core_subnet.public.id
   }
   metadata = {
@@ -75,7 +75,7 @@ resource "oci_core_instance" "micro_instances" {
   }
   display_name = "${var.project}-${each.key}-instance"
   create_vnic_details {
-    assign_public_ip = true
+    assign_public_ip = false
     subnet_id        = oci_core_subnet.public.id
   }
   metadata = {
@@ -120,4 +120,55 @@ EOF
   # lifecycle {
   #   create_before_destroy = true
   # }
+}
+
+# --- Reserved Public IPs ---
+
+# ARM instance VNIC attachment and private IP
+data "oci_core_vnic_attachments" "arm_vnic_attachments" {
+  compartment_id = local.compartment_id
+  instance_id    = oci_core_instance.arm_instance.id
+}
+
+data "oci_core_private_ips" "arm_private_ip" {
+  vnic_id = data.oci_core_vnic_attachments.arm_vnic_attachments.vnic_attachments[0].vnic_id
+}
+
+resource "oci_core_public_ip" "arm_reserved_ip" {
+  compartment_id = local.compartment_id
+  display_name   = "${var.project}-arm-reserved-ip"
+  lifetime       = "RESERVED"
+  private_ip_id  = data.oci_core_private_ips.arm_private_ip.private_ips[0].id
+
+  freeform_tags = local.freeform_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Micro instances VNIC attachments and private IPs
+data "oci_core_vnic_attachments" "micro_vnic_attachments" {
+  for_each       = local.micro_instances
+  compartment_id = local.compartment_id
+  instance_id    = oci_core_instance.micro_instances[each.key].id
+}
+
+data "oci_core_private_ips" "micro_private_ip" {
+  for_each = local.micro_instances
+  vnic_id  = data.oci_core_vnic_attachments.micro_vnic_attachments[each.key].vnic_attachments[0].vnic_id
+}
+
+resource "oci_core_public_ip" "micro_reserved_ip" {
+  for_each       = local.micro_instances
+  compartment_id = local.compartment_id
+  display_name   = "${var.project}-${each.key}-reserved-ip"
+  lifetime       = "RESERVED"
+  private_ip_id  = data.oci_core_private_ips.micro_private_ip[each.key].private_ips[0].id
+
+  freeform_tags = local.freeform_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
