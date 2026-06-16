@@ -32,7 +32,7 @@ resource "oci_core_instance" "arm_instance" {
     memory_in_gbs = 24
   }
   source_details {
-    boot_volume_size_in_gbs = 50 # or more, within free 200GB shared quota
+    boot_volume_size_in_gbs = 100 # or more, within free 200GB shared quota
     source_id               = local.arm_image_id
     source_type             = "image"
   }
