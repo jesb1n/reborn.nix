@@ -10,12 +10,7 @@ locals {
   }
 
   # Common freeform tags
-  freeform_tags = merge(
-    local.common_tags,
-    {
-      CreatedAt = timestamp()
-    }
-  )
+  freeform_tags = local.common_tags
 
   # Extract image IDs from data sources
   # These will be null if no images are found, causing Terraform to fail during apply
