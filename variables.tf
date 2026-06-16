@@ -9,22 +9,6 @@ variable "compartment_id" {
   default     = null # If null, will use tenancy_ocid (backward compatibility)
 }
 
-variable "user_ocid" {
-  description = "The OCID of the user"
-  type        = string
-}
-
-variable "fingerprint" {
-  description = "The fingerprint for the API private key"
-  type        = string
-}
-
-variable "OCA_PRIVATE_KEY" {
-  type        = string
-  description = "Base64-encoded private key for OCI authentication"
-  sensitive   = true
-}
-
 variable "region" {
   description = "The OCI region"
   type        = string
