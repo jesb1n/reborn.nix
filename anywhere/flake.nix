@@ -5,6 +5,9 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixos-anywhere.url = "github:nix-community/nixos-anywhere";
 
+    deploy-rs.url = "github:serokell/deploy-rs";
+    deploy-rs.inputs.nixpkgs.follows = "nixpkgs";
+
     disko.url = "github:nix-community/disko";
     disko.inputs.nixpkgs.follows = "nixpkgs";
 
@@ -12,20 +15,30 @@
     sops-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { nixpkgs, nixos-anywhere, disko, sops-nix, ... }:
+  outputs = { self, nixpkgs, nixos-anywhere, deploy-rs, disko, sops-nix, ... }:
     let
-      localSystem = "aarch64-darwin";
-      pkgs = nixpkgs.legacyPackages.${localSystem};
+      managementSystems = [
+        "aarch64-darwin"
+        "x86_64-linux"
+      ];
+
+      forAllManagementSystems = nixpkgs.lib.genAttrs managementSystems;
     in {
-      devShells.${localSystem}.default = pkgs.mkShell {
-        packages = [
-          pkgs.age
-          disko.packages.${localSystem}.default
-          nixos-anywhere.packages.${localSystem}.default
-          pkgs.sops
-          pkgs.ssh-to-age
-        ];
-      };
+      devShells = forAllManagementSystems (system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in {
+          default = pkgs.mkShell {
+            packages = [
+              pkgs.age
+              deploy-rs.packages.${system}.default
+              disko.packages.${system}.default
+              nixos-anywhere.packages.${system}.default
+              pkgs.sops
+              pkgs.ssh-to-age
+            ];
+          };
+        });
 
       nixosConfigurations.oci-nixos = nixpkgs.lib.nixosSystem {
         system = "aarch64-linux";
@@ -54,6 +67,49 @@
           sops-nix.nixosModules.sops
           ./hosts/oracle-eu-micro2/configuration.nix
         ];
+      };
+
+      deploy.nodes = {
+        oci-nixos = {
+          hostname = "oci-nixos";
+          sshUser = "ubuntu";
+          remoteBuild = true;
+          activationTimeout = 600;
+          confirmTimeout = 60;
+
+          profiles.system = {
+            user = "root";
+            path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.oci-nixos;
+          };
+        };
+
+        oracle-eu-micro1 = {
+          hostname = "oracle-eu-micro1";
+          sshUser = "ubuntu";
+          remoteBuild = false;
+          fastConnection = true;
+          activationTimeout = 600;
+          confirmTimeout = 60;
+
+          profiles.system = {
+            user = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.oracle-eu-micro1;
+          };
+        };
+
+        oracle-eu-micro2 = {
+          hostname = "oracle-eu-micro2";
+          sshUser = "ubuntu";
+          remoteBuild = false;
+          fastConnection = true;
+          activationTimeout = 600;
+          confirmTimeout = 60;
+
+          profiles.system = {
+            user = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.oracle-eu-micro2;
+          };
+        };
       };
     };
 }
