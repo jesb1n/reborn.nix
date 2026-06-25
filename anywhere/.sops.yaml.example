@@ -8,6 +8,8 @@
 keys:
   - &master age1YOUR_MASTER_PUBLIC_AGE_KEY
   - &oci_nixos age1YOUR_OCI_NIXOS_PUBLIC_AGE_KEY
+  - &oracle_eu_micro1 age1YOUR_ORACLE_EU_MICRO1_PUBLIC_AGE_KEY
+  - &oracle_eu_micro2 age1YOUR_ORACLE_EU_MICRO2_PUBLIC_AGE_KEY
 
 creation_rules:
   - path_regex: secrets/oci-nixos/.*
@@ -15,3 +17,23 @@ creation_rules:
       - age:
           - *master
           - *oci_nixos
+
+  - path_regex: secrets/oracle-eu-micro1/.*
+    key_groups:
+      - age:
+          - *master
+          - *oracle_eu_micro1
+
+  - path_regex: secrets/oracle-eu-micro2/.*
+    key_groups:
+      - age:
+          - *master
+          - *oracle_eu_micro2
+
+  - path_regex: secrets/k3s/.*
+    key_groups:
+      - age:
+          - *master
+          - *oci_nixos
+          - *oracle_eu_micro1
+          - *oracle_eu_micro2
