@@ -88,6 +88,11 @@ in
     memoryPercent = 50;
   };
 
+  nix.settings.trusted-users = [
+    "root"
+    "ubuntu"
+  ];
+
   users.mutableUsers = false;
 
   users.users.root = {
