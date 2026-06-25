@@ -72,6 +72,108 @@ nix flake update
 
 These commands affect the local `flake.lock`. They do not activate or modify the OCI host.
 
+## Tailscale with SOPS
+
+Tailscale is configured declaratively in `hosts/oci-nixos/configuration.nix`.
+
+Secrets follow the same host-key pattern as `retire.nix`:
+
+- your Mac has a master age key for editing secrets;
+- the OCI host has its own age key at `/var/lib/sops-nix/key.txt`;
+- encrypted host secrets live under `secrets/oci-nixos/`;
+- `sops-nix` decrypts them into `/run/secrets/` during activation.
+
+The service can start without a SOPS secret, but automatic login requires an encrypted SOPS file at:
+
+```text
+secrets/oci-nixos/secrets.yaml
+```
+
+### 1. Generate your master age key on the Mac
+
+```bash
+mkdir -p ~/.config/sops/age
+test -f ~/.config/sops/age/keys.txt || age-keygen -o ~/.config/sops/age/keys.txt
+age-keygen -y ~/.config/sops/age/keys.txt
+```
+
+Keep the private key in `~/.config/sops/age/keys.txt` private.
+
+### 2. Generate the host age key on oci-nixos
+
+This is the key that `sops-nix` will use on the host during activation.
+
+```bash
+ssh ubuntu@129.159.222.42 'sudo mkdir -p /var/lib/sops-nix && sudo age-keygen -o /var/lib/sops-nix/key.txt && sudo chmod 600 /var/lib/sops-nix/key.txt && sudo age-keygen -y /var/lib/sops-nix/key.txt'
+```
+
+Copy the printed public key.
+
+If `age-keygen` is missing on the host, deploy this config once without the
+secret first. The host config includes `age` in `environment.systemPackages`, so
+`age-keygen` will be available after that switch.
+
+### 3. Create `.sops.yaml`
+
+Copy the template and replace both public keys:
+
+```bash
+cp .sops.yaml.example .sops.yaml
+```
+
+The final file should look like:
+
+```yaml
+keys:
+  - &master age1YOUR_MASTER_PUBLIC_AGE_KEY
+  - &oci_nixos age1YOUR_OCI_NIXOS_PUBLIC_AGE_KEY
+
+creation_rules:
+  - path_regex: secrets/oci-nixos/.*
+    key_groups:
+      - age:
+          - *master
+          - *oci_nixos
+```
+
+### 4. Create the encrypted Tailscale auth key secret
+
+```bash
+mkdir -p secrets/oci-nixos
+sops secrets/oci-nixos/secrets.yaml
+```
+
+Add this plaintext while inside the editor opened by `sops`:
+
+```yaml
+tailscale-auth-key: "tskey-auth-xxxxx"
+```
+
+Save and quit. The file written to disk should be encrypted.
+
+### 5. Deploy
+
+This repository is a Git flake. Nix only sees files that are tracked or staged,
+so add the new Nix/SOPS files before evaluating or deploying:
+
+```bash
+git add .sops.yaml hosts/oci-nixos/sops.nix secrets/oci-nixos/README.md
+```
+
+Also add the encrypted secret after creating it:
+
+```bash
+git add secrets/oci-nixos/secrets.yaml
+```
+
+Use the normal safe validation flow below: `dry-activate`, then `switch`.
+
+After switching, verify:
+
+```bash
+ssh ubuntu@129.159.222.42 'sudo tailscale status; sudo tailscale ip -4'
+```
+
 ## Safe validation flow
 
 Run these from `anywhere/`.
@@ -229,7 +331,6 @@ Suggested commit:
 
 ```bash
 git status
-git add anywhere/flake.nix anywhere/flake.lock anywhere/hosts/oci-nixos/configuration.nix anywhere/hosts/oci-nixos/hardware-configuration.nix anywhere/README.md
+git add anywhere/flake.nix anywhere/flake.lock anywhere/.sops.yaml anywhere/.sops.yaml.example anywhere/hosts/oci-nixos/configuration.nix anywhere/hosts/oci-nixos/hardware-configuration.nix anywhere/hosts/oci-nixos/sops.nix anywhere/secrets/oci-nixos/README.md anywhere/secrets/oci-nixos/secrets.yaml anywhere/README.md
 git commit -m "Manage OCI NixOS host with flake"
 ```
-

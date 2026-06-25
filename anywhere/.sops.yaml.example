@@ -1,0 +1,17 @@
+# Copy this file to .sops.yaml after replacing the placeholder age recipients.
+#
+# This mirrors the retire.nix pattern:
+# - master key: lives on your Mac and can edit/decrypt all secrets
+# - host key: lives on oci-nixos at /var/lib/sops-nix/key.txt and can decrypt
+#   only this host's secrets during NixOS activation
+
+keys:
+  - &master age1YOUR_MASTER_PUBLIC_AGE_KEY
+  - &oci_nixos age1YOUR_OCI_NIXOS_PUBLIC_AGE_KEY
+
+creation_rules:
+  - path_regex: secrets/oci-nixos/.*
+    key_groups:
+      - age:
+          - *master
+          - *oci_nixos

@@ -1,8 +1,13 @@
 { config, lib, pkgs, ... }:
 
+let
+  hostSecretsFile = ../../secrets/oci-nixos/secrets.yaml;
+  hasHostSecretsFile = builtins.pathExists hostSecretsFile;
+in
 {
   imports = [
     ./hardware-configuration.nix
+    ./sops.nix
   ];
 
   boot.loader.systemd-boot.enable = false;
@@ -33,6 +38,18 @@
     PasswordAuthentication = false;
     KbdInteractiveAuthentication = false;
     PermitRootLogin = "no";
+  };
+
+  services.tailscale = {
+    enable = true;
+    openFirewall = true;
+    useRoutingFeatures = "server";
+  } // lib.optionalAttrs hasHostSecretsFile {
+    authKeyFile = config.sops.secrets."tailscale-auth-key".path;
+
+    extraUpFlags = [
+      "--advertise-exit-node"
+    ];
   };
 
   users.mutableUsers = false;
@@ -67,10 +84,10 @@
     git
     htop
     tmux
+    age
     parted
     gptfdisk
   ];
 
   system.stateVersion = "26.05";
 }
-
