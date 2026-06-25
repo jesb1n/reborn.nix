@@ -64,7 +64,7 @@ in
     serverAddr = "https://100.84.230.4:6443";
     tokenFile = config.sops.secrets."k3s-token".path;
     nodeName = "oracle-eu-micro2";
-    nodeIP = "100.73.130.50";
+    nodeIP = "100.67.95.26";
     nodeLabel = [
       "node-size=tiny"
     ];
