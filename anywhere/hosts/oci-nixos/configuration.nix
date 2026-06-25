@@ -19,6 +19,7 @@ in
     efiSupport = true;
     device = "nodev";
     efiInstallAsRemovable = true;
+    configurationLimit = 3;
   };
 
   boot.loader.efi.canTouchEfiVariables = false;
@@ -100,6 +101,19 @@ in
   };
 
   security.sudo.wheelNeedsPassword = false;
+
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 7d";
+    randomizedDelaySec = "45min";
+  };
+
+  nix.optimise = {
+    automatic = true;
+    dates = [ "weekly" ];
+    randomizedDelaySec = "45min";
+  };
 
   documentation.enable = false;
   programs.command-not-found.enable = false;

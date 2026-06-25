@@ -268,6 +268,55 @@ Suggested order:
 
 Keep the control-plane last unless the change is specifically for it.
 
+## Garbage collection and storage cleanup
+
+Each host is configured to run conservative automatic Nix cleanup:
+
+```nix
+nix.gc = {
+  automatic = true;
+  dates = "weekly";
+  options = "--delete-older-than 7d";
+  randomizedDelaySec = "45min";
+};
+
+nix.optimise = {
+  automatic = true;
+  dates = [ "weekly" ];
+  randomizedDelaySec = "45min";
+};
+```
+
+The bootloader is also limited to the latest 3 generations:
+
+```nix
+boot.loader.grub.configurationLimit = 3;
+```
+
+This keeps enough rollback history for normal mistakes, while preventing the tiny disks from accumulating months of old systems.
+
+Check disk usage:
+
+```bash
+ssh ubuntu@oracle-eu-micro1 'df -h / /nix; sudo nix path-info -Sh /run/current-system'
+ssh ubuntu@oracle-eu-micro2 'df -h / /nix; sudo nix path-info -Sh /run/current-system'
+ssh ubuntu@oci-nixos 'df -h / /nix; sudo nix path-info -Sh /run/current-system'
+```
+
+Run cleanup manually on one host:
+
+```bash
+ssh ubuntu@oracle-eu-micro1 'sudo nix-collect-garbage --delete-older-than 7d; sudo nix store optimise'
+```
+
+More aggressive cleanup, only when you are sure you do not need rollback generations:
+
+```bash
+ssh ubuntu@oracle-eu-micro1 'sudo nix-collect-garbage -d; sudo nix store optimise'
+```
+
+Avoid running aggressive cleanup immediately after a risky deploy. Keep at least one known-good generation until the cluster has been stable for a while.
+
 ## `nixos-anywhere` is for reinstalling
 
 Use `nixos-anywhere` only when installing/reinstalling a machine.
