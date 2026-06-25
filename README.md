@@ -18,6 +18,7 @@ This project provisions a production-ready cloud infrastructure on OCI using Ter
 | **[docs/SETUP.md](docs/SETUP.md)** | Step-by-step guide from clone to running infrastructure, plus troubleshooting |
 | **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | Detailed explanation of every component, how they connect, and the network/data flow |
 | **[docs/CICD.md](docs/CICD.md)** | GitHub Actions workflows — how to deploy/destroy from CI, required secrets |
+| **[anywhere/README.md](anywhere/README.md)** | Commands for managing the OCI NixOS host with the flake and `nixos-rebuild` |
 
 ## Quick Start
 

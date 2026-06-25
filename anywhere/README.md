@@ -1,0 +1,235 @@
+# Managing the OCI NixOS Host
+
+This folder contains the flake used to manage the OCI ARM NixOS host.
+
+Current host:
+
+```text
+oci-nixos -> ubuntu@129.159.222.42
+```
+
+The flake output is:
+
+```text
+.#oci-nixos
+```
+
+## What this folder is for
+
+Use this folder for normal NixOS management with `nixos-rebuild`.
+
+Do not use `nixos-anywhere` for routine updates on the existing host. `nixos-anywhere` is mainly for installation/reinstallation and can destroy/recreate disks when used with a disk layout.
+
+## Enter the management shell
+
+From this folder:
+
+```bash
+cd anywhere
+direnv allow
+```
+
+If direnv is already allowed, entering the folder should make tools like `nixos-anywhere` available.
+
+Check:
+
+```bash
+which nixos-anywhere
+nixos-anywhere --help
+```
+
+## Inspect the flake
+
+```bash
+nix flake show
+```
+
+Confirm the host platform:
+
+```bash
+nix eval --raw .#nixosConfigurations.oci-nixos.config.nixpkgs.hostPlatform.system
+```
+
+Expected:
+
+```text
+aarch64-linux
+```
+
+## Lock or update inputs
+
+Create/update the lock file without changing the remote host:
+
+```bash
+nix flake lock
+```
+
+Update all flake inputs:
+
+```bash
+nix flake update
+```
+
+These commands affect the local `flake.lock`. They do not activate or modify the OCI host.
+
+## Safe validation flow
+
+Run these from `anywhere/`.
+
+### 1. Build only
+
+Build the system configuration on the remote host without activating it:
+
+```bash
+nix run nixpkgs#nixos-rebuild -- \
+  build \
+  --flake .#oci-nixos \
+  --build-host ubuntu@129.159.222.42 \
+  --no-reexec \
+  --use-substitutes
+```
+
+This may copy/download Nix store paths, but it does not switch generations, restart services, install the bootloader, or reboot.
+
+### 2. Dry activation
+
+Preview what activation would do:
+
+```bash
+nix run nixpkgs#nixos-rebuild -- \
+  dry-activate \
+  --flake .#oci-nixos \
+  --target-host ubuntu@129.159.222.42 \
+  --build-host ubuntu@129.159.222.42 \
+  --elevate=sudo \
+  --no-reexec \
+  --use-substitutes
+```
+
+This should show which units would restart/reload. It does not persist the new generation.
+
+### 3. Temporary activation test
+
+Activate the configuration temporarily:
+
+```bash
+nix run nixpkgs#nixos-rebuild -- \
+  test \
+  --flake .#oci-nixos \
+  --target-host ubuntu@129.159.222.42 \
+  --build-host ubuntu@129.159.222.42 \
+  --elevate=sudo \
+  --no-reexec \
+  --use-substitutes
+```
+
+`test` activates the config now, but does not make it the default boot generation. It can restart services such as SSH, NetworkManager, systemd units, and firewall-related units.
+
+Before running `test`, it is wise to have OCI console access available in case SSH drops.
+
+### 4. Verify the host after test
+
+```bash
+ssh ubuntu@129.159.222.42 'hostname; systemctl is-system-running; systemctl --failed'
+```
+
+Healthy output should look like:
+
+```text
+oci-nixos
+running
+0 loaded units listed.
+```
+
+### 5. Persistent switch
+
+After `dry-activate`, `test`, and verification pass, make the configuration persistent:
+
+```bash
+nix run nixpkgs#nixos-rebuild -- \
+  switch \
+  --flake .#oci-nixos \
+  --target-host ubuntu@129.159.222.42 \
+  --build-host ubuntu@129.159.222.42 \
+  --elevate=sudo \
+  --no-reexec \
+  --use-substitutes
+```
+
+`switch` activates the config, creates a new NixOS generation, updates the bootloader, and makes the generation the default for future boots.
+
+It normally does not reboot the machine.
+
+## Verify the current generation
+
+```bash
+ssh ubuntu@129.159.222.42 'readlink -f /run/current-system; sudo nixos-rebuild list-generations | tail; systemctl is-system-running; systemctl --failed'
+```
+
+The current generation should be marked `True`, and failed units should be `0`.
+
+## Roll back
+
+If the current running config is bad but SSH still works, roll back to the previous generation:
+
+```bash
+ssh ubuntu@129.159.222.42 'sudo nixos-rebuild switch --rollback'
+```
+
+Then verify:
+
+```bash
+ssh ubuntu@129.159.222.42 'readlink -f /run/current-system; sudo nixos-rebuild list-generations | tail; systemctl is-system-running; systemctl --failed'
+```
+
+If the host cannot boot or SSH is unavailable, use the OCI console/serial console and boot an older NixOS generation from the GRUB menu.
+
+## Troubleshooting
+
+### Remote sudo error
+
+If activation fails with an access denied error from `systemd-run`, make sure the command includes:
+
+```text
+--elevate=sudo
+```
+
+Older examples may use `--use-remote-sudo`, but that option is deprecated.
+
+### Signature error when copying from the remote builder
+
+If a build fails while copying paths back to macOS with:
+
+```text
+because it lacks a signature by a trusted key
+```
+
+the remote build probably succeeded, but macOS refused to import unsigned paths from the remote builder.
+
+The safer path is to continue with `dry-activate`, `test`, or `switch` using both:
+
+```text
+--target-host ubuntu@129.159.222.42
+--build-host ubuntu@129.159.222.42
+```
+
+This avoids relying on importing the final remote-built closure into the local Mac store.
+
+### Dirty Git tree warning
+
+`nixos-rebuild` may warn:
+
+```text
+warning: Git tree '...' is dirty
+```
+
+This means the flake is being built from local uncommitted changes. After a successful switch, commit the known-good config and lock file so the host state is reproducible.
+
+Suggested commit:
+
+```bash
+git status
+git add anywhere/flake.nix anywhere/flake.lock anywhere/hosts/oci-nixos/configuration.nix anywhere/hosts/oci-nixos/hardware-configuration.nix anywhere/README.md
+git commit -m "Manage OCI NixOS host with flake"
+```
+
