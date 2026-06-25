@@ -10,18 +10,18 @@ This repo manages three NixOS machines:
 
 The preferred management machine is `s145`, because it is AMD/x86 and can build the two micro nodes locally.
 
-## Recommendation: use `nixos-rebuild` for now
+## Recommendation: use `deploy-rs` for normal updates
 
-For this setup, plain `nixos-rebuild` is the best default:
+For normal updates, use `deploy-rs` from `s145`:
 
-- it is already working;
-- it is easy to understand when something goes wrong;
-- it handles one host at a time, which is safer for a small cluster;
-- it does not require adding another deployment framework yet.
+- it has been tested on all three nodes;
+- it gives shorter commands than `nixos-rebuild`;
+- it supports deploying the two workers together;
+- it confirms activation with magic rollback;
+- it builds the two `x86_64-linux` workers on `s145`;
+- it builds the ARM control-plane on `oci-nixos` itself.
 
-`deploy-rs` is viable later, especially if you want a single command to deploy all machines, parallel deploys, and automatic activation rollback behavior. But it adds another layer of flake outputs and deployment rules. It also does not remove the need to think about CPU architecture, SSH access, sudo, SOPS keys, and trusted Nix users.
-
-My current advice: keep using `nixos-rebuild` until the cluster grows beyond a few machines or you want CI/CD-style deployments.
+Keep `nixos-rebuild` around as the transparent fallback when debugging.
 
 ## Daily health checks
 
@@ -86,24 +86,102 @@ nix build -L .#nixosConfigurations.oracle-eu-micro1.config.system.build.toplevel
 nix build -L .#nixosConfigurations.oracle-eu-micro2.config.system.build.toplevel
 ```
 
-For `oci-nixos`, build on the ARM host itself:
+Deploy with `deploy-rs`:
 
 ```bash
-nix run nixpkgs#nixos-rebuild -- \
-  build \
-  --flake .#oci-nixos \
-  --build-host ubuntu@129.159.222.42 \
-  --no-reexec \
-  --use-substitutes
+nix develop -c deploy .#oracle-eu-micro2
 ```
 
-## Deploy commands
+## deploy-rs commands
 
-### Deploy `oracle-eu-micro1`
+### Deploy one worker
 
 ```bash
 cd ~/oracle-cloud-free-tier/anywhere
 
+nix develop -c deploy .#oracle-eu-micro1
+nix develop -c deploy .#oracle-eu-micro2
+```
+
+### Deploy both workers together
+
+```bash
+cd ~/oracle-cloud-free-tier/anywhere
+
+nix develop -c deploy --targets .#oracle-eu-micro1 .#oracle-eu-micro2
+```
+
+This builds both worker systems on `s145`, copies them to the workers, activates them, and confirms the deploy.
+
+### Deploy the control-plane
+
+```bash
+cd ~/oracle-cloud-free-tier/anywhere
+
+nix develop -c deploy .#oci-nixos
+```
+
+`oci-nixos` is `aarch64-linux`, so deploy-rs is configured with `remoteBuild = true` for that node. The ARM host builds its own system.
+
+### Deploy everything
+
+```bash
+cd ~/oracle-cloud-free-tier/anywhere
+
+nix develop -c deploy .
+```
+
+This deploys all configured nodes:
+
+```text
+oci-nixos
+oracle-eu-micro1
+oracle-eu-micro2
+```
+
+Prefer workers first, then control-plane separately, unless the change is small and you are confident.
+
+### Check deploy-rs build topology
+
+```bash
+nix eval .#deploy.nodes.oracle-eu-micro1.remoteBuild
+nix eval .#deploy.nodes.oracle-eu-micro2.remoteBuild
+nix eval .#deploy.nodes.oci-nixos.remoteBuild
+```
+
+Expected:
+
+```text
+false
+false
+true
+```
+
+### deploy-rs warnings that are usually okay
+
+These are expected during the current workflow:
+
+```text
+warning: Git tree ... is dirty
+warning: unknown flake output 'deploy'
+warning: The check omitted these incompatible systems: aarch64-darwin
+warning: ignoring the client-specified setting 'builders-use-substitutes'
+```
+
+The deploy is successful when you see:
+
+```text
+Activation succeeded!
+Deployment confirmed.
+```
+
+## nixos-rebuild fallback commands
+
+Use these when debugging deploy-rs or when you want the most explicit command.
+
+### Deploy `oracle-eu-micro1`
+
+```bash
 nix run nixpkgs#nixos-rebuild -- \
   switch \
   --flake .#oracle-eu-micro1 \
@@ -116,8 +194,6 @@ nix run nixpkgs#nixos-rebuild -- \
 ### Deploy `oracle-eu-micro2`
 
 ```bash
-cd ~/oracle-cloud-free-tier/anywhere
-
 nix run nixpkgs#nixos-rebuild -- \
   switch \
   --flake .#oracle-eu-micro2 \
@@ -129,48 +205,16 @@ nix run nixpkgs#nixos-rebuild -- \
 
 ### Deploy `oci-nixos`
 
-`oci-nixos` is ARM, so from `s145` it should build remotely on the target host:
-
 ```bash
-cd ~/oracle-cloud-free-tier/anywhere
-
 nix run nixpkgs#nixos-rebuild -- \
   switch \
   --flake .#oci-nixos \
-  --target-host ubuntu@129.159.222.42 \
-  --build-host ubuntu@129.159.222.42 \
+  --target-host ubuntu@oci-nixos \
+  --build-host ubuntu@oci-nixos \
   --elevate=sudo \
   --no-reexec \
   --use-substitutes
 ```
-
-## Safer pre-flight before `switch`
-
-Use `dry-activate` when you want to see what would restart:
-
-```bash
-nix run nixpkgs#nixos-rebuild -- \
-  dry-activate \
-  --flake .#oracle-eu-micro1 \
-  --target-host ubuntu@oracle-eu-micro1 \
-  --elevate=sudo \
-  --no-reexec \
-  --use-substitutes
-```
-
-Use `test` when you want to activate temporarily until reboot:
-
-```bash
-nix run nixpkgs#nixos-rebuild -- \
-  test \
-  --flake .#oracle-eu-micro1 \
-  --target-host ubuntu@oracle-eu-micro1 \
-  --elevate=sudo \
-  --no-reexec \
-  --use-substitutes
-```
-
-Use `switch` only when you want the generation to become the boot default.
 
 ## After every deploy
 
