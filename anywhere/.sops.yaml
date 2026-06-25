@@ -11,6 +11,7 @@ keys:
   - &s145 age1qf2cfcgegqhhu2a9uk4mn4dvm63awfa2mfmu5dfzvs5uzvemmvhqhehfd0
   - &oci_nixos age12qrmjz3gz582fl2vnw6az2w5qphchejk96ucxh0ep36wf0me24cqyug2s8
   - &oracle_eu_micro1 age1dwkqee4rc5z8me08r32xcct8n0ah6suygrjme747y5g39a9lkusqx4cdhg
+  - &oracle_eu_micro2 age1hq0wftuc9ysu4tk89ner2cnf59smhwa8ynwxt62fjll6m7fff43swkr6lg
 
 creation_rules:
   - path_regex: secrets/oci-nixos/.*
@@ -27,6 +28,7 @@ creation_rules:
           - *s145
           - *oci_nixos
           - *oracle_eu_micro1
+          - *oracle_eu_micro2
 
   - path_regex: secrets/oracle-eu-micro1/.*
     key_groups:
@@ -34,3 +36,10 @@ creation_rules:
           - *master
           - *s145
           - *oracle_eu_micro1
+
+  - path_regex: secrets/oracle-eu-micro2/.*
+    key_groups:
+      - age:
+          - *master
+          - *s145
+          - *oracle_eu_micro2
