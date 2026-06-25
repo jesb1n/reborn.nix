@@ -8,12 +8,20 @@
 
   outputs = { nixpkgs, nixos-anywhere, ... }:
     let
-      system = "aarch64-darwin";
-      pkgs = nixpkgs.legacyPackages.${system};
+      localSystem = "aarch64-darwin";
+      pkgs = nixpkgs.legacyPackages.${localSystem};
     in {
-      devShells.${system}.default = pkgs.mkShell {
+      devShells.${localSystem}.default = pkgs.mkShell {
         packages = [
-          nixos-anywhere.packages.${system}.default
+          nixos-anywhere.packages.${localSystem}.default
+        ];
+      };
+
+      nixosConfigurations.oci-nixos = nixpkgs.lib.nixosSystem {
+        system = "aarch64-linux";
+
+        modules = [
+          ./hosts/oci-nixos/configuration.nix
         ];
       };
     };
