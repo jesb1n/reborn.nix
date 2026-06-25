@@ -8,6 +8,7 @@
 keys:
   - &master age1pszh4rajt03mcmkhgxuyqkyrnu2qe9xgv9g93kymu06z0pzw0feqmrcph8
   - &oci_nixos age12qrmjz3gz582fl2vnw6az2w5qphchejk96ucxh0ep36wf0me24cqyug2s8
+  - &oracle_eu_micro1 age1dwkqee4rc5z8me08r32xcct8n0ah6suygrjme747y5g39a9lkusqx4cdhg
 
 creation_rules:
   - path_regex: secrets/oci-nixos/.*
@@ -15,3 +16,16 @@ creation_rules:
       - age:
           - *master
           - *oci_nixos
+
+  - path_regex: secrets/k3s/.*
+    key_groups:
+      - age:
+          - *master
+          - *oci_nixos
+          - *oracle_eu_micro1
+
+  - path_regex: secrets/oracle-eu-micro1/.*
+    key_groups:
+      - age:
+          - *master
+          - *oracle_eu_micro1

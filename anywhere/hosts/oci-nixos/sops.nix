@@ -16,20 +16,32 @@
 let
   hostSecretsFile = ../../secrets/oci-nixos/secrets.yaml;
   hasHostSecretsFile = builtins.pathExists hostSecretsFile;
+  clusterSecretsFile = ../../secrets/k3s/secrets.yaml;
+  hasClusterSecretsFile = builtins.pathExists clusterSecretsFile;
 in
 {
-  sops = lib.mkIf hasHostSecretsFile {
-    defaultSopsFile = hostSecretsFile;
-    defaultSopsFormat = "yaml";
-
+  sops = {
     age.keyFile = "/var/lib/sops-nix/key.txt";
     age.generateKey = false;
     age.sshKeyPaths = [ ];
 
-    secrets = {
+    defaultSopsFormat = "yaml";
+
+    secrets = lib.mkMerge [
+      (lib.mkIf hasHostSecretsFile {
       # Tailscale pre-auth key for joining the tailnet on activation/boot.
       # Decrypted by sops-nix to /run/secrets/tailscale-auth-key.
-      "tailscale-auth-key" = { };
-    };
+        "tailscale-auth-key" = {
+          sopsFile = hostSecretsFile;
+        };
+      })
+
+      (lib.mkIf hasClusterSecretsFile {
+        # Shared k3s cluster token used by the server and tiny worker agents.
+        "k3s-token" = {
+          sopsFile = clusterSecretsFile;
+        };
+      })
+    ];
   };
 }

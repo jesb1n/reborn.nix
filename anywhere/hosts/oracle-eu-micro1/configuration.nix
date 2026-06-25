@@ -1,14 +1,15 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, modulesPath, ... }:
 
 let
-  hostSecretsFile = ../../secrets/oci-nixos/secrets.yaml;
+  hostSecretsFile = ../../secrets/oracle-eu-micro1/secrets.yaml;
   hasHostSecretsFile = builtins.pathExists hostSecretsFile;
   clusterSecretsFile = ../../secrets/k3s/secrets.yaml;
   hasClusterSecretsFile = builtins.pathExists clusterSecretsFile;
 in
 {
   imports = [
-    ./hardware-configuration.nix
+    (modulesPath + "/profiles/qemu-guest.nix")
+    ./disko-config.nix
     ./sops.nix
   ];
 
@@ -28,7 +29,7 @@ in
     "console=tty1"
   ];
 
-  networking.hostName = "oci-nixos";
+  networking.hostName = "oracle-eu-micro1";
   networking.networkmanager.enable = true;
   networking.firewall.trustedInterfaces = [
     "tailscale0"
@@ -48,32 +49,43 @@ in
   services.tailscale = {
     enable = true;
     openFirewall = true;
-    useRoutingFeatures = "server";
   } // lib.optionalAttrs hasHostSecretsFile {
     authKeyFile = config.sops.secrets."tailscale-auth-key".path;
 
     extraUpFlags = [
-      "--advertise-exit-node"
+      "--hostname=oracle-eu-micro1"
+      "--accept-dns=false"
     ];
   };
 
   services.k3s = lib.mkIf hasClusterSecretsFile {
     enable = true;
-    role = "server";
+    role = "agent";
+    serverAddr = "https://100.84.230.4:6443";
     tokenFile = config.sops.secrets."k3s-token".path;
-    nodeName = "oci-nixos";
-    nodeIP = "100.84.230.4";
-    disable = [
-      "traefik"
+    nodeName = "oracle-eu-micro1";
+    nodeIP = "100.96.237.114";
+    nodeLabel = [
+      "node-size=tiny"
+    ];
+    nodeTaint = [
+      "tiny=true:NoSchedule"
     ];
     extraFlags = [
       "--flannel-iface=tailscale0"
+      "--kubelet-arg=max-pods=10"
     ];
   };
 
   systemd.services.k3s = lib.mkIf hasClusterSecretsFile {
     after = [ "tailscaled.service" ];
     wants = [ "tailscaled.service" ];
+  };
+
+  zramSwap = {
+    enable = true;
+    algorithm = "zstd";
+    memoryPercent = 50;
   };
 
   users.mutableUsers = false;
@@ -101,17 +113,16 @@ in
   security.sudo.wheelNeedsPassword = false;
 
   environment.systemPackages = with pkgs; [
-    nano
-    vim
+    age
     curl
-    wget
     git
     htop
+    nano
     tmux
-    age
-    parted
-    gptfdisk
+    vim
+    wget
   ];
 
+  nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
   system.stateVersion = "26.05";
 }

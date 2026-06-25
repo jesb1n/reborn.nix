@@ -174,6 +174,211 @@ After switching, verify:
 ssh ubuntu@129.159.222.42 'sudo tailscale status; sudo tailscale ip -4'
 ```
 
+## Installing the tiny Oracle nodes with nixos-anywhere
+
+The two Ubuntu micro VMs are configured as future NixOS k3s agent nodes:
+
+```text
+oracle-eu-micro1 -> oracle-eu-micro1-instance.panther-company.ts.net -> 100.107.80.116
+oracle-eu-micro2 -> oracle-eu-micro2-instance.panther-company.ts.net -> 100.73.130.50
+```
+
+Their flake outputs are:
+
+```text
+.#oracle-eu-micro1
+.#oracle-eu-micro2
+```
+
+These configs use Disko and target `/dev/sda`.
+
+Warning: `nixos-anywhere` will wipe the Ubuntu installation on the selected micro VM.
+Take an OCI boot volume backup first, and install one node at a time.
+
+### 1. Create host age keys locally
+
+For a new nixos-anywhere install, create each host's age private key locally,
+then pass it into the installed NixOS system with `--extra-files`.
+
+```bash
+mkdir -p /tmp/oracle-eu-micro1-extra/var/lib/sops-nix
+age-keygen -o /tmp/oracle-eu-micro1-extra/var/lib/sops-nix/key.txt
+chmod 600 /tmp/oracle-eu-micro1-extra/var/lib/sops-nix/key.txt
+age-keygen -y /tmp/oracle-eu-micro1-extra/var/lib/sops-nix/key.txt
+```
+
+Repeat for micro2:
+
+```bash
+mkdir -p /tmp/oracle-eu-micro2-extra/var/lib/sops-nix
+age-keygen -o /tmp/oracle-eu-micro2-extra/var/lib/sops-nix/key.txt
+chmod 600 /tmp/oracle-eu-micro2-extra/var/lib/sops-nix/key.txt
+age-keygen -y /tmp/oracle-eu-micro2-extra/var/lib/sops-nix/key.txt
+```
+
+Copy the printed public keys.
+
+### 2. Add the micro public keys to `.sops.yaml`
+
+Add these keys:
+
+```yaml
+  - &oracle_eu_micro1 age1MICRO1_PUBLIC_KEY
+  - &oracle_eu_micro2 age1MICRO2_PUBLIC_KEY
+```
+
+Add rules for the host secrets:
+
+```yaml
+  - path_regex: secrets/oracle-eu-micro1/.*
+    key_groups:
+      - age:
+          - *master
+          - *oracle_eu_micro1
+
+  - path_regex: secrets/oracle-eu-micro2/.*
+    key_groups:
+      - age:
+          - *master
+          - *oracle_eu_micro2
+```
+
+Add the shared k3s secret rule:
+
+```yaml
+  - path_regex: secrets/k3s/.*
+    key_groups:
+      - age:
+          - *master
+          - *oci_nixos
+          - *oracle_eu_micro1
+          - *oracle_eu_micro2
+```
+
+### 3. Create the micro Tailscale secrets
+
+Use a reusable Tailscale auth key.
+
+```bash
+sops secrets/oracle-eu-micro1/secrets.yaml
+```
+
+Plaintext while editing:
+
+```yaml
+tailscale-auth-key: "tskey-auth-xxxxx"
+```
+
+Repeat:
+
+```bash
+sops secrets/oracle-eu-micro2/secrets.yaml
+```
+
+Plaintext while editing:
+
+```yaml
+tailscale-auth-key: "tskey-auth-xxxxx"
+```
+
+### 4. Create the shared k3s token secret
+
+Generate a token:
+
+```bash
+openssl rand -base64 48
+```
+
+Create the encrypted secret:
+
+```bash
+sops secrets/k3s/secrets.yaml
+```
+
+Plaintext while editing:
+
+```yaml
+k3s-token: "paste-the-generated-token"
+```
+
+### 5. Stage files before evaluating
+
+This repository is a Git flake. Nix only sees tracked/staged files.
+
+From `anywhere/`:
+
+```bash
+git add flake.nix flake.lock .sops.yaml .sops.yaml.example README.md
+git add hosts/oci-nixos/configuration.nix hosts/oci-nixos/sops.nix
+git add hosts/oracle-eu-micro1 hosts/oracle-eu-micro2
+git add secrets/k3s secrets/oracle-eu-micro1 secrets/oracle-eu-micro2
+```
+
+### 6. Validate evaluation
+
+```bash
+nix eval --raw .#nixosConfigurations.oracle-eu-micro1.config.nixpkgs.hostPlatform.system
+nix eval --raw .#nixosConfigurations.oracle-eu-micro2.config.nixpkgs.hostPlatform.system
+```
+
+Expected:
+
+```text
+x86_64-linux
+```
+
+### 7. Install micro1
+
+After taking an OCI boot volume backup for micro1:
+
+```bash
+nixos-anywhere \
+  --flake .#oracle-eu-micro1 \
+  --target-host ubuntu@oracle-eu-micro1-instance.panther-company.ts.net \
+  --copy-host-keys \
+  --extra-files /tmp/oracle-eu-micro1-extra
+```
+
+After reboot:
+
+```bash
+ssh ubuntu@oracle-eu-micro1.panther-company.ts.net 'hostname; systemctl is-system-running; systemctl --failed; sudo tailscale status'
+```
+
+### 8. Install micro2
+
+Only after micro1 is healthy, take an OCI boot volume backup for micro2 and run:
+
+```bash
+nixos-anywhere \
+  --flake .#oracle-eu-micro2 \
+  --target-host ubuntu@oracle-eu-micro2-instance.panther-company.ts.net \
+  --copy-host-keys \
+  --extra-files /tmp/oracle-eu-micro2-extra
+```
+
+After reboot:
+
+```bash
+ssh ubuntu@oracle-eu-micro2.panther-company.ts.net 'hostname; systemctl is-system-running; systemctl --failed; sudo tailscale status'
+```
+
+### 9. Verify k3s
+
+After the server and agents are installed:
+
+```bash
+ssh ubuntu@129.159.222.42 'sudo k3s kubectl get nodes -o wide'
+```
+
+The micro nodes are tainted:
+
+```text
+tiny=true:NoSchedule
+```
+
+Only workloads with the matching toleration should run there.
+
 ## Safe validation flow
 
 Run these from `anywhere/`.
