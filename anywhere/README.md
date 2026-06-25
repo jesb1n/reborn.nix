@@ -180,7 +180,7 @@ The two Ubuntu micro VMs are configured as future NixOS k3s agent nodes:
 
 ```text
 oracle-eu-micro1 -> oracle-eu-micro1-instance.panther-company.ts.net -> 100.107.80.116
-oracle-eu-micro2 -> oracle-eu-micro2-instance.panther-company.ts.net -> 100.73.130.50
+oracle-eu-micro2 -> oracle-eu-micro2-instance.panther-company.ts.net -> 100.67.95.26
 ```
 
 Their flake outputs are:
