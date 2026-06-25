@@ -2,11 +2,13 @@
 #
 # This mirrors the retire.nix pattern:
 # - master key: lives on your Mac and can edit/decrypt all secrets
+# - s145 key: lives on the AMD build/admin machine and can edit/decrypt all secrets
 # - host key: lives on oci-nixos at /var/lib/sops-nix/key.txt and can decrypt
 #   only this host's secrets during NixOS activation
 
 keys:
   - &master age1pszh4rajt03mcmkhgxuyqkyrnu2qe9xgv9g93kymu06z0pzw0feqmrcph8
+  - &s145 age1qf2cfcgegqhhu2a9uk4mn4dvm63awfa2mfmu5dfzvs5uzvemmvhqhehfd0
   - &oci_nixos age12qrmjz3gz582fl2vnw6az2w5qphchejk96ucxh0ep36wf0me24cqyug2s8
   - &oracle_eu_micro1 age1dwkqee4rc5z8me08r32xcct8n0ah6suygrjme747y5g39a9lkusqx4cdhg
 
@@ -15,12 +17,14 @@ creation_rules:
     key_groups:
       - age:
           - *master
+          - *s145
           - *oci_nixos
 
   - path_regex: secrets/k3s/.*
     key_groups:
       - age:
           - *master
+          - *s145
           - *oci_nixos
           - *oracle_eu_micro1
 
@@ -28,4 +32,5 @@ creation_rules:
     key_groups:
       - age:
           - *master
+          - *s145
           - *oracle_eu_micro1
