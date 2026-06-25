@@ -1,4 +1,4 @@
-{ config, lib, pkgs, modulesPath, ... }:
+{ config, lib, modulesPath, ... }:
 
 let
   hostSecretsFile = ../../secrets/oracle-eu-micro1/secrets.yaml;
@@ -118,16 +118,10 @@ in
 
   security.sudo.wheelNeedsPassword = false;
 
-  environment.systemPackages = with pkgs; [
-    age
-    curl
-    git
-    htop
-    nano
-    tmux
-    vim
-    wget
-  ];
+  documentation.enable = false;
+  programs.command-not-found.enable = false;
+  environment.defaultPackages = [ ];
+  environment.systemPackages = [ ];
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
   system.stateVersion = "26.05";

@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, ... }:
 
 let
   hostSecretsFile = ../../secrets/oci-nixos/secrets.yaml;
@@ -101,18 +101,10 @@ in
 
   security.sudo.wheelNeedsPassword = false;
 
-  environment.systemPackages = with pkgs; [
-    nano
-    vim
-    curl
-    wget
-    git
-    htop
-    tmux
-    age
-    parted
-    gptfdisk
-  ];
+  documentation.enable = false;
+  programs.command-not-found.enable = false;
+  environment.defaultPackages = [ ];
+  environment.systemPackages = [ ];
 
   system.stateVersion = "26.05";
 }

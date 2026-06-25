@@ -2,6 +2,8 @@
 
 This folder contains the flake used to manage the OCI ARM NixOS host.
 
+For day-to-day maintenance, update, rollback, SOPS, and k3s cluster commands, see [MAINTENANCE.md](./MAINTENANCE.md).
+
 Current host:
 
 ```text
