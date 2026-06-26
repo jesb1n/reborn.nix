@@ -3,6 +3,10 @@
 let
   hostSecretsFile = ../../secrets/rpi/secrets.yaml;
   hasHostSecretsFile = builtins.pathExists hostSecretsFile;
+  sshKeys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMDHy9Gc18Osi7HFBiUMm+Da9JQ95cU1a7dsmyJCY5s1 jesbin@Duck.local"
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJrNGTJviFWKFWJsvkD/0ajOflMSUKWIjP/N0Y39HY0S duck@s145"
+  ];
 in
 {
   imports = [
@@ -12,17 +16,17 @@ in
 
   nixpkgs.hostPlatform = lib.mkDefault "aarch64-linux";
 
-  boot.loader.grub.enable = false;
-  boot.loader.generic-extlinux-compatible.enable = true;
+  boot.loader.raspberry-pi = {
+    enable = true;
+    bootloader = "uboot";
+  };
 
   boot.kernelParams = [
-    "console=tty1"
+    "console=tty0"
     "console=ttyAMA0,115200n8"
   ];
 
   boot.initrd.availableKernelModules = [
-    "bcm2835_dma"
-    "i2c_bcm2835"
     "mmc_block"
     "sd_mod"
     "uas"
@@ -135,10 +139,7 @@ in
 
     hashedPassword = "!";
 
-    openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMDHy9Gc18Osi7HFBiUMm+Da9JQ95cU1a7dsmyJCY5s1 jesbin@Duck.local"
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJrNGTJviFWKFWJsvkD/0ajOflMSUKWIjP/N0Y39HY0S duck@s145"
-    ];
+    openssh.authorizedKeys.keys = sshKeys;
   };
 
   security.sudo.wheelNeedsPassword = false;

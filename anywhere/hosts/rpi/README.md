@@ -6,10 +6,14 @@ This host is wired into the flake as:
 .#rpi
 ```
 
+The Raspberry Pi board support is provided by
+`github:nvmd/nixos-raspberrypi`, using the `raspberry-pi-4.base` module with
+the Raspberry Pi U-Boot + extlinux boot path.
+
 Current observed addresses before reinstall:
 
 ```text
-LAN:       10.0.0.174
+LAN:       10.0.0.173
 Tailscale: 100.79.146.32
 Wi-Fi:     wlan0
 ```
@@ -21,7 +25,7 @@ The deploy target in `flake.nix` uses `ubuntu@100.79.146.32`.
 This Pi is Wi-Fi-only, so verify boot and network details first:
 
 ```bash
-ssh ubuntu@100.79.146.32 'uname -m; cat /proc/device-tree/model; lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS; findmnt / /boot'
+ssh ubuntu@100.79.146.32 'uname -m; cat /proc/device-tree/model; lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS; findmnt / /boot /boot/firmware'
 ```
 
 Confirm:
@@ -32,6 +36,10 @@ Confirm:
 
 The default Disko target is `/dev/mmcblk0`, which is the usual SD-card disk.
 Change it before install if the Pi boots from USB storage.
+
+The FAT firmware partition is mounted at `/boot/firmware`. This is intentional:
+`nixos-raspberrypi` manages Raspberry Pi firmware there, while U-Boot loads
+the extlinux config from `/boot` on the NixOS root filesystem.
 
 ## Secrets
 

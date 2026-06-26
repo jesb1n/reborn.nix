@@ -1,9 +1,20 @@
 {
   description = "OCI NixOS management";
 
+  nixConfig = {
+    extra-substituters = [
+      "https://nixos-raspberrypi.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
+    ];
+  };
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixos-anywhere.url = "github:nix-community/nixos-anywhere";
+    nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
+    nixos-raspberrypi.inputs.nixpkgs.follows = "nixpkgs";
 
     deploy-rs.url = "github:serokell/deploy-rs";
     deploy-rs.inputs.nixpkgs.follows = "nixpkgs";
@@ -15,7 +26,7 @@
     sops-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, nixos-anywhere, deploy-rs, disko, sops-nix, ... }:
+  outputs = { self, nixpkgs, nixos-anywhere, nixos-raspberrypi, deploy-rs, disko, sops-nix, ... }:
     let
       managementSystems = [
         "aarch64-darwin"
@@ -79,10 +90,10 @@
         ];
       };
 
-      nixosConfigurations.rpi = nixpkgs.lib.nixosSystem {
-        system = "aarch64-linux";
-
+      nixosConfigurations.rpi = nixos-raspberrypi.lib.nixosSystem {
+        inherit nixpkgs;
         modules = [
+          nixos-raspberrypi.nixosModules.raspberry-pi-4.base
           disko.nixosModules.disko
           sops-nix.nixosModules.sops
           ./hosts/rpi/configuration.nix
