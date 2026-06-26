@@ -1,7 +1,8 @@
-# Wi-Fi + Tailscale-aware x86_64 kexec tarball for nixos-anywhere.
+# Wi-Fi + Tailscale-aware kexec tarball for nixos-anywhere.
 #
-# Build from an x86_64-linux machine:
+# Build from a Linux machine matching the target architecture:
 #   nix build .#packages.x86_64-linux.kexec-wifi-tailscale-image
+#   nix build .#packages.aarch64-linux.kexec-wifi-tailscale-image
 #
 # Use:
 #   nixos-anywhere --kexec ./result --flake .#<host> <user>@<tailscale-or-wifi-ip>
@@ -13,6 +14,8 @@
 { pkgs, lib }:
 
 let
+  system = pkgs.stdenv.hostPlatform.system;
+
   sshKeys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMDHy9Gc18Osi7HFBiUMm+Da9JQ95cU1a7dsmyJCY5s1 jesbin@Duck.local"
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJrNGTJviFWKFWJsvkD/0ajOflMSUKWIjP/N0Y39HY0S duck@s145"
@@ -121,7 +124,7 @@ let
 
     system.stateVersion = "26.05";
 
-    system.build.kexecTarball = lib.mkForce (pkgs.runCommand "nixos-kexec-wifi-tailscale-x86_64-linux.tar.gz"
+    system.build.kexecTarball = lib.mkForce (pkgs.runCommand "nixos-kexec-wifi-tailscale-${system}.tar.gz"
       {
         init = config.system.build.toplevel + "/init";
         kernelParams = builtins.toString config.boot.kernelParams;

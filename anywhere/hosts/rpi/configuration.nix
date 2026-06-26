@@ -1,0 +1,151 @@
+{ config, lib, ... }:
+
+let
+  hostSecretsFile = ../../secrets/rpi/secrets.yaml;
+  hasHostSecretsFile = builtins.pathExists hostSecretsFile;
+in
+{
+  imports = [
+    ./disko-config.nix
+    ./sops.nix
+  ];
+
+  nixpkgs.hostPlatform = lib.mkDefault "aarch64-linux";
+
+  boot.loader.grub.enable = false;
+  boot.loader.generic-extlinux-compatible.enable = true;
+
+  boot.kernelParams = [
+    "console=tty1"
+    "console=ttyAMA0,115200n8"
+  ];
+
+  boot.initrd.availableKernelModules = [
+    "bcm2835_dma"
+    "i2c_bcm2835"
+    "mmc_block"
+    "sd_mod"
+    "uas"
+    "usb_storage"
+    "usbhid"
+    "xhci_pci"
+  ];
+
+  hardware.enableRedistributableFirmware = true;
+
+  networking.hostName = "rpi";
+  networking.useDHCP = lib.mkDefault true;
+  networking.networkmanager.enable = true;
+  networking.networkmanager.ensureProfiles = lib.mkIf hasHostSecretsFile {
+    environmentFiles = [
+      config.sops.templates."rpi-network.env".path
+    ];
+
+    profiles.rpi-wifi = {
+      connection = {
+        id = "rpi-wifi";
+        type = "wifi";
+        interface-name = "wlan0";
+        autoconnect = true;
+      };
+
+      wifi = {
+        mode = "infrastructure";
+        ssid = "$WIFI_SSID";
+      };
+
+      wifi-security = {
+        key-mgmt = "wpa-psk";
+        psk = "$WIFI_PSK";
+      };
+
+      ipv4.method = "auto";
+      ipv6.method = "auto";
+    };
+  };
+
+  networking.firewall = {
+    allowedTCPPorts = [ 22 ];
+    trustedInterfaces = [
+      "tailscale0"
+    ];
+  };
+
+  time.timeZone = "Asia/Kolkata";
+
+  services.openssh.enable = true;
+  services.openssh.openFirewall = true;
+
+  services.openssh.settings = {
+    PasswordAuthentication = false;
+    KbdInteractiveAuthentication = false;
+    PermitRootLogin = "no";
+  };
+
+  services.tailscale = {
+    enable = true;
+    openFirewall = true;
+  } // lib.optionalAttrs hasHostSecretsFile {
+    authKeyFile = config.sops.secrets."tailscale-auth-key".path;
+
+    extraUpFlags = [
+      "--hostname=rpi"
+      "--accept-dns=false"
+    ];
+  };
+
+  zramSwap = {
+    enable = true;
+    algorithm = "zstd";
+    memoryPercent = 50;
+  };
+
+  nix.settings.trusted-users = [
+    "root"
+    "ubuntu"
+  ];
+
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 7d";
+    randomizedDelaySec = "45min";
+  };
+
+  nix.optimise = {
+    automatic = true;
+    dates = [ "weekly" ];
+    randomizedDelaySec = "45min";
+  };
+
+  users.mutableUsers = false;
+
+  users.users.root = {
+    hashedPassword = "!";
+    openssh.authorizedKeys.keys = [ ];
+  };
+
+  users.users.ubuntu = {
+    isNormalUser = true;
+
+    extraGroups = [
+      "wheel"
+      "networkmanager"
+    ];
+
+    hashedPassword = "!";
+
+    openssh.authorizedKeys.keys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMDHy9Gc18Osi7HFBiUMm+Da9JQ95cU1a7dsmyJCY5s1 jesbin@Duck.local"
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJrNGTJviFWKFWJsvkD/0ajOflMSUKWIjP/N0Y39HY0S duck@s145"
+    ];
+  };
+
+  security.sudo.wheelNeedsPassword = false;
+
+  documentation.enable = false;
+  programs.command-not-found.enable = false;
+  environment.defaultPackages = [ ];
+
+  system.stateVersion = "26.05";
+}

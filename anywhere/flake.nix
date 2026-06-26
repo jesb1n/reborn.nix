@@ -45,6 +45,11 @@
           nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/kexec-wifi-tailscale-image.nix { };
       };
 
+      packages.aarch64-linux = {
+        kexec-wifi-tailscale-image =
+          nixpkgs.legacyPackages.aarch64-linux.callPackage ./packages/kexec-wifi-tailscale-image.nix { };
+      };
+
       nixosConfigurations.oci-nixos = nixpkgs.lib.nixosSystem {
         system = "aarch64-linux";
 
@@ -71,6 +76,16 @@
           disko.nixosModules.disko
           sops-nix.nixosModules.sops
           ./hosts/oracle-eu-micro2/configuration.nix
+        ];
+      };
+
+      nixosConfigurations.rpi = nixpkgs.lib.nixosSystem {
+        system = "aarch64-linux";
+
+        modules = [
+          disko.nixosModules.disko
+          sops-nix.nixosModules.sops
+          ./hosts/rpi/configuration.nix
         ];
       };
 
@@ -113,6 +128,19 @@
           profiles.system = {
             user = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.oracle-eu-micro2;
+          };
+        };
+
+        rpi = {
+          hostname = "100.79.146.32";
+          sshUser = "ubuntu";
+          remoteBuild = true;
+          activationTimeout = 900;
+          confirmTimeout = 60;
+
+          profiles.system = {
+            user = "root";
+            path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.rpi;
           };
         };
       };

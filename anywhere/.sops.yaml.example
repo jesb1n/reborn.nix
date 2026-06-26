@@ -12,6 +12,7 @@ keys:
   - &oci_nixos age1YOUR_OCI_NIXOS_PUBLIC_AGE_KEY
   - &oracle_eu_micro1 age1YOUR_ORACLE_EU_MICRO1_PUBLIC_AGE_KEY
   - &oracle_eu_micro2 age1YOUR_ORACLE_EU_MICRO2_PUBLIC_AGE_KEY
+  - &rpi age1YOUR_RPI_PUBLIC_AGE_KEY
 
 creation_rules:
   - path_regex: secrets/oci-nixos/.*
@@ -34,6 +35,13 @@ creation_rules:
           - *master
           - *s145
           - *oracle_eu_micro2
+
+  - path_regex: secrets/rpi/.*
+    key_groups:
+      - age:
+          - *master
+          - *s145
+          - *rpi
 
   - path_regex: secrets/k3s/.*
     key_groups:
