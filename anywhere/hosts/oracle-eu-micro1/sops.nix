@@ -1,10 +1,10 @@
 { lib, ... }:
 
 let
-  hostSecretsFile = ../../secrets/oracle-eu-micro1/secrets.yaml;
-  hasHostSecretsFile = builtins.pathExists hostSecretsFile;
   clusterSecretsFile = ../../secrets/k3s/secrets.yaml;
   hasClusterSecretsFile = builtins.pathExists clusterSecretsFile;
+  tailscaleSecretsFile = ../../secrets/tailscale/secrets.yaml;
+  hasTailscaleSecretsFile = builtins.pathExists tailscaleSecretsFile;
 in
 {
   sops = {
@@ -15,9 +15,9 @@ in
     defaultSopsFormat = "yaml";
 
     secrets = lib.mkMerge [
-      (lib.mkIf hasHostSecretsFile {
+      (lib.mkIf hasTailscaleSecretsFile {
         "tailscale-auth-key" = {
-          sopsFile = hostSecretsFile;
+          sopsFile = tailscaleSecretsFile;
         };
       })
 

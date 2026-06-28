@@ -1,18 +1,6 @@
-# oci-nixos secrets
+# oci-nixos host secrets
 
-This directory holds SOPS-encrypted secrets for the OCI NixOS host.
+This host currently has no host-specific SOPS secrets.
 
-Do not commit plaintext secrets.
-
-Expected encrypted file:
-
-```text
-secrets/oci-nixos/secrets.yaml
-```
-
-Expected plaintext shape while editing with `sops`:
-
-```yaml
-tailscale-auth-key: "tskey-auth-xxxxx"
-```
-
+Shared Tailscale credentials live in `secrets/tailscale/secrets.yaml`.
+Shared k3s credentials live in `secrets/k3s/secrets.yaml`.

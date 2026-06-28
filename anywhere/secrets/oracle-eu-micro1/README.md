@@ -1,14 +1,6 @@
-# oracle-eu-micro1 secrets
+# oracle-eu-micro1 host secrets
 
-Expected encrypted file:
+This host currently has no host-specific SOPS secrets.
 
-```text
-secrets/oracle-eu-micro1/secrets.yaml
-```
-
-Expected plaintext shape while editing with `sops`:
-
-```yaml
-tailscale-auth-key: "tskey-auth-xxxxx"
-```
-
+Shared Tailscale credentials live in `secrets/tailscale/secrets.yaml`.
+Shared k3s credentials live in `secrets/k3s/secrets.yaml`.

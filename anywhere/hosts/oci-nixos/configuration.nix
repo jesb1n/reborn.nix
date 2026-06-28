@@ -1,10 +1,10 @@
 { config, lib, ... }:
 
 let
-  hostSecretsFile = ../../secrets/oci-nixos/secrets.yaml;
-  hasHostSecretsFile = builtins.pathExists hostSecretsFile;
   clusterSecretsFile = ../../secrets/k3s/secrets.yaml;
   hasClusterSecretsFile = builtins.pathExists clusterSecretsFile;
+  tailscaleSecretsFile = ../../secrets/tailscale/secrets.yaml;
+  hasTailscaleSecretsFile = builtins.pathExists tailscaleSecretsFile;
 in
 {
   imports = [
@@ -50,7 +50,7 @@ in
     enable = true;
     openFirewall = true;
     useRoutingFeatures = "server";
-  } // lib.optionalAttrs hasHostSecretsFile {
+  } // lib.optionalAttrs hasTailscaleSecretsFile {
     authKeyFile = config.sops.secrets."tailscale-auth-key".path;
 
     extraUpFlags = [

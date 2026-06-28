@@ -259,25 +259,24 @@ Edit secrets:
 
 ```bash
 sops secrets/k3s/secrets.yaml
-sops secrets/oci-nixos/secrets.yaml
-sops secrets/oracle-eu-micro1/secrets.yaml
-sops secrets/oracle-eu-micro2/secrets.yaml
+sops secrets/tailscale/secrets.yaml
+sops secrets/rpi/secrets.yaml
 ```
 
 Test decrypt:
 
 ```bash
 sops -d secrets/k3s/secrets.yaml >/dev/null && echo k3s-ok
-sops -d secrets/oracle-eu-micro1/secrets.yaml >/dev/null && echo micro1-ok
-sops -d secrets/oracle-eu-micro2/secrets.yaml >/dev/null && echo micro2-ok
+sops -d secrets/tailscale/secrets.yaml >/dev/null && echo tailscale-ok
+sops -d secrets/rpi/secrets.yaml >/dev/null && echo rpi-ok
 ```
 
 If you add a new admin key or host key, update `.sops.yaml` and rekey the affected files:
 
 ```bash
 sops updatekeys secrets/k3s/secrets.yaml
-sops updatekeys secrets/oracle-eu-micro1/secrets.yaml
-sops updatekeys secrets/oracle-eu-micro2/secrets.yaml
+sops updatekeys secrets/tailscale/secrets.yaml
+sops updatekeys secrets/rpi/secrets.yaml
 ```
 
 Do not commit unencrypted secrets.
