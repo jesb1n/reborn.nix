@@ -14,7 +14,6 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixos-anywhere.url = "github:nix-community/nixos-anywhere";
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
-    nixos-raspberrypi.inputs.nixpkgs.follows = "nixpkgs";
 
     deploy-rs.url = "github:serokell/deploy-rs";
     deploy-rs.inputs.nixpkgs.follows = "nixpkgs";
@@ -91,7 +90,6 @@
       };
 
       nixosConfigurations.rpi = nixos-raspberrypi.lib.nixosSystem {
-        inherit nixpkgs;
         modules = [
           nixos-raspberrypi.nixosModules.raspberry-pi-4.base
           disko.nixosModules.disko

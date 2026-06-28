@@ -18,12 +18,13 @@ in
 
   boot.loader.raspberry-pi = {
     enable = true;
-    bootloader = "uboot";
+    bootloader = "kernel";
   };
 
   boot.kernelParams = [
     "console=tty0"
     "console=ttyAMA0,115200n8"
+    "rootwait"
   ];
 
   boot.initrd.availableKernelModules = [
@@ -40,33 +41,48 @@ in
   networking.hostName = "rpi";
   networking.useDHCP = lib.mkDefault true;
   networking.networkmanager.enable = true;
-  networking.networkmanager.ensureProfiles = lib.mkIf hasHostSecretsFile {
-    environmentFiles = [
-      config.sops.templates."rpi-network.env".path
-    ];
+  networking.networkmanager.ensureProfiles = lib.mkMerge [
+    {
+      profiles.rpi-wired = {
+        connection = {
+          id = "rpi-wired";
+          type = "ethernet";
+          autoconnect = true;
+          autoconnect-priority = 100;
+        };
 
-    profiles.rpi-wifi = {
-      connection = {
-        id = "rpi-wifi";
-        type = "wifi";
-        interface-name = "wlan0";
-        autoconnect = true;
+        ipv4.method = "auto";
+        ipv6.method = "auto";
       };
+    }
+    (lib.mkIf hasHostSecretsFile {
+      environmentFiles = [
+        config.sops.templates."rpi-network.env".path
+      ];
 
-      wifi = {
-        mode = "infrastructure";
-        ssid = "$WIFI_SSID";
+      profiles.rpi-wifi = {
+        connection = {
+          id = "rpi-wifi";
+          type = "wifi";
+          interface-name = "wlan0";
+          autoconnect = true;
+        };
+
+        wifi = {
+          mode = "infrastructure";
+          ssid = "$WIFI_SSID";
+        };
+
+        wifi-security = {
+          key-mgmt = "wpa-psk";
+          psk = "$WIFI_PSK";
+        };
+
+        ipv4.method = "auto";
+        ipv6.method = "auto";
       };
-
-      wifi-security = {
-        key-mgmt = "wpa-psk";
-        psk = "$WIFI_PSK";
-      };
-
-      ipv4.method = "auto";
-      ipv6.method = "auto";
-    };
-  };
+    })
+  ];
 
   networking.firewall = {
     allowedTCPPorts = [ 22 ];
@@ -85,6 +101,10 @@ in
     KbdInteractiveAuthentication = false;
     PermitRootLogin = "no";
   };
+
+  services.journald.extraConfig = ''
+    Storage=persistent
+  '';
 
   services.tailscale = {
     enable = true;
