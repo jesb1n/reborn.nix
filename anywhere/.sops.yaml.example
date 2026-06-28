@@ -51,3 +51,13 @@ creation_rules:
           - *oci_nixos
           - *oracle_eu_micro1
           - *oracle_eu_micro2
+
+  - path_regex: secrets/tailscale/.*
+    key_groups:
+      - age:
+          - *master
+          - *s145
+          - *oci_nixos
+          - *oracle_eu_micro1
+          - *oracle_eu_micro2
+          - *rpi

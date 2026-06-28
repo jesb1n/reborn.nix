@@ -3,6 +3,8 @@
 let
   hostSecretsFile = ../../secrets/rpi/secrets.yaml;
   hasHostSecretsFile = builtins.pathExists hostSecretsFile;
+  tailscaleSecretsFile = ../../secrets/tailscale/secrets.yaml;
+  hasTailscaleSecretsFile = builtins.pathExists tailscaleSecretsFile;
   sshKeys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMDHy9Gc18Osi7HFBiUMm+Da9JQ95cU1a7dsmyJCY5s1 jesbin@Duck.local"
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJrNGTJviFWKFWJsvkD/0ajOflMSUKWIjP/N0Y39HY0S duck@s145"
@@ -109,7 +111,7 @@ in
   services.tailscale = {
     enable = true;
     openFirewall = true;
-  } // lib.optionalAttrs hasHostSecretsFile {
+  } // lib.optionalAttrs hasTailscaleSecretsFile {
     authKeyFile = config.sops.secrets."tailscale-auth-key".path;
 
     extraUpFlags = [

@@ -58,10 +58,11 @@ Add the printed public key to `.sops.yaml` as `rpi`, then add a
 Expected host secret shape:
 
 ```yaml
-tailscale-auth-key: "tskey-auth-xxxxx"
 wifi-ssid: "your-wifi-ssid"
 wifi-psk: "your-wifi-password"
 ```
+
+The shared Tailscale key lives in `secrets/tailscale/secrets.yaml`.
 
 ## Install sketch
 

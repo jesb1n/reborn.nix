@@ -14,10 +14,10 @@
 { lib, ... }:
 
 let
-  hostSecretsFile = ../../secrets/oci-nixos/secrets.yaml;
-  hasHostSecretsFile = builtins.pathExists hostSecretsFile;
   clusterSecretsFile = ../../secrets/k3s/secrets.yaml;
   hasClusterSecretsFile = builtins.pathExists clusterSecretsFile;
+  tailscaleSecretsFile = ../../secrets/tailscale/secrets.yaml;
+  hasTailscaleSecretsFile = builtins.pathExists tailscaleSecretsFile;
 in
 {
   sops = {
@@ -28,11 +28,11 @@ in
     defaultSopsFormat = "yaml";
 
     secrets = lib.mkMerge [
-      (lib.mkIf hasHostSecretsFile {
       # Tailscale pre-auth key for joining the tailnet on activation/boot.
       # Decrypted by sops-nix to /run/secrets/tailscale-auth-key.
+      (lib.mkIf hasTailscaleSecretsFile {
         "tailscale-auth-key" = {
-          sopsFile = hostSecretsFile;
+          sopsFile = tailscaleSecretsFile;
         };
       })
 

@@ -1,10 +1,10 @@
 { config, lib, modulesPath, ... }:
 
 let
-  hostSecretsFile = ../../secrets/oracle-eu-micro1/secrets.yaml;
-  hasHostSecretsFile = builtins.pathExists hostSecretsFile;
   clusterSecretsFile = ../../secrets/k3s/secrets.yaml;
   hasClusterSecretsFile = builtins.pathExists clusterSecretsFile;
+  tailscaleSecretsFile = ../../secrets/tailscale/secrets.yaml;
+  hasTailscaleSecretsFile = builtins.pathExists tailscaleSecretsFile;
 in
 {
   imports = [
@@ -50,7 +50,7 @@ in
   services.tailscale = {
     enable = true;
     openFirewall = true;
-  } // lib.optionalAttrs hasHostSecretsFile {
+  } // lib.optionalAttrs hasTailscaleSecretsFile {
     authKeyFile = config.sops.secrets."tailscale-auth-key".path;
 
     extraUpFlags = [

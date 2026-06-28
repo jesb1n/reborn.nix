@@ -82,13 +82,13 @@ Secrets follow the same host-key pattern as `retire.nix`:
 
 - your Mac has a master age key for editing secrets;
 - the OCI host has its own age key at `/var/lib/sops-nix/key.txt`;
-- encrypted host secrets live under `secrets/oci-nixos/`;
+- shared Tailscale credentials live under `secrets/tailscale/`;
 - `sops-nix` decrypts them into `/run/secrets/` during activation.
 
 The service can start without a SOPS secret, but automatic login requires an encrypted SOPS file at:
 
 ```text
-secrets/oci-nixos/secrets.yaml
+secrets/tailscale/secrets.yaml
 ```
 
 ### 1. Generate your master age key on the Mac
@@ -131,7 +131,7 @@ keys:
   - &oci_nixos age1YOUR_OCI_NIXOS_PUBLIC_AGE_KEY
 
 creation_rules:
-  - path_regex: secrets/oci-nixos/.*
+  - path_regex: secrets/tailscale/.*
     key_groups:
       - age:
           - *master
@@ -141,8 +141,8 @@ creation_rules:
 ### 4. Create the encrypted Tailscale auth key secret
 
 ```bash
-mkdir -p secrets/oci-nixos
-sops secrets/oci-nixos/secrets.yaml
+mkdir -p secrets/tailscale
+sops secrets/tailscale/secrets.yaml
 ```
 
 Add this plaintext while inside the editor opened by `sops`:
@@ -159,13 +159,13 @@ This repository is a Git flake. Nix only sees files that are tracked or staged,
 so add the new Nix/SOPS files before evaluating or deploying:
 
 ```bash
-git add .sops.yaml hosts/oci-nixos/sops.nix secrets/oci-nixos/README.md
+git add .sops.yaml hosts/oci-nixos/sops.nix secrets/tailscale/README.md
 ```
 
 Also add the encrypted secret after creating it:
 
 ```bash
-git add secrets/oci-nixos/secrets.yaml
+git add secrets/tailscale/secrets.yaml
 ```
 
 Use the normal safe validation flow below: `dry-activate`, then `switch`.
@@ -257,24 +257,12 @@ Add the shared k3s secret rule:
           - *oracle_eu_micro2
 ```
 
-### 3. Create the micro Tailscale secrets
+### 3. Create the shared Tailscale secret
 
 Use a reusable Tailscale auth key.
 
 ```bash
-sops secrets/oracle-eu-micro1/secrets.yaml
-```
-
-Plaintext while editing:
-
-```yaml
-tailscale-auth-key: "tskey-auth-xxxxx"
-```
-
-Repeat:
-
-```bash
-sops secrets/oracle-eu-micro2/secrets.yaml
+sops secrets/tailscale/secrets.yaml
 ```
 
 Plaintext while editing:
@@ -538,6 +526,6 @@ Suggested commit:
 
 ```bash
 git status
-git add anywhere/flake.nix anywhere/flake.lock anywhere/.sops.yaml anywhere/.sops.yaml.example anywhere/hosts/oci-nixos/configuration.nix anywhere/hosts/oci-nixos/hardware-configuration.nix anywhere/hosts/oci-nixos/sops.nix anywhere/secrets/oci-nixos/README.md anywhere/secrets/oci-nixos/secrets.yaml anywhere/README.md
+git add anywhere/flake.nix anywhere/flake.lock anywhere/.sops.yaml anywhere/.sops.yaml.example anywhere/hosts/oci-nixos/configuration.nix anywhere/hosts/oci-nixos/hardware-configuration.nix anywhere/hosts/oci-nixos/sops.nix anywhere/secrets/tailscale/README.md anywhere/secrets/tailscale/secrets.yaml anywhere/README.md
 git commit -m "Manage OCI NixOS host with flake"
 ```

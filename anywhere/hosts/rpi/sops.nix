@@ -3,6 +3,8 @@
 let
   hostSecretsFile = ../../secrets/rpi/secrets.yaml;
   hasHostSecretsFile = builtins.pathExists hostSecretsFile;
+  tailscaleSecretsFile = ../../secrets/tailscale/secrets.yaml;
+  hasTailscaleSecretsFile = builtins.pathExists tailscaleSecretsFile;
 in
 {
   sops = {
@@ -12,19 +14,23 @@ in
 
     defaultSopsFormat = "yaml";
 
-    secrets = lib.mkIf hasHostSecretsFile {
-      "tailscale-auth-key" = {
-        sopsFile = hostSecretsFile;
-      };
+    secrets = lib.mkMerge [
+      (lib.mkIf hasTailscaleSecretsFile {
+        "tailscale-auth-key" = {
+          sopsFile = tailscaleSecretsFile;
+        };
+      })
 
-      "wifi-ssid" = {
-        sopsFile = hostSecretsFile;
-      };
+      (lib.mkIf hasHostSecretsFile {
+        "wifi-ssid" = {
+          sopsFile = hostSecretsFile;
+        };
 
-      "wifi-psk" = {
-        sopsFile = hostSecretsFile;
-      };
-    };
+        "wifi-psk" = {
+          sopsFile = hostSecretsFile;
+        };
+      })
+    ];
 
     templates = lib.mkIf hasHostSecretsFile {
       "rpi-network.env".content = ''
