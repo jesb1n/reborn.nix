@@ -51,16 +51,6 @@
           };
         });
 
-      packages.x86_64-linux = {
-        kexec-wifi-tailscale-image =
-          nixpkgs.legacyPackages.x86_64-linux.callPackage ./packages/kexec-wifi-tailscale-image.nix { };
-      };
-
-      packages.aarch64-linux = {
-        kexec-wifi-tailscale-image =
-          nixpkgs.legacyPackages.aarch64-linux.callPackage ./packages/kexec-wifi-tailscale-image.nix { };
-      };
-
       nixosConfigurations.oracle-eu-arm1 = nixpkgs-unstable.lib.nixosSystem {
         system = "aarch64-linux";
 

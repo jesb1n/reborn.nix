@@ -66,6 +66,9 @@ The shared Tailscale key lives in `secrets/tailscale/secrets.yaml`.
 
 ## Install sketch
 
+> **Note:** The kexec packages (`packages/`) were removed from the flake.
+> To restore them, see commit `8839460` (`Add Wi-Fi Tailscale kexec image`).
+
 From `anywhere/`:
 
 ```bash

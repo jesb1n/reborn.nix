@@ -1,5 +1,8 @@
 # Fixing kexec on Raspberry Pi 4 (BCM2711)
 
+> **Note:** The kexec packages (`packages/`) were removed. To restore them,
+> see commit `8839460` (`Add Wi-Fi Tailscale kexec image`).
+
 A story of getting `nixos-anywhere` to work on a Raspberry Pi 4, where kexec
 refuses to cooperate due to the platform's SMP boot method.
 
