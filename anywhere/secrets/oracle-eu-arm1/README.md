@@ -1,4 +1,4 @@
-# oci-nixos host secrets
+# oracle-eu-arm1 host secrets
 
 This host currently has no host-specific SOPS secrets.
 
