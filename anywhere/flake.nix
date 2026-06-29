@@ -102,7 +102,7 @@
       deploy.nodes = {
         oracle-eu-arm1 = {
           hostname = "oracle-eu-arm1";
-          sshUser = "ubuntu";
+          sshUser = "duck";
           remoteBuild = true;
           activationTimeout = 600;
           confirmTimeout = 60;
@@ -115,7 +115,7 @@
 
         oracle-eu-micro1 = {
           hostname = "oracle-eu-micro1";
-          sshUser = "ubuntu";
+          sshUser = "duck";
           remoteBuild = true;
           fastConnection = true;
           activationTimeout = 600;
@@ -129,7 +129,7 @@
 
         oracle-eu-micro2 = {
           hostname = "oracle-eu-micro2";
-          sshUser = "ubuntu";
+          sshUser = "duck";
           remoteBuild = true;
           fastConnection = true;
           activationTimeout = 600;
@@ -143,7 +143,7 @@
 
         rpi = {
           hostname = "192.168.1.68";
-          sshUser = "ubuntu";
+          sshUser = "duck";
           remoteBuild = true;
           activationTimeout = 900;
           confirmTimeout = 60;

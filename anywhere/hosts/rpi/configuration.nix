@@ -127,7 +127,6 @@ in
 
   nix.settings.trusted-users = [
     "root"
-    "ubuntu"
     "duck"
   ];
 
@@ -149,19 +148,6 @@ in
   users.users.root = {
     hashedPassword = "!";
     openssh.authorizedKeys.keys = [ ];
-  };
-
-  users.users.ubuntu = {
-    isNormalUser = true;
-
-    extraGroups = [
-      "wheel"
-      "networkmanager"
-    ];
-
-    hashedPassword = "!";
-
-    openssh.authorizedKeys.keys = sshKeys;
   };
 
   users.users.duck = {
