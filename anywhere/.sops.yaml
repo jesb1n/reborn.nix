@@ -9,6 +9,7 @@
 keys:
   - &master age1pszh4rajt03mcmkhgxuyqkyrnu2qe9xgv9g93kymu06z0pzw0feqmrcph8
   - &s145 age1qf2cfcgegqhhu2a9uk4mn4dvm63awfa2mfmu5dfzvs5uzvemmvhqhehfd0
+  - &mark age10dmkesu0j4zyr0xqkuvhzzdc2trlp93vlfvcwwfytzj9gefmp4equhleuw
   - &oracle_eu_arm1 age12qrmjz3gz582fl2vnw6az2w5qphchejk96ucxh0ep36wf0me24cqyug2s8
   - &oracle_eu_micro1 age1dwkqee4rc5z8me08r32xcct8n0ah6suygrjme747y5g39a9lkusqx4cdhg
   - &oracle_eu_micro2 age1hq0wftuc9ysu4tk89ner2cnf59smhwa8ynwxt62fjll6m7fff43swkr6lg
@@ -23,6 +24,7 @@ creation_rules:
       - age:
           - *master
           - *s145
+          - *mark
           - *oracle_eu_arm1
 
   - path_regex: secrets/k3s/.*
@@ -30,6 +32,7 @@ creation_rules:
       - age:
           - *master
           - *s145
+          - *mark
           - *oracle_eu_arm1
           - *oracle_eu_micro1
           - *oracle_eu_micro2
@@ -39,6 +42,7 @@ creation_rules:
       - age:
           - *master
           - *s145
+          - *mark
           - *oracle_eu_arm1
           - *oracle_eu_micro1
           - *oracle_eu_micro2
@@ -50,6 +54,7 @@ creation_rules:
       - age:
           - *master
           - *s145
+          - *mark
           - *oracle_eu_micro1
 
   - path_regex: secrets/oracle-eu-micro2/.*
@@ -57,6 +62,7 @@ creation_rules:
       - age:
           - *master
           - *s145
+          - *mark
           - *oracle_eu_micro2
 
   - path_regex: secrets/rpi/.*
@@ -64,6 +70,7 @@ creation_rules:
       - age:
           - *master
           - *s145
+          - *mark
           - *rpi
 
   - path_regex: secrets/s145/.*
