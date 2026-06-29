@@ -17,12 +17,6 @@ in
     role = "agent";
     serverAddr = "https://100.84.230.4:6443";
     tokenFile = config.sops.secrets."k3s-token".path;
-    nodeLabel = [
-      "node-size=tiny"
-    ];
-    nodeTaint = [
-      "tiny=true:NoSchedule"
-    ];
     extraFlags = [
       "--flannel-iface=tailscale0"
       "--kubelet-arg=max-pods=10"
