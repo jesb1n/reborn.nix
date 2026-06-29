@@ -13,6 +13,9 @@ keys:
   - &oracle_eu_micro1 age1dwkqee4rc5z8me08r32xcct8n0ah6suygrjme747y5g39a9lkusqx4cdhg
   - &oracle_eu_micro2 age1hq0wftuc9ysu4tk89ner2cnf59smhwa8ynwxt62fjll6m7fff43swkr6lg
   - &rpi age1grhrmmx3xkvv9vfe5jtl33w6fntvc0095q35xdt0n8pz4neqnyaspld9y2
+  # s145 host key — generate with: age-keygen -o /var/lib/sops-nix/key.txt
+  # then paste public key here
+  - &s145_host age1PLACEHOLDER_REPLACE_WITH_S145_HOST_AGE_KEY
 
 creation_rules:
   - path_regex: secrets/oracle-eu-arm1/.*
@@ -40,6 +43,7 @@ creation_rules:
           - *oracle_eu_micro1
           - *oracle_eu_micro2
           - *rpi
+          - *s145_host
 
   - path_regex: secrets/oracle-eu-micro1/.*
     key_groups:
@@ -61,3 +65,10 @@ creation_rules:
           - *master
           - *s145
           - *rpi
+
+  - path_regex: secrets/s145/.*
+    key_groups:
+      - age:
+          - *master
+          - *s145
+          - *s145_host

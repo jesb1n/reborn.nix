@@ -90,6 +90,16 @@
         ];
       };
 
+      nixosConfigurations.s145 = nixpkgs-unstable.lib.nixosSystem {
+        system = "x86_64-linux";
+
+        modules = [
+          disko.nixosModules.disko
+          sops-nix.nixosModules.sops
+          ./hosts/s145/configuration.nix
+        ];
+      };
+
       nixosConfigurations.rpi = nixos-raspberrypi.lib.nixosSystem {
         modules = [
           nixos-raspberrypi.nixosModules.raspberry-pi-4.base
@@ -151,6 +161,19 @@
           profiles.system = {
             user = "root";
             path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.rpi;
+          };
+        };
+
+        s145 = {
+          hostname = "192.168.1.66";
+          sshUser = "duck";
+          remoteBuild = true;
+          activationTimeout = 600;
+          confirmTimeout = 60;
+
+          profiles.system = {
+            user = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.s145;
           };
         };
       };
