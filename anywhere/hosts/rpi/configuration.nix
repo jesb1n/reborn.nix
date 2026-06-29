@@ -7,7 +7,6 @@ let
   hasTailscaleSecretsFile = builtins.pathExists tailscaleSecretsFile;
   sshKeys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMDHy9Gc18Osi7HFBiUMm+Da9JQ95cU1a7dsmyJCY5s1 jesbin@Duck.local"
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJrNGTJviFWKFWJsvkD/0ajOflMSUKWIjP/N0Y39HY0S duck@s145"
   ];
 in
 {
@@ -129,6 +128,7 @@ in
   nix.settings.trusted-users = [
     "root"
     "ubuntu"
+    "duck"
   ];
 
   nix.gc = {
@@ -152,6 +152,19 @@ in
   };
 
   users.users.ubuntu = {
+    isNormalUser = true;
+
+    extraGroups = [
+      "wheel"
+      "networkmanager"
+    ];
+
+    hashedPassword = "!";
+
+    openssh.authorizedKeys.keys = sshKeys;
+  };
+
+  users.users.duck = {
     isNormalUser = true;
 
     extraGroups = [
