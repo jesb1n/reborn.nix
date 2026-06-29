@@ -1,10 +1,6 @@
 # Disko configuration for s145.
-# WARNING: nixos-anywhere will wipe the selected device.
-# Verify the target with:
-#   lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS
-#
-# s145 has an NVMe SSD (/dev/nvme0n1, ~238G) and a 1TB HDD (/dev/sda).
-# Only the NVMe is managed here.
+# WARNING: nixos-anywhere will wipe /dev/nvme0n1 and apply this layout.
+# s145 also has a 1TB HDD (/dev/sda) — not managed here.
 {
   disko.devices = {
     disk.main = {
