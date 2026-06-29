@@ -1,16 +1,16 @@
-# hosts/oci-nixos/sops.nix — Secret declarations for the OCI NixOS host.
+# hosts/oracle-eu-arm1/sops.nix — Secret declarations for the ARM control-plane.
 #
 # This follows the same pattern as retire.nix:
 # - generate a dedicated age key on the host
 # - keep the host private key at /var/lib/sops-nix/key.txt
-# - commit only encrypted secrets under secrets/oci-nixos/
+# - commit only encrypted secrets under secrets/oracle-eu-arm1/
 #
 # Generate on the host:
 #   sudo mkdir -p /var/lib/sops-nix
 #   sudo age-keygen -o /var/lib/sops-nix/key.txt
 #   sudo chmod 600 /var/lib/sops-nix/key.txt
 #
-# Then add the PUBLIC age key to .sops.yaml as &oci_nixos.
+# Then add the PUBLIC age key to .sops.yaml as &oracle_eu_arm1.
 { lib, ... }:
 
 let

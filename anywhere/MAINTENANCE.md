@@ -4,11 +4,49 @@ This repo manages three NixOS machines:
 
 | Host | Role | Architecture | Access |
 | --- | --- | --- | --- |
-| `oci-nixos` | k3s control-plane | `aarch64-linux` | `ubuntu@129.159.222.42` or `ubuntu@oci-nixos` |
+| `oracle-eu-arm1` | k3s control-plane | `aarch64-linux` | `ubuntu@129.159.222.42` or `ubuntu@oracle-eu-arm1` |
 | `oracle-eu-micro1` | k3s worker | `x86_64-linux` | `ubuntu@oracle-eu-micro1` |
 | `oracle-eu-micro2` | k3s worker | `x86_64-linux` | `ubuntu@oracle-eu-micro2` |
 
 The preferred management machine is `s145`, because it is AMD/x86 and can build the two micro nodes locally.
+
+## Configuration architecture
+
+Host configs follow a **profile-based composition** pattern (inspired by the retire.nix structure). Shared settings live in reusable profiles; each host only sets what's unique to it.
+
+```
+anywhere/
+├── profiles/
+│   ├── base.nix          # Users, nix GC, sudo, minimal footprint
+│   ├── server.nix        # GRUB boot, serial console, SSH hardening, timezone
+│   ├── tailscale.nix     # Tailscale + SOPS auth key integration
+│   ├── k3s-server.nix    # k3s server role, disable traefik, flannel over tailscale0
+│   └── k3s-agent.nix     # k3s agent role, tiny taint, max-pods=10, zramSwap
+├── hosts/
+│   ├── oracle-eu-arm1/configuration.nix       # imports: base + server + tailscale + k3s-server
+│   ├── oracle-eu-micro1/configuration.nix # imports: base + server + tailscale + k3s-agent
+│   └── oracle-eu-micro2/configuration.nix # imports: base + server + tailscale + k3s-agent
+```
+
+### What goes WHERE
+
+| Change needed | Edit this file |
+|--------------|----------------|
+| SSH keys, user accounts, nix GC settings | `profiles/base.nix` |
+| Boot loader, serial console, firewall, SSH settings | `profiles/server.nix` |
+| Tailscale enable/openFirewall settings | `profiles/tailscale.nix` |
+| k3s server flags, disabled components | `profiles/k3s-server.nix` |
+| k3s agent flags, taints, labels, zramSwap | `profiles/k3s-agent.nix` |
+| Hostname, node IP, Tailscale extra flags | `hosts/<name>/configuration.nix` |
+| Disk layout | `hosts/<name>/disko-config.nix` |
+| SOPS secret declarations | `hosts/<name>/sops.nix` |
+
+### Adding a new Oracle VM
+
+1. Create `hosts/<name>/configuration.nix` — import the relevant profiles + set host-unique values
+2. Create `hosts/<name>/disko-config.nix` and `hosts/<name>/sops.nix`
+3. Add the `nixosConfigurations.<name>` and `deploy.nodes.<name>` entries in `flake.nix`
+4. `git add` the new files, then `nix eval --raw .#nixosConfigurations.<name>.config.networking.hostName`
 
 ## Recommendation: use `deploy-rs` for normal updates
 
@@ -19,7 +57,7 @@ For normal updates, use `deploy-rs` from `s145`:
 - it supports deploying the two workers together;
 - it confirms activation with magic rollback;
 - it builds the two `x86_64-linux` workers on `s145`;
-- it builds the ARM control-plane on `oci-nixos` itself.
+- it builds the ARM control-plane on `oracle-eu-arm1` itself.
 
 Keep `nixos-rebuild` around as the transparent fallback when debugging.
 
@@ -118,10 +156,10 @@ This builds both worker systems on `s145`, copies them to the workers, activates
 ```bash
 cd ~/oracle-cloud-free-tier/anywhere
 
-nix develop -c deploy .#oci-nixos
+nix develop -c deploy .#oracle-eu-arm1
 ```
 
-`oci-nixos` is `aarch64-linux`, so deploy-rs is configured with `remoteBuild = true` for that node. The ARM host builds its own system.
+`oracle-eu-arm1` is `aarch64-linux`, so deploy-rs is configured with `remoteBuild = true` for that node. The ARM host builds its own system.
 
 ### Deploy everything
 
@@ -134,7 +172,7 @@ nix develop -c deploy .
 This deploys all configured nodes:
 
 ```text
-oci-nixos
+oracle-eu-arm1
 oracle-eu-micro1
 oracle-eu-micro2
 ```
@@ -146,7 +184,7 @@ Prefer workers first, then control-plane separately, unless the change is small 
 ```bash
 nix eval .#deploy.nodes.oracle-eu-micro1.remoteBuild
 nix eval .#deploy.nodes.oracle-eu-micro2.remoteBuild
-nix eval .#deploy.nodes.oci-nixos.remoteBuild
+nix eval .#deploy.nodes.oracle-eu-arm1.remoteBuild
 ```
 
 Expected:
@@ -203,14 +241,14 @@ nix run nixpkgs#nixos-rebuild -- \
   --use-substitutes
 ```
 
-### Deploy `oci-nixos`
+### Deploy `oracle-eu-arm1`
 
 ```bash
 nix run nixpkgs#nixos-rebuild -- \
   switch \
-  --flake .#oci-nixos \
-  --target-host ubuntu@oci-nixos \
-  --build-host ubuntu@oci-nixos \
+  --flake .#oracle-eu-arm1 \
+  --target-host ubuntu@oracle-eu-arm1 \
+  --build-host ubuntu@oracle-eu-arm1 \
   --elevate=sudo \
   --no-reexec \
   --use-substitutes
@@ -307,7 +345,7 @@ Suggested order:
 
 1. `oracle-eu-micro2`
 2. `oracle-eu-micro1`
-3. `oci-nixos`
+3. `oracle-eu-arm1`
 
 Keep the control-plane last unless the change is specifically for it.
 
@@ -343,7 +381,7 @@ Check disk usage:
 ```bash
 ssh ubuntu@oracle-eu-micro1 'df -h / /nix; sudo nix path-info -Sh /run/current-system'
 ssh ubuntu@oracle-eu-micro2 'df -h / /nix; sudo nix path-info -Sh /run/current-system'
-ssh ubuntu@oci-nixos 'df -h / /nix; sudo nix path-info -Sh /run/current-system'
+ssh ubuntu@oracle-eu-arm1 'df -h / /nix; sudo nix path-info -Sh /run/current-system'
 ```
 
 Run cleanup manually on one host:
@@ -399,6 +437,8 @@ tofu apply tfplan
 Use Terraform/OpenTofu for OCI infrastructure changes such as security list rules, instance creation, public IPs, and networking.
 
 Use Nix for OS/service changes such as Tailscale, k3s, users, SSH keys, packages, and systemd services.
+
+For the planned public HTTP/HTTPS path using OCI Network Load Balancer and Kubernetes Gateway API, see [GATEWAY-NLB-PLAN.md](./GATEWAY-NLB-PLAN.md).
 
 ## Tiny worker notes
 

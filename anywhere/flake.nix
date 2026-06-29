@@ -12,6 +12,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixos-anywhere.url = "github:nix-community/nixos-anywhere";
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
 
@@ -25,7 +26,7 @@
     sops-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, nixos-anywhere, nixos-raspberrypi, deploy-rs, disko, sops-nix, ... }:
+  outputs = { self, nixpkgs, nixpkgs-unstable, nixos-anywhere, nixos-raspberrypi, deploy-rs, disko, sops-nix, ... }:
     let
       managementSystems = [
         "aarch64-darwin"
@@ -60,16 +61,16 @@
           nixpkgs.legacyPackages.aarch64-linux.callPackage ./packages/kexec-wifi-tailscale-image.nix { };
       };
 
-      nixosConfigurations.oci-nixos = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.oracle-eu-arm1 = nixpkgs-unstable.lib.nixosSystem {
         system = "aarch64-linux";
 
         modules = [
           sops-nix.nixosModules.sops
-          ./hosts/oci-nixos/configuration.nix
+          ./hosts/oracle-eu-arm1/configuration.nix
         ];
       };
 
-      nixosConfigurations.oracle-eu-micro1 = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.oracle-eu-micro1 = nixpkgs-unstable.lib.nixosSystem {
         system = "x86_64-linux";
 
         modules = [
@@ -79,7 +80,7 @@
         ];
       };
 
-      nixosConfigurations.oracle-eu-micro2 = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.oracle-eu-micro2 = nixpkgs-unstable.lib.nixosSystem {
         system = "x86_64-linux";
 
         modules = [
@@ -99,8 +100,8 @@
       };
 
       deploy.nodes = {
-        oci-nixos = {
-          hostname = "oci-nixos";
+        oracle-eu-arm1 = {
+          hostname = "oracle-eu-arm1";
           sshUser = "ubuntu";
           remoteBuild = true;
           activationTimeout = 600;
@@ -108,14 +109,14 @@
 
           profiles.system = {
             user = "root";
-            path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.oci-nixos;
+            path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.oracle-eu-arm1;
           };
         };
 
         oracle-eu-micro1 = {
           hostname = "oracle-eu-micro1";
           sshUser = "ubuntu";
-          remoteBuild = false;
+          remoteBuild = true;
           fastConnection = true;
           activationTimeout = 600;
           confirmTimeout = 60;
@@ -129,7 +130,7 @@
         oracle-eu-micro2 = {
           hostname = "oracle-eu-micro2";
           sshUser = "ubuntu";
-          remoteBuild = false;
+          remoteBuild = true;
           fastConnection = true;
           activationTimeout = 600;
           confirmTimeout = 60;
@@ -141,7 +142,7 @@
         };
 
         rpi = {
-          hostname = "100.79.146.32";
+          hostname = "192.168.1.68";
           sshUser = "ubuntu";
           remoteBuild = true;
           activationTimeout = 900;

@@ -7,13 +7,13 @@ For day-to-day maintenance, update, rollback, SOPS, and k3s cluster commands, se
 Current host:
 
 ```text
-oci-nixos -> ubuntu@129.159.222.42
+oracle-eu-arm1 -> ubuntu@129.159.222.42
 ```
 
 The flake output is:
 
 ```text
-.#oci-nixos
+.#oracle-eu-arm1
 ```
 
 ## What this folder is for
@@ -49,7 +49,7 @@ nix flake show
 Confirm the host platform:
 
 ```bash
-nix eval --raw .#nixosConfigurations.oci-nixos.config.nixpkgs.hostPlatform.system
+nix eval --raw .#nixosConfigurations.oracle-eu-arm1.config.nixpkgs.hostPlatform.system
 ```
 
 Expected:
@@ -76,7 +76,7 @@ These commands affect the local `flake.lock`. They do not activate or modify the
 
 ## Tailscale with SOPS
 
-Tailscale is configured declaratively in `hosts/oci-nixos/configuration.nix`.
+Tailscale is configured declaratively in `hosts/oracle-eu-arm1/configuration.nix`.
 
 Secrets follow the same host-key pattern as `retire.nix`:
 
@@ -101,7 +101,7 @@ age-keygen -y ~/.config/sops/age/keys.txt
 
 Keep the private key in `~/.config/sops/age/keys.txt` private.
 
-### 2. Generate the host age key on oci-nixos
+### 2. Generate the host age key on oracle-eu-arm1
 
 This is the key that `sops-nix` will use on the host during activation.
 
@@ -159,7 +159,7 @@ This repository is a Git flake. Nix only sees files that are tracked or staged,
 so add the new Nix/SOPS files before evaluating or deploying:
 
 ```bash
-git add .sops.yaml hosts/oci-nixos/sops.nix secrets/tailscale/README.md
+git add .sops.yaml hosts/oracle-eu-arm1/sops.nix secrets/tailscale/README.md
 ```
 
 Also add the encrypted secret after creating it:
@@ -299,7 +299,7 @@ From `anywhere/`:
 
 ```bash
 git add flake.nix flake.lock .sops.yaml .sops.yaml.example README.md
-git add hosts/oci-nixos/configuration.nix hosts/oci-nixos/sops.nix
+git add hosts/oracle-eu-arm1/configuration.nix hosts/oracle-eu-arm1/sops.nix
 git add hosts/oracle-eu-micro1 hosts/oracle-eu-micro2
 git add secrets/k3s secrets/oracle-eu-micro1 secrets/oracle-eu-micro2
 ```
@@ -380,7 +380,7 @@ Build the system configuration on the remote host without activating it:
 ```bash
 nix run nixpkgs#nixos-rebuild -- \
   build \
-  --flake .#oci-nixos \
+  --flake .#oracle-eu-arm1 \
   --build-host ubuntu@129.159.222.42 \
   --no-reexec \
   --use-substitutes
@@ -395,7 +395,7 @@ Preview what activation would do:
 ```bash
 nix run nixpkgs#nixos-rebuild -- \
   dry-activate \
-  --flake .#oci-nixos \
+  --flake .#oracle-eu-arm1 \
   --target-host ubuntu@129.159.222.42 \
   --build-host ubuntu@129.159.222.42 \
   --elevate=sudo \
@@ -412,7 +412,7 @@ Activate the configuration temporarily:
 ```bash
 nix run nixpkgs#nixos-rebuild -- \
   test \
-  --flake .#oci-nixos \
+  --flake .#oracle-eu-arm1 \
   --target-host ubuntu@129.159.222.42 \
   --build-host ubuntu@129.159.222.42 \
   --elevate=sudo \
@@ -433,7 +433,7 @@ ssh ubuntu@129.159.222.42 'hostname; systemctl is-system-running; systemctl --fa
 Healthy output should look like:
 
 ```text
-oci-nixos
+oracle-eu-arm1
 running
 0 loaded units listed.
 ```
@@ -445,7 +445,7 @@ After `dry-activate`, `test`, and verification pass, make the configuration pers
 ```bash
 nix run nixpkgs#nixos-rebuild -- \
   switch \
-  --flake .#oci-nixos \
+  --flake .#oracle-eu-arm1 \
   --target-host ubuntu@129.159.222.42 \
   --build-host ubuntu@129.159.222.42 \
   --elevate=sudo \
@@ -526,6 +526,6 @@ Suggested commit:
 
 ```bash
 git status
-git add anywhere/flake.nix anywhere/flake.lock anywhere/.sops.yaml anywhere/.sops.yaml.example anywhere/hosts/oci-nixos/configuration.nix anywhere/hosts/oci-nixos/hardware-configuration.nix anywhere/hosts/oci-nixos/sops.nix anywhere/secrets/tailscale/README.md anywhere/secrets/tailscale/secrets.yaml anywhere/README.md
+git add anywhere/flake.nix anywhere/flake.lock anywhere/.sops.yaml anywhere/.sops.yaml.example anywhere/hosts/oracle-eu-arm1/configuration.nix anywhere/hosts/oracle-eu-arm1/hardware-configuration.nix anywhere/hosts/oracle-eu-arm1/sops.nix anywhere/secrets/tailscale/README.md anywhere/secrets/tailscale/secrets.yaml anywhere/README.md
 git commit -m "Manage OCI NixOS host with flake"
 ```

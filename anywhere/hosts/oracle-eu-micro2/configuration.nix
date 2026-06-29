@@ -1,141 +1,34 @@
-{ config, lib, modulesPath, ... }:
+# hosts/oracle-eu-micro2/configuration.nix — k3s worker (x86_64 E2.1.Micro)
+#
+# Host-specific settings only. Shared config comes from profiles.
+{ lib, modulesPath, ... }:
 
 let
-  clusterSecretsFile = ../../secrets/k3s/secrets.yaml;
-  hasClusterSecretsFile = builtins.pathExists clusterSecretsFile;
   tailscaleSecretsFile = ../../secrets/tailscale/secrets.yaml;
   hasTailscaleSecretsFile = builtins.pathExists tailscaleSecretsFile;
 in
 {
   imports = [
     (modulesPath + "/profiles/qemu-guest.nix")
+    ../../profiles/base.nix
+    ../../profiles/server.nix
+    ../../profiles/tailscale.nix
+    ../../profiles/k3s-agent.nix
     ./disko-config.nix
     ./sops.nix
   ];
 
-  boot.loader.systemd-boot.enable = false;
-
-  boot.loader.grub = {
-    enable = true;
-    efiSupport = true;
-    device = "nodev";
-    efiInstallAsRemovable = true;
-    configurationLimit = 3;
-  };
-
-  boot.loader.efi.canTouchEfiVariables = false;
-
-  boot.kernelParams = [
-    "console=ttyS0,115200n8"
-    "console=tty1"
-  ];
-
   networking.hostName = "oracle-eu-micro2";
-  networking.networkmanager.enable = true;
-  networking.firewall.trustedInterfaces = [
-    "tailscale0"
+
+  # Tailscale — host identity
+  services.tailscale.extraUpFlags = lib.mkIf hasTailscaleSecretsFile [
+    "--hostname=oracle-eu-micro2"
+    "--accept-dns=false"
   ];
 
-  time.timeZone = "Asia/Kolkata";
-
-  services.openssh.enable = true;
-  services.openssh.openFirewall = true;
-
-  services.openssh.settings = {
-    PasswordAuthentication = false;
-    KbdInteractiveAuthentication = false;
-    PermitRootLogin = "no";
-  };
-
-  services.tailscale = {
-    enable = true;
-    openFirewall = true;
-  } // lib.optionalAttrs hasTailscaleSecretsFile {
-    authKeyFile = config.sops.secrets."tailscale-auth-key".path;
-
-    extraUpFlags = [
-      "--hostname=oracle-eu-micro2"
-      "--accept-dns=false"
-    ];
-  };
-
-  services.k3s = lib.mkIf hasClusterSecretsFile {
-    enable = true;
-    role = "agent";
-    serverAddr = "https://100.84.230.4:6443";
-    tokenFile = config.sops.secrets."k3s-token".path;
-    nodeName = "oracle-eu-micro2";
-    nodeIP = "100.67.95.26";
-    nodeLabel = [
-      "node-size=tiny"
-    ];
-    nodeTaint = [
-      "tiny=true:NoSchedule"
-    ];
-    extraFlags = [
-      "--flannel-iface=tailscale0"
-      "--kubelet-arg=max-pods=10"
-    ];
-  };
-
-  systemd.services.k3s = lib.mkIf hasClusterSecretsFile {
-    after = [ "tailscaled.service" ];
-    wants = [ "tailscaled.service" ];
-  };
-
-  zramSwap = {
-    enable = true;
-    algorithm = "zstd";
-    memoryPercent = 50;
-  };
-
-  nix.settings.trusted-users = [
-    "root"
-    "ubuntu"
-  ];
-
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 7d";
-    randomizedDelaySec = "45min";
-  };
-
-  nix.optimise = {
-    automatic = true;
-    dates = [ "weekly" ];
-    randomizedDelaySec = "45min";
-  };
-
-  users.mutableUsers = false;
-
-  users.users.root = {
-    hashedPassword = "!";
-    openssh.authorizedKeys.keys = [ ];
-  };
-
-  users.users.ubuntu = {
-    isNormalUser = true;
-
-    extraGroups = [
-      "wheel"
-      "networkmanager"
-    ];
-
-    hashedPassword = "!";
-
-    openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMDHy9Gc18Osi7HFBiUMm+Da9JQ95cU1a7dsmyJCY5s1 jesbin@Duck.local"
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJrNGTJviFWKFWJsvkD/0ajOflMSUKWIjP/N0Y39HY0S duck@s145"
-    ];
-  };
-
-  security.sudo.wheelNeedsPassword = false;
-
-  documentation.enable = false;
-  programs.command-not-found.enable = false;
-  environment.defaultPackages = [ ];
-  environment.systemPackages = [ ];
+  # k3s — host-specific identity
+  services.k3s.nodeName = "oracle-eu-micro2";
+  services.k3s.nodeIP = "100.67.95.26";
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
   system.stateVersion = "26.05";
