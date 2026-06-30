@@ -11,13 +11,15 @@
 #   sudo chmod 600 /var/lib/sops-nix/key.txt
 #
 # Then add the PUBLIC age key to .sops.yaml as &oracle_eu_arm1.
-{ lib, ... }:
+{ config, lib, ... }:
 
 let
   clusterSecretsFile = ../../secrets/k3s/secrets.yaml;
   hasClusterSecretsFile = builtins.pathExists clusterSecretsFile;
   tailscaleSecretsFile = ../../secrets/tailscale/secrets.yaml;
   hasTailscaleSecretsFile = builtins.pathExists tailscaleSecretsFile;
+  hostSecretsFile = ../../secrets/oracle-eu-arm1/secrets.yaml;
+  hasHostSecretsFile = builtins.pathExists hostSecretsFile;
 in
 {
   sops = {
@@ -42,6 +44,34 @@ in
           sopsFile = clusterSecretsFile;
         };
       })
+
+      # Hermes Agent — Telegram gateway credentials.
+      # The values themselves are tiny but secret-grade (a bot token grants
+      # full control of the bot; the allowed-users list reveals operator IDs).
+      (lib.mkIf hasHostSecretsFile {
+        "hermes/telegram-bot-token" = {
+          sopsFile = hostSecretsFile;
+        };
+
+        "hermes/telegram-allowed-users" = {
+          sopsFile = hostSecretsFile;
+        };
+      })
     ];
+
+    # Compose the SOPS-decrypted values into a KEY=VALUE file that the
+    # hermes-agent module merges into $HERMES_HOME/.env at activation time.
+    templates = lib.mkIf hasHostSecretsFile {
+      "hermes-agent.env" = {
+        owner = "hermes";
+        group = "hermes";
+        mode = "0640";
+        content = ''
+          TELEGRAM_BOT_TOKEN=${config.sops.placeholder."hermes/telegram-bot-token"}
+          TELEGRAM_ALLOWED_USERS=${config.sops.placeholder."hermes/telegram-allowed-users"}
+        '';
+      };
+    };
   };
 }
+
