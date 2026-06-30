@@ -15,9 +15,8 @@ in
     enable = true;
     role = "server";
     tokenFile = config.sops.secrets."k3s-token".path;
-    disable = [
-      "traefik"
-    ];
+    # Traefik ships with k3s as the default ingress controller; leave it
+    # enabled so Immich/Vaultwarden IngressRoutes work out of the box.
     extraFlags = [
       "--flannel-iface=tailscale0"
     ];

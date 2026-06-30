@@ -28,6 +28,7 @@ creation_rules:
       - age:
           - *master
           - *mark
+          - *s145_host
           - *oracle_eu_arm1
           - *oracle_eu_micro1
           - *oracle_eu_micro2
