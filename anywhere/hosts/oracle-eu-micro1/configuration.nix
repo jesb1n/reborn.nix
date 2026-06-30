@@ -13,7 +13,7 @@ in
     ../../profiles/base.nix
     ../../profiles/server.nix
     ../../profiles/tailscale.nix
-    ../../profiles/k3s-agent.nix
+    ../../profiles/k3s-agent-tiny.nix
     ./disko-config.nix
     ./sops.nix
   ];

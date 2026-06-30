@@ -1,8 +1,11 @@
-# profiles/k3s-agent.nix — k3s worker (agent) role for tiny nodes
+# profiles/k3s-agent.nix — generic k3s worker (agent) role.
 #
-# Configures k3s as an agent with the "tiny" taint and max-pods=10.
-# Host-specific settings (nodeName, nodeIP, serverAddr) are set in
-# the host's configuration.nix.
+# All current agents join the s145-rooted cluster (s145 is the only
+# control-plane). Host-specific identity (nodeName, nodeIP) is set in the
+# host's configuration.nix.
+#
+# Tiny (1 GB) nodes should import profiles/k3s-agent-tiny.nix instead,
+# which layers max-pods=10 and zramSwap on top of this profile.
 #
 # Depends on: profiles/tailscale.nix (flannel uses tailscale0)
 { config, lib, ... }:
@@ -15,11 +18,10 @@ in
   services.k3s = lib.mkIf hasClusterSecretsFile {
     enable = true;
     role = "agent";
-    serverAddr = "https://100.84.230.4:6443";
+    serverAddr = "https://100.69.231.117:6443"; # s145 (Tailscale IP)
     tokenFile = config.sops.secrets."k3s-token".path;
     extraFlags = [
       "--flannel-iface=tailscale0"
-      "--kubelet-arg=max-pods=10"
     ];
   };
 
@@ -27,12 +29,5 @@ in
   systemd.services.k3s = lib.mkIf hasClusterSecretsFile {
     after = [ "tailscaled.service" ];
     wants = [ "tailscaled.service" ];
-  };
-
-  # ZRAM — essential for 1GB RAM nodes
-  zramSwap = {
-    enable = true;
-    algorithm = "zstd";
-    memoryPercent = 50;
   };
 }

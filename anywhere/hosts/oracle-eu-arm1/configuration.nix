@@ -1,5 +1,6 @@
-# hosts/oracle-eu-arm1/configuration.nix — k3s control-plane (ARM A1.Flex)
+# hosts/oracle-eu-arm1/configuration.nix — k3s agent (ARM A1.Flex)
 #
+# Disposable worker capacity — cluster control-plane lives on s145.
 # Host-specific settings only. Shared config comes from profiles.
 { config, lib, ... }:
 
@@ -14,7 +15,7 @@ in
     ../../profiles/base.nix
     ../../profiles/server.nix
     ../../profiles/tailscale.nix
-    ../../profiles/k3s-server.nix
+    ../../profiles/k3s-agent.nix
     ../../profiles/hermes-agent.nix
     ./hardware-configuration.nix
     ./sops.nix

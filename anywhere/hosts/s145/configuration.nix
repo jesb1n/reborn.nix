@@ -13,11 +13,18 @@ in
     ../../profiles/base.nix
     ../../profiles/server.nix
     ../../profiles/tailscale.nix
+    ../../profiles/k3s-server.nix
     ./disko-config.nix
     ./sops.nix
+    ./traefik.nix
   ];
 
   networking.hostName = "s145";
+
+  # k3s — host-specific identity. s145 is the sole control-plane; the
+  # Oracle free-tier hosts join as disposable agents.
+  services.k3s.nodeName = "s145";
+  services.k3s.nodeIP = "100.69.231.117";
 
   # Boot — systemd-boot (override GRUB from server.nix)
   boot.loader.grub.enable = lib.mkForce false;
