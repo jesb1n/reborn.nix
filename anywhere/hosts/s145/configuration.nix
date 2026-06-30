@@ -23,10 +23,13 @@ in
   boot.loader.grub.enable = lib.mkForce false;
   boot.loader.systemd-boot.enable = lib.mkForce true;
   boot.loader.efi.canTouchEfiVariables = lib.mkForce true;
-  boot.kernelParams = lib.mkForce [ ];
+  boot.kernelParams = lib.mkForce [ "systemd.gpt_auto=0" ];
 
   boot.initrd.availableKernelModules = [ "nvme" "xhci_pci" "ahci" "usb_storage" "sd_mod" ];
   boot.kernelModules = [ "kvm-amd" ];
+
+  # Realtek USB WiFi adapter firmware
+  hardware.enableRedistributableFirmware = true;
 
   # WiFi via NetworkManager + SOPS
   networking.networkmanager.ensureProfiles = lib.mkMerge [
@@ -51,7 +54,7 @@ in
         connection = {
           id = "s145-wifi";
           type = "wifi";
-          interface-name = "wlx043d9849073f";
+          interface-name = "wlp2s0f3u2";
           autoconnect = true;
         };
         wifi = {

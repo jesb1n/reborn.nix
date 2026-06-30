@@ -155,7 +155,7 @@
         };
 
         s145 = {
-          hostname = "192.168.1.66";
+          hostname = "s145";
           sshUser = "duck";
           remoteBuild = true;
           activationTimeout = 600;
