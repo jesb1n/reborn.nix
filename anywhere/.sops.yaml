@@ -13,7 +13,7 @@ keys:
   - &oracle_eu_micro1 age1dwkqee4rc5z8me08r32xcct8n0ah6suygrjme747y5g39a9lkusqx4cdhg
   - &oracle_eu_micro2 age1hq0wftuc9ysu4tk89ner2cnf59smhwa8ynwxt62fjll6m7fff43swkr6lg
   - &rpi age1grhrmmx3xkvv9vfe5jtl33w6fntvc0095q35xdt0n8pz4neqnyaspld9y2
-  - &s145_host age1zac026r3jhw5zvcmayzj3xmaagve24mpwfvglnalc9rmuvlpg94s6tqw02
+  - &s145_host age16039825yxfmxmgw6xd7ytd7p4zfpfuuv25czrpjsdlhcu3mrvursrxgl30
 
 creation_rules:
   - path_regex: secrets/oracle-eu-arm1/.*
