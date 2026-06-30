@@ -319,6 +319,75 @@ sops updatekeys secrets/rpi/secrets.yaml
 
 Do not commit unencrypted secrets.
 
+## Hermes Agent (Codex + Telegram on `oracle-eu-arm1`)
+
+The control-plane also runs the [Hermes Agent](https://github.com/NousResearch/hermes-agent) gateway, routed through your ChatGPT subscription via the OpenAI Codex OAuth provider. Inbound chat lives on Telegram.
+
+### Secrets (one-time, on `s145`)
+
+Get a bot token from `@BotFather` and your numeric Telegram user ID from `@userinfobot`, then encrypt them:
+
+```bash
+cd ~/oracle-cloud-free-tier/anywhere
+sops secrets/oracle-eu-arm1/secrets.yaml
+```
+
+The file must contain (plain values; SOPS encrypts on save):
+
+```yaml
+hermes:
+  telegram-bot-token: "123456789:AA..."
+  telegram-allowed-users: "12345678,87654321"   # comma-separated user IDs
+```
+
+Verify decrypt:
+
+```bash
+sops -d secrets/oracle-eu-arm1/secrets.yaml >/dev/null && echo arm1-ok
+```
+
+### Deploy
+
+```bash
+cd ~/oracle-cloud-free-tier/anywhere
+nix develop -c deploy .#oracle-eu-arm1
+```
+
+The first build pulls the full hermes-agent flake (Python venv via uv2nix + Node workspace) and runs on the ARM host itself (`remoteBuild = true`). Expect a long first deploy; later deploys hit the local store.
+
+### Bootstrap ChatGPT OAuth (one-time, after deploy)
+
+The agent has no API key — credentials are minted via device-code OAuth against your ChatGPT account. From any shell on `oracle-eu-arm1`:
+
+```bash
+ssh ubuntu@oracle-eu-arm1
+hermes auth add codex-oauth
+# Open the printed URL in a browser, sign in with ChatGPT, paste the code.
+sudo systemctl restart hermes-agent
+```
+
+`auth.json` lands at `/var/lib/hermes/.hermes/auth.json` and the module preserves it across redeploys. Hermes refreshes the token automatically; only re-run if `hermes doctor` reports a revoked grant.
+
+### Pick a model (one-time)
+
+```bash
+hermes model
+# → choose "OpenAI Codex" → pick a Codex-class model (e.g. gpt-5-codex)
+```
+
+### Health checks
+
+```bash
+ssh ubuntu@oracle-eu-arm1 'systemctl status hermes-agent --no-pager; journalctl -u hermes-agent -n 50 --no-pager'
+ssh ubuntu@oracle-eu-arm1 'hermes doctor'
+```
+
+### Security notes
+
+- The `TELEGRAM_ALLOWED_USERS` allowlist is the only gate. Anyone who finds your bot and isn't on the list is silently ignored. Never set `TELEGRAM_ALLOW_ALL_USERS=true`.
+- The systemd unit is hardened (`NoNewPrivileges`, `ProtectSystem=strict`, `ReadWritePaths` restricted to `/var/lib/hermes/`), but the agent still runs shell commands as the `hermes` user. Treat any approved Telegram user as having shell access to that account.
+- `hermes auth add codex-oauth` uses OAuth scopes documented for the official Codex CLI. Re-using those tokens from a non-Codex client is in the OpenAI ToS grey zone — there is some risk of account-level enforcement if usage patterns look anomalous.
+
 ## Updating Nix inputs
 
 Inspect current inputs:

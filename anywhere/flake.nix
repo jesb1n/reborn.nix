@@ -24,9 +24,15 @@
 
     sops-nix.url = "github:Mic92/sops-nix";
     sops-nix.inputs.nixpkgs.follows = "nixpkgs";
+
+    # Upstream Hermes Agent — provides services.hermes-agent NixOS module.
+    # Pinned to nixpkgs-unstable because hermes-agent's own flake tracks unstable
+    # (uv2nix + recent Python/Node, won't build cleanly against 26.05).
+    hermes-agent.url = "github:NousResearch/hermes-agent";
+    hermes-agent.inputs.nixpkgs.follows = "nixpkgs-unstable";
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, nixos-anywhere, nixos-raspberrypi, deploy-rs, disko, sops-nix, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-anywhere, nixos-raspberrypi, deploy-rs, disko, sops-nix, hermes-agent, ... }:
     let
       managementSystems = [
         "aarch64-darwin"
@@ -56,6 +62,7 @@
 
         modules = [
           sops-nix.nixosModules.sops
+          hermes-agent.nixosModules.default
           ./hosts/oracle-eu-arm1/configuration.nix
         ];
       };
