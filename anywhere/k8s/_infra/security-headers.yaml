@@ -1,0 +1,26 @@
+# Common security headers — reusable across every public IngressRoute.
+# Reference with:
+#   middlewares:
+#     - { name: security-headers, namespace: kube-system }
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: security-headers
+  namespace: kube-system
+spec:
+  headers:
+    # Clickjacking
+    frameDeny: true
+    # MIME-type sniffing
+    contentTypeNosniff: true
+    # Legacy XSS heuristics (modern browsers ignore, but harmless)
+    browserXssFilter: true
+    # Don't leak referrers cross-origin
+    referrerPolicy: "no-referrer-when-downgrade"
+    # HSTS — 2 years, includeSubDomains, preload-eligible.
+    # CAUTION: preload commits you publicly; only enable after every
+    # subdomain of jesb.in serves HTTPS. Until then leave stsPreload false.
+    forceSTSHeader: true
+    stsSeconds: 63072000
+    stsIncludeSubdomains: true
+    stsPreload: false

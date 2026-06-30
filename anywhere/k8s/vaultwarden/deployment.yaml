@@ -1,0 +1,76 @@
+# Vaultwarden: an unofficial Bitwarden-compatible server in Rust.
+# Pinned to s145 so the SQLite DB lives next to the rest of the critical
+# data and survives Oracle agents being reclaimed.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vaultwarden
+  namespace: vaultwarden
+  labels:
+    app: vaultwarden
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # SQLite — never run two pods against one file.
+  selector:
+    matchLabels:
+      app: vaultwarden
+  template:
+    metadata:
+      labels:
+        app: vaultwarden
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: s145
+      containers:
+        - name: vaultwarden
+          # Pin to a specific tag; bump deliberately.
+          image: vaultwarden/server:1.34.1
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            # Public origin — must exactly match the IngressRoute Host(...) rule.
+            - name: DOMAIN
+              value: "https://vault.jesb.in"
+            # Disable user signups once you've created your admin account.
+            - name: SIGNUPS_ALLOWED
+              value: "true"
+            # Admin token gate for the /admin panel. Set to a bcrypt hash via
+            # a Kubernetes Secret called `vaultwarden-secrets`. Generate with:
+            #   docker run --rm -it vaultwarden/server /vaultwarden hash
+            - name: ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vaultwarden-secrets
+                  key: admin-token
+                  optional: true
+            # WebSocket notifications are served on the main port in modern
+            # Vaultwarden; no separate ws port needed.
+            - name: ROCKET_PORT
+              value: "80"
+          readinessProbe:
+            httpGet:
+              path: /alive
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /alive
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: vaultwarden-data

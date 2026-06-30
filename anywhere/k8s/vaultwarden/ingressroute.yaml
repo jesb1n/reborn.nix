@@ -1,0 +1,24 @@
+# Public HTTPS route to Vaultwarden. The HTTP→HTTPS redirect is handled
+# globally at the Traefik entrypoint (see hosts/s145/traefik.nix), so this
+# only declares the `websecure` route.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: vaultwarden
+  namespace: vaultwarden
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`vault.jesb.in`)
+      kind: Rule
+      middlewares:
+        - name: security-headers
+          namespace: kube-system
+      services:
+        - name: vaultwarden
+          port: 80
+  tls:
+    certResolver: cloudflare
+    domains:
+      - main: vault.jesb.in
