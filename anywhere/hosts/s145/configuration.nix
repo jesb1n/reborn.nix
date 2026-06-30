@@ -71,10 +71,14 @@ in
     })
   ];
 
-  # Tailscale — host identity
+  # Tailscale — host identity + exit node
+  services.tailscale.useRoutingFeatures = "server"; # handles ip_forward sysctls
   services.tailscale.extraUpFlags = lib.mkIf hasTailscaleSecretsFile [
     "--hostname=s145"
     "--accept-dns=false"
+  ];
+  services.tailscale.extraSetFlags = [
+    "--advertise-exit-node"
   ];
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
