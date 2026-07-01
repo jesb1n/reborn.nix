@@ -1,16 +1,19 @@
-{ config, lib, ... }:
+# hosts/rpi/configuration.nix — Raspberry Pi 4 k3s worker
+#
+# Host-specific settings only. Shared config comes from profiles where the
+# Raspberry Pi boot path does not need special handling.
+{ config, lib, pkgs, ... }:
 
 let
   hostSecretsFile = ../../secrets/rpi/secrets.yaml;
   hasHostSecretsFile = builtins.pathExists hostSecretsFile;
-  tailscaleSecretsFile = ../../secrets/tailscale/secrets.yaml;
-  hasTailscaleSecretsFile = builtins.pathExists tailscaleSecretsFile;
-  sshKeys = [
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMDHy9Gc18Osi7HFBiUMm+Da9JQ95cU1a7dsmyJCY5s1 jesbin@Duck.local"
-  ];
+  hasTailscaleSecretsFile = builtins.pathExists ../../secrets/tailscale/secrets.yaml;
 in
 {
   imports = [
+    ../../profiles/base.nix
+    ../../profiles/tailscale.nix
+    ../../profiles/k3s-agent.nix
     ./disko-config.nix
     ./sops.nix
   ];
@@ -25,6 +28,9 @@ in
   boot.kernelParams = [
     "console=tty0"
     "console=ttyAMA0,115200n8"
+    "cgroup_enable=cpuset"
+    "cgroup_enable=memory"
+    "cgroup_memory=1"
     "rootwait"
   ];
 
@@ -107,72 +113,28 @@ in
     Storage=persistent
   '';
 
-  services.tailscale = {
-    enable = true;
-    openFirewall = true;
-    useRoutingFeatures = "server";
-    extraSetFlags = [
-      "--advertise-exit-node"
-      "--advertise-routes=10.0.0.0/24"
-    ];
-  } // lib.optionalAttrs hasTailscaleSecretsFile {
-    authKeyFile = config.sops.secrets."tailscale-auth-key".path;
+  # Tailscale — host identity + exit node + LAN subnet router.
+  services.tailscale.useRoutingFeatures = "server";
+  services.tailscale.extraUpFlags = lib.mkIf hasTailscaleSecretsFile [
+    "--hostname=rpi"
+    "--accept-dns=false"
+  ];
+  services.tailscale.extraSetFlags = [
+    "--advertise-exit-node"
+    "--advertise-routes=10.0.0.0/24"
+  ];
 
-    extraUpFlags = [
-      "--hostname=rpi"
-      "--accept-dns=false"
-    ];
-  };
+  # k3s — worker in the s145-rooted cluster.
+  services.k3s.nodeName = "rpi";
+  services.k3s.nodeIP = "100.118.166.120";
+  systemd.services.k3s.serviceConfig.ExecCondition =
+    "${pkgs.runtimeShell} -c 'grep -qw memory /sys/fs/cgroup/cgroup.controllers'";
 
   zramSwap = {
     enable = true;
     algorithm = "zstd";
     memoryPercent = 50;
   };
-
-  nix.settings.trusted-users = [
-    "root"
-    "duck"
-  ];
-
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 7d";
-    randomizedDelaySec = "45min";
-  };
-
-  nix.optimise = {
-    automatic = true;
-    dates = [ "weekly" ];
-    randomizedDelaySec = "45min";
-  };
-
-  users.mutableUsers = false;
-
-  users.users.root = {
-    hashedPassword = "!";
-    openssh.authorizedKeys.keys = [ ];
-  };
-
-  users.users.duck = {
-    isNormalUser = true;
-
-    extraGroups = [
-      "wheel"
-      "networkmanager"
-    ];
-
-    hashedPassword = "!";
-
-    openssh.authorizedKeys.keys = sshKeys;
-  };
-
-  security.sudo.wheelNeedsPassword = false;
-
-  documentation.enable = false;
-  programs.command-not-found.enable = false;
-  environment.defaultPackages = [ ];
 
   system.stateVersion = "26.05";
 }
