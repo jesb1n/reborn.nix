@@ -110,6 +110,11 @@ in
   services.tailscale = {
     enable = true;
     openFirewall = true;
+    useRoutingFeatures = "server";
+    extraSetFlags = [
+      "--advertise-exit-node"
+      "--advertise-routes=10.0.0.0/24"
+    ];
   } // lib.optionalAttrs hasTailscaleSecretsFile {
     authKeyFile = config.sops.secrets."tailscale-auth-key".path;
 
