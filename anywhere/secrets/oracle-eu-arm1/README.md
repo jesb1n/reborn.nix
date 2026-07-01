@@ -22,6 +22,7 @@ Required keys:
 hermes:
   telegram-bot-token: "123456789:AA..."           # from @BotFather
   telegram-allowed-users: "12345678,87654321"     # numeric IDs from @userinfobot
+  google-api-key: "AIza..."                       # Google AI Studio / Gemini API key
 ```
 
 These are surfaced to the gateway via a SOPS template that produces
@@ -29,4 +30,3 @@ These are surfaced to the gateway via a SOPS template that produces
 
 Until this file exists, `services.hermes-agent` stays disabled — the rest of
 the host config (k3s, Tailscale) deploys normally.
-

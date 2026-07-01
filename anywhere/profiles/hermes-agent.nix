@@ -1,15 +1,15 @@
-# profiles/hermes-agent.nix — Hermes Agent gateway with Codex (ChatGPT OAuth)
+# profiles/hermes-agent.nix — Hermes Agent gateway with Codex + Google Gemini
 #
 # Provides the shared `services.hermes-agent` config: native systemd mode,
-# OpenAI Codex as the LLM provider (device-code OAuth, no API key), and
-# the Telegram messaging gateway.
+# OpenAI Codex as the default ChatGPT-OAuth provider, Google Gemini as an
+# OpenAI-compatible API-key provider, and the Telegram messaging gateway.
 #
 # Gating: nothing is enabled until the host's SOPS secrets file exists —
 # same pattern as profiles/k3s-server.nix. Hosts that import this profile
 # also need to supply `services.hermes-agent.environmentFiles` (typically
-# a SOPS template producing TELEGRAM_BOT_TOKEN + TELEGRAM_ALLOWED_USERS).
+# a SOPS template producing Telegram credentials + GOOGLE_API_KEY).
 #
-# Bootstrap (one-time, after first deploy):
+# Codex bootstrap (one-time, after first deploy):
 #   ssh <host>
 #   sudo systemctl status hermes-agent           # confirm unit is up
 #   hermes auth add codex-oauth                  # device-code OAuth flow
@@ -32,19 +32,28 @@ in
     # shells share state (auth.json, sessions, skills) with the gateway.
     addToSystemPackages = true;
 
-    # Declarative config.yaml. The module deep-merges this with anything the
-    # user has saved interactively via `hermes model` / `hermes config set`,
-    # so OAuth-flow side effects are preserved across deploys.
+    # Declarative config.yaml. Nix-managed keys win during the activation-time
+    # deep merge, while unrelated user-saved settings are preserved.
     settings = {
+      providers = {
+        # Google Gemini's OpenAI-compatible endpoint. The API key is supplied
+        # through the host SOPS-rendered environment file as GOOGLE_API_KEY.
+        google = {
+          name = "Google Gemini";
+          base_url = "https://generativelanguage.googleapis.com/v1beta/openai/";
+          key_env = "GOOGLE_API_KEY";
+          default_model = "gemini-3.5-flash";
+          models = [
+            "gemini-3.5-flash"
+          ];
+          discover_models = false;
+        };
+      };
+
       model = {
-        # `openai-codex` is the ChatGPT-OAuth provider — uses Codex models
-        # against the user's ChatGPT Plus/Pro/Team subscription.
+        # Keep Codex as the default provider. Google Gemini is available in
+        # the picker as the replacement for the old NVIDIA endpoint.
         provider = "openai-codex";
-        # Default model. ChatGPT-OAuth surfaces base GPT models alongside the
-        # `*-codex` specialty variants; if you want a Codex-tuned model
-        # instead, change to e.g. "gpt-5-codex" or "gpt-5.3-codex" (latest
-        # Codex variant as of June 2026). Override interactively any time
-        # with `hermes model` or `/model <name>` mid-session.
         default = "gpt-5.5";
       };
 
@@ -62,4 +71,3 @@ in
   # is only created when services.hermes-agent.enable is true.
   users.users.duck.extraGroups = lib.mkIf hasHostSecretsFile [ "hermes" ];
 }
-

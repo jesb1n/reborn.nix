@@ -319,9 +319,9 @@ sops updatekeys secrets/rpi/secrets.yaml
 
 Do not commit unencrypted secrets.
 
-## Hermes Agent (Codex + Telegram on `oracle-eu-arm1`)
+## Hermes Agent (Codex + Google Gemini + Telegram on `oracle-eu-arm1`)
 
-The control-plane also runs the [Hermes Agent](https://github.com/NousResearch/hermes-agent) gateway, routed through your ChatGPT subscription via the OpenAI Codex OAuth provider. Inbound chat lives on Telegram.
+The control-plane also runs the [Hermes Agent](https://github.com/NousResearch/hermes-agent) gateway. Its default model remains OpenAI Codex through ChatGPT OAuth, with Google Gemini available through Google's OpenAI-compatible endpoint. Inbound chat lives on Telegram.
 
 ### Secrets (one-time, on `s145`)
 
@@ -338,6 +338,7 @@ The file must contain (plain values; SOPS encrypts on save):
 hermes:
   telegram-bot-token: "123456789:AA..."
   telegram-allowed-users: "12345678,87654321"   # comma-separated user IDs
+  google-api-key: "AIza..."                      # Google AI Studio / Gemini API key
 ```
 
 Verify decrypt:
@@ -357,7 +358,7 @@ The first build pulls the full hermes-agent flake (Python venv via uv2nix + Node
 
 ### Bootstrap ChatGPT OAuth (one-time, after deploy)
 
-The agent has no API key — credentials are minted via device-code OAuth against your ChatGPT account. From any shell on `oracle-eu-arm1`:
+Codex credentials are minted via device-code OAuth against your ChatGPT account. From any shell on `oracle-eu-arm1`:
 
 ```bash
 ssh ubuntu@oracle-eu-arm1
@@ -368,11 +369,12 @@ sudo systemctl restart hermes-agent
 
 `auth.json` lands at `/var/lib/hermes/.hermes/auth.json` and the module preserves it across redeploys. Hermes refreshes the token automatically; only re-run if `hermes doctor` reports a revoked grant.
 
-### Pick a model (one-time)
+### Pick a model
 
 ```bash
 hermes model
-# → choose "OpenAI Codex" → pick a Codex-class model (e.g. gpt-5-codex)
+# → choose "OpenAI Codex" for the default Codex model
+# or choose "Google Gemini" → pick gemini-3.5-flash
 ```
 
 ### Health checks
