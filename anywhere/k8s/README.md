@@ -19,7 +19,7 @@ Conventions:
 - Every stateful workload **pins `nodeSelector: kubernetes.io/hostname: s145`** so PVCs (`local-path` storage class) land on the 1 TB HDD, not on disposable Oracle agents.
 - Hostnames default to `*.jesb.in`. Search/replace if you use a different zone.
 - Traefik handles HTTP → HTTPS redirect globally (chart-level config in [`../hosts/s145/traefik.nix`](../hosts/s145/traefik.nix)) — do **not** add redirect middlewares per app.
-- ACME currently uses the Let's Encrypt **staging** CA. Cert errors in browsers are expected until production CA is enabled.
+- ACME uses the Let's Encrypt production CA through Traefik's default ACME endpoint.
 
 ## Apply
 
@@ -42,14 +42,12 @@ ssh duck@s145 'sudo k3s kubectl apply -f -' < anywhere/k8s/vaultwarden/deploymen
 tar c anywhere/k8s/vaultwarden | ssh duck@s145 'sudo tar x -C /tmp && sudo k3s kubectl apply -f /tmp/anywhere/k8s/vaultwarden/'
 ```
 
-## Promote ACME to production
+## Reissue Certificates
 
-When staging cert issuance is confirmed working (`kubectl -n kube-system logs deploy/traefik | grep -i acme`):
+If Traefik previously stored staging certificates, delete `acme.json` after the
+NixOS deploy so it requests production certificates:
 
-1. In [`../hosts/s145/traefik.nix`](../hosts/s145/traefik.nix) remove the `caserver` argument (or point it at `https://acme-v02.api.letsencrypt.org/directory`).
-2. `deploy .#s145`.
-3. Delete the staging `acme.json` so Traefik re-requests prod certs:
-   ```bash
-   ssh duck@s145 'sudo k3s kubectl -n kube-system exec deploy/traefik -- rm /data/acme.json'
-   ssh duck@s145 'sudo k3s kubectl -n kube-system rollout restart deploy/traefik'
-   ```
+```bash
+ssh duck@s145 'sudo k3s kubectl -n kube-system exec deploy/traefik -- rm /data/acme.json'
+ssh duck@s145 'sudo k3s kubectl -n kube-system rollout restart deploy/traefik'
+```
