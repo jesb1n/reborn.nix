@@ -1,6 +1,3 @@
-# Vaultwarden: an unofficial Bitwarden-compatible server in Rust.
-# Pinned to s145 so the SQLite DB lives next to the rest of the critical
-# data and survives Oracle agents being reclaimed.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -11,7 +8,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate # SQLite — never run two pods against one file.
+    type: Recreate
   selector:
     matchLabels:
       app: vaultwarden
@@ -24,29 +21,23 @@ spec:
         kubernetes.io/hostname: s145
       containers:
         - name: vaultwarden
-          # Pin to a specific tag; bump deliberately.
-          image: vaultwarden/server:1.34.1
+          image: vaultwarden/server:1.36.0
           ports:
             - containerPort: 80
               name: http
           env:
-            # Public origin — must exactly match the IngressRoute Host(...) rule.
             - name: DOMAIN
-              value: "https://vault.jesb.in"
-            # Disable user signups once you've created your admin account.
+              value: "https://v1.beijns.eu.org"
             - name: SIGNUPS_ALLOWED
-              value: "true"
-            # Admin token gate for the /admin panel. Set to a bcrypt hash via
-            # a Kubernetes Secret called `vaultwarden-secrets`. Generate with:
-            #   docker run --rm -it vaultwarden/server /vaultwarden hash
+              value: "false"
+            - name: TZ
+              value: "Asia/Kolkata"
             - name: ADMIN_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: vaultwarden-secrets
                   key: admin-token
                   optional: true
-            # WebSocket notifications are served on the main port in modern
-            # Vaultwarden; no separate ws port needed.
             - name: ROCKET_PORT
               value: "80"
           readinessProbe:
@@ -67,6 +58,10 @@ spec:
               memory: 128Mi
             limits:
               memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           volumeMounts:
             - name: data
               mountPath: /data

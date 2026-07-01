@@ -1,9 +1,3 @@
-# Persistent storage for the Vaultwarden SQLite DB, attachments, sends.
-# Lands on whichever node the pod schedules — pod is pinned to s145, so
-# the PVC backs onto s145's local-path provisioner (/var/lib/rancher/k3s/storage/).
-#
-# IMPORTANT: back this up off-host. Losing this PVC = losing every secret
-# stored in Vaultwarden.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
