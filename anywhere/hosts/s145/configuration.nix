@@ -15,6 +15,7 @@ in
     ../../profiles/tailscale.nix
     ../../profiles/k3s-server.nix
     ./disko-config.nix
+    ./samba.nix
     ./sops.nix
     ./traefik.nix
   ];
