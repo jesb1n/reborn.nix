@@ -8,11 +8,6 @@
 #   * traefik-config.yaml          — static chart overrides (this module)
 #   * traefik-cloudflare-secret.yaml — rendered by sops-nix (hosts/s145/sops.nix)
 #
-# Currently pinned to Let's Encrypt **staging** to avoid burning prod quota
-# during first-deploy. Flip the `caserver` arg below to production once you
-# see a successful staging issuance:
-#   https://acme-v02.api.letsencrypt.org/directory
-#
 # Cloudflare token must be a *scoped* token with at least:
 #   Zone:DNS:Edit + Zone:Zone:Read for the relevant zones.
 { lib, pkgs, ... }:
@@ -63,8 +58,6 @@ let
           - "--certificatesresolvers.cloudflare.acme.dnschallenge=true"
           - "--certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare"
           - "--certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
-          # Staging CA — flip to production once staging issuance succeeds.
-          - "--certificatesresolvers.cloudflare.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
   '';
 in
 {
