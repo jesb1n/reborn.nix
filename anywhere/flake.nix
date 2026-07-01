@@ -149,7 +149,7 @@
         };
 
         rpi = {
-          hostname = "192.168.1.68";
+          hostname = "rpi";
           sshUser = "duck";
           remoteBuild = true;
           activationTimeout = 900;
