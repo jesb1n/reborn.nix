@@ -3,6 +3,8 @@
 let
   hostSecretsFile = ../../secrets/rpi/secrets.yaml;
   hasHostSecretsFile = builtins.pathExists hostSecretsFile;
+  clusterSecretsFile = ../../secrets/k3s/secrets.yaml;
+  hasClusterSecretsFile = builtins.pathExists clusterSecretsFile;
   tailscaleSecretsFile = ../../secrets/tailscale/secrets.yaml;
   hasTailscaleSecretsFile = builtins.pathExists tailscaleSecretsFile;
 in
@@ -18,6 +20,12 @@ in
       (lib.mkIf hasTailscaleSecretsFile {
         "tailscale-auth-key" = {
           sopsFile = tailscaleSecretsFile;
+        };
+      })
+
+      (lib.mkIf hasClusterSecretsFile {
+        "k3s-token" = {
+          sopsFile = clusterSecretsFile;
         };
       })
 

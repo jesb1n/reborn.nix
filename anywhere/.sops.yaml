@@ -32,6 +32,7 @@ creation_rules:
           - *oracle_eu_arm1
           - *oracle_eu_micro1
           - *oracle_eu_micro2
+          - *rpi
 
   - path_regex: secrets/tailscale/.*
     key_groups:
