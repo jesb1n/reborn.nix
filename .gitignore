@@ -16,3 +16,4 @@ terraform.tfvars
 # OS files
 .DS_Store
 Thumbs.db
+retire.nix
