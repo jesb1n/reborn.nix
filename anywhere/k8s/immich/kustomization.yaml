@@ -6,6 +6,7 @@ resources:
   - immich-helm.yaml
 configMapGenerator:
   - name: immich-values
+    namespace: immich
     files:
       - values.yaml
     options:
