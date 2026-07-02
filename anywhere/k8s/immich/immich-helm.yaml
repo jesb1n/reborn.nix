@@ -41,8 +41,15 @@ spec:
             main:
               image:
                 tag: v2.7.5
-          nodeSelector:
-            kubernetes.io/hostname: s145
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - s145
 
     machine-learning:
       controllers:
@@ -51,8 +58,15 @@ spec:
             main:
               image:
                 tag: v2.7.5
-          nodeSelector:
-            kubernetes.io/hostname: s145
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - s145
       persistence:
         cache:
           enabled: true
@@ -62,8 +76,15 @@ spec:
       enabled: true
       controllers:
         main:
-          nodeSelector:
-            kubernetes.io/hostname: s145
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - s145
       persistence:
         data:
           type: emptyDir

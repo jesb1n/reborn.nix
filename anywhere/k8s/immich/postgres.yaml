@@ -72,6 +72,7 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
+              add: ["CHOWN", "DAC_OVERRIDE", "FOWNER"]
               drop: ["ALL"]
           volumeMounts:
             - name: data
