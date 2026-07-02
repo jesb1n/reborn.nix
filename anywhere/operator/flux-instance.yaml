@@ -25,3 +25,4 @@ spec:
     url: "https://github.com/jesb1n/reborn.nix.git"
     ref: "refs/heads/main"
     path: "anywhere/clusters/s145"
+    interval: 3m
