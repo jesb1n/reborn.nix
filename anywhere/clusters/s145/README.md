@@ -1,5 +1,5 @@
 # s145 Flux Cluster
 
-Flux bootstraps this cluster from `anywhere/clusters/s145`.
+Flux Operator manages this cluster from `anywhere/clusters/s145`.
 
 
