@@ -34,6 +34,17 @@ spec:
         library:
           existingClaim: immich-uploads
 
+    defaultPodOptions:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - s145
+
     server:
       controllers:
         main:
@@ -41,15 +52,6 @@ spec:
             main:
               image:
                 tag: v2.7.5
-          affinity:
-            nodeAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                nodeSelectorTerms:
-                  - matchExpressions:
-                      - key: kubernetes.io/hostname
-                        operator: In
-                        values:
-                          - s145
 
     machine-learning:
       controllers:
@@ -58,15 +60,6 @@ spec:
             main:
               image:
                 tag: v2.7.5
-          affinity:
-            nodeAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                nodeSelectorTerms:
-                  - matchExpressions:
-                      - key: kubernetes.io/hostname
-                        operator: In
-                        values:
-                          - s145
       persistence:
         cache:
           enabled: true
@@ -76,15 +69,10 @@ spec:
       enabled: true
       controllers:
         main:
-          affinity:
-            nodeAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                nodeSelectorTerms:
-                  - matchExpressions:
-                      - key: kubernetes.io/hostname
-                        operator: In
-                        values:
-                          - s145
+          containers:
+            main:
+              image:
+                tag: 9.1-alpine
       persistence:
         data:
           type: emptyDir
