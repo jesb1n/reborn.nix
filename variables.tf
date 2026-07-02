@@ -92,6 +92,16 @@ variable "user_ip_address" {
   }
 }
 
+variable "instance_peer_ssh_cidrs" {
+  description = "Additional IP address/CIDR blocks allowed to SSH into public instances."
+  type        = list(string)
+  default     = []
+  validation {
+    condition     = alltrue([for cidr in var.instance_peer_ssh_cidrs : can(cidrhost(cidr, 0))])
+    error_message = "Each instance peer SSH CIDR must be a valid IP address or CIDR notation."
+  }
+}
+
 variable "TAILSCALE_AUTH_KEY" {
   description = "Tailscale Auth Key to automatically join the Tailnet"
   type        = string

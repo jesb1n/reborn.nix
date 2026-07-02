@@ -74,6 +74,21 @@ resource "oci_core_security_list" "public_security_list" {
     }
   }
 
+  dynamic "ingress_security_rules" {
+    for_each = toset(var.instance_peer_ssh_cidrs)
+
+    content {
+      protocol    = "6" # TCP
+      source      = ingress_security_rules.value
+      stateless   = false
+      description = "SSH access from peer/admin IP"
+      tcp_options {
+        min = 22
+        max = 22
+      }
+    }
+  }
+
   # Allow all traffic within VCN
   ingress_security_rules {
     protocol    = "all"
