@@ -28,12 +28,6 @@ spec:
           ports:
             - containerPort: 5432
               name: postgres
-          envFrom:
-            - configMapRef:
-                name: immich-config
-            - secretRef:
-                name: immich-secrets
-                optional: true
           env:
             - name: POSTGRES_PASSWORD
               valueFrom:
@@ -42,15 +36,9 @@ spec:
                   key: DB_PASSWORD
                   optional: true
             - name: POSTGRES_USER
-              valueFrom:
-                configMapKeyRef:
-                  name: immich-config
-                  key: DB_USERNAME
+              value: "postgres"
             - name: POSTGRES_DB
-              valueFrom:
-                configMapKeyRef:
-                  name: immich-config
-                  key: DB_DATABASE_NAME
+              value: "immich"
             - name: POSTGRES_INITDB_ARGS
               value: "--data-checksums"
             - name: DB_STORAGE_TYPE
