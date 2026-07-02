@@ -45,6 +45,8 @@ spec:
                     values:
                       - s145
 
+
+
     server:
       controllers:
         main:
@@ -52,6 +54,20 @@ spec:
             main:
               image:
                 tag: v2.7.5
+          initContainers:
+            init-data:
+              image: ghcr.io/immich-app/immich-server:v2.7.5
+              command:
+                - sh
+                - -c
+                - |
+                  for dir in upload library thumbs profile backups encoded-video; do
+                    mkdir -p /data/$dir
+                    touch /data/$dir/.immich
+                  done
+              volumeMounts:
+                - name: data
+                  mountPath: /data
 
     machine-learning:
       controllers:
