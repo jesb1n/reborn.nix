@@ -19,11 +19,17 @@ spec:
     spec:
       nodeSelector:
         kubernetes.io/hostname: s145
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: vaultwarden
           image: vaultwarden/server:1.36.0
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               name: http
           env:
             - name: DOMAIN
@@ -39,7 +45,7 @@ spec:
                   key: admin-token
                   optional: true
             - name: ROCKET_PORT
-              value: "80"
+              value: "8080"
           readinessProbe:
             httpGet:
               path: /alive
