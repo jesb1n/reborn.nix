@@ -95,7 +95,5 @@ machine-learning:
   persistence:
     cache:
       enabled: true
-      size: 10Gi
       type: persistentVolumeClaim
-      accessMode: ReadWriteOnce
-      storageClass: local-path
+      existingClaim: immich-machine-learning-cache
