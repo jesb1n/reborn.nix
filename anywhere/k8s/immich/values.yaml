@@ -7,8 +7,9 @@ controllers:
     containers:
       main:
         image:
-          tag: v2.6.3
+          tag: v2.7.5
         env:
+          TZ: Asia/Kolkata
           REDIS_HOSTNAME: '{{ printf "%s-valkey" .Release.Name }}'
           IMMICH_MACHINE_LEARNING_URL: '{{ printf "http://%s-machine-learning:3003" .Release.Name }}'
           DB_HOSTNAME: immich-postgres
@@ -85,6 +86,7 @@ machine-learning:
         main:
           image:
             repository: ghcr.io/immich-app/immich-machine-learning
+            tag: v2.7.5
             pullPolicy: IfNotPresent
           env:
             TRANSFORMERS_CACHE: /cache
@@ -94,5 +96,6 @@ machine-learning:
     cache:
       enabled: true
       size: 10Gi
-      type: emptyDir
-      accessMode: ReadWriteMany
+      type: persistentVolumeClaim
+      accessMode: ReadWriteOnce
+      storageClass: local-path
