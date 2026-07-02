@@ -5,6 +5,7 @@ resources:
   - immich-secret.yaml
   - helmrepository.yaml
   - postgres.yaml
+  - valkey.yaml
   - pvc.yaml
   - immich-helm.yaml
 configMapGenerator:
