@@ -1,3 +1,8 @@
+# Agent Rules
+
+- **Do not commit, push, or delete until the user explicitly confirms.**
+- **Only use best practices** — follow idiomatic conventions for each tool (OpenTofu/Terraform, Nix, k8s, Helm), respect immutability, avoid unnecessary state changes, and prefer upstream/official charts over raw manifests.
+
 # Repository Guidelines
 
 ## Project Structure & Module Organization
