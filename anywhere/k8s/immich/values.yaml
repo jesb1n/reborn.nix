@@ -17,7 +17,7 @@ immich:
     enabled: false
   persistence:
     library:
-      existingClaim:
+      existingClaim: immich-library
   configuration: {}
   configurationKind: ConfigMap
 
