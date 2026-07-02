@@ -1,0 +1,25 @@
+# Route to the Immich server. Backing workload deployed via the upstream
+# Helm chart — see README.md in this directory.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: immich
+  namespace: immich
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`photos.jesb.in`)
+      kind: Rule
+      middlewares:
+        - name: security-headers
+          namespace: kube-system
+      services:
+        # Default service name & port from the upstream immich-charts.
+        # Adjust if you renamed in your values.yaml.
+        - name: immich-server
+          port: 2283
+  tls:
+    certResolver: cloudflare
+    domains:
+      - main: photos.jesb.in

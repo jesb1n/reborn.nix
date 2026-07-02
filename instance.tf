@@ -117,9 +117,11 @@ EOF
 
   preserve_boot_volume = false
 
-  # lifecycle {
-  #   create_before_destroy = true
-  # }
+  lifecycle {
+    ignore_changes = [
+      metadata["user_data"]
+    ]
+  }
 }
 
 # --- Reserved Public IPs ---
