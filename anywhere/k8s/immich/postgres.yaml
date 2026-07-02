@@ -20,7 +20,7 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: s145
       securityContext:
-        fsGroup: 1000
+        fsGroup: 999
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: postgres
