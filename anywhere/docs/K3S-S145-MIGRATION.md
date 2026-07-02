@@ -130,8 +130,8 @@ For each app, point an A/AAAA record at whichever public IP terminates
 traffic. Suggested:
 
 ```
-vault.jesb.in    A   <s145 public IP>
-photos.jesb.in   A   <s145 public IP>
+v1.beijns.eu.org   A   <s145 public IP>
+i1.beijns.eu.org   A   <s145 public IP>
 ```
 
 DNS-01 ACME does not need inbound :80/:443, only outbound to Cloudflare's
@@ -139,7 +139,7 @@ API + a DNS resolver.
 
 ### 4. Verify staging certificate issuance
 
-Hit `https://vault.jesb.in` — browsers will warn because the cert is from
+Hit `https://v1.beijns.eu.org` — browsers will warn because the cert is from
 Let's Encrypt **Staging**. That warning is the success signal. Tail traefik
 logs while you do this:
 
@@ -162,9 +162,13 @@ Once staging is confirmed working:
 
 ### 6. Immich
 
-Follow `k8s/immich/README.md` — install the upstream Helm chart (pin
-everything to s145, `local-path` storage, ingress disabled in chart),
-then `kubectl apply -f anywhere/k8s/immich/ingressroute.yaml`.
+Follow `k8s/immich/README.md`. Immich is managed through Flux using the
+upstream Helm chart plus repo-owned Kubernetes manifests for Postgres, Valkey,
+PVCs, SOPS credentials, and Traefik routing.
+
+Keep Traefik middleware namespace-local: the Immich `IngressRoute` must
+reference `security-headers` in the `immich` namespace, not
+`kube-system/security-headers`.
 
 ## Standing concerns (not done, worth doing soon)
 

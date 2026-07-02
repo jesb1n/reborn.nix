@@ -1,7 +1,13 @@
-# Common security headers — reusable across every public IngressRoute.
-# Reference with:
+# Common security headers for cluster-level routes.
+#
+# Traefik Middleware resources are namespaced. App IngressRoutes should define
+# their own same-namespace security-headers Middleware and reference it by name:
+#
 #   middlewares:
-#     - { name: security-headers, namespace: kube-system }
+#     - name: security-headers
+#
+# Do not reference this kube-system Middleware from app namespaces unless
+# Traefik has been explicitly configured to allow cross-namespace references.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:

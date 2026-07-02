@@ -11,7 +11,7 @@ Application manifests for the s145-rooted k3s cluster. Applied **manually**
 k8s/
 ├── _infra/        Cross-cutting middlewares & policies applied once per cluster
 ├── vaultwarden/   Full reference deployment (deployment + svc + pvc + route)
-└── immich/        IngressRoute only — bring your own workload (helm chart, etc.)
+└── immich/        Flux-managed Immich stack (HelmRelease + db + redis + route)
 ```
 
 Conventions:
@@ -19,6 +19,7 @@ Conventions:
 - Every stateful workload **pins `nodeSelector: kubernetes.io/hostname: s145`** so PVCs (`local-path` storage class) land on the 1 TB HDD, not on disposable Oracle agents.
 - Hostnames default to `*.jesb.in`. Search/replace if you use a different zone.
 - Traefik handles HTTP → HTTPS redirect globally (chart-level config in [`../hosts/s145/traefik.nix`](../hosts/s145/traefik.nix)) — do **not** add redirect middlewares per app.
+- Traefik `Middleware` resources are namespaced. Public app `IngressRoute`s should include a same-namespace `security-headers` Middleware and reference it as `- name: security-headers`; do not point app routes at `kube-system/security-headers`.
 - ACME uses the Let's Encrypt production CA through Traefik's default ACME endpoint.
 
 ## Apply
@@ -32,6 +33,13 @@ kubectl apply -f anywhere/k8s/_infra/
 # Per-app
 kubectl apply -f anywhere/k8s/vaultwarden/
 kubectl apply -f anywhere/k8s/immich/
+```
+
+For Flux-managed apps, prefer reconciling the cluster Kustomization after
+commit/push:
+
+```bash
+flux reconcile kustomization immich -n flux-system --with-source
 ```
 
 From s145 directly (no kubeconfig needed):

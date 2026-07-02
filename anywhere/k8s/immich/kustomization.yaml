@@ -7,6 +7,8 @@ resources:
   - postgres.yaml
   - valkey.yaml
   - pvc.yaml
+  - security-headers.yaml
+  - ingressroute.yaml
   - immich-helm.yaml
 configMapGenerator:
   - name: immich-values
