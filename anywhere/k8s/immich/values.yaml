@@ -11,6 +11,23 @@ controllers:
         env:
           REDIS_HOSTNAME: '{{ printf "%s-valkey" .Release.Name }}'
           IMMICH_MACHINE_LEARNING_URL: '{{ printf "http://%s-machine-learning:3003" .Release.Name }}'
+          DB_HOSTNAME: immich-postgres
+          DB_PORT: "5432"
+          DB_USERNAME:
+            valueFrom:
+              secretKeyRef:
+                name: immich-secret
+                key: DB_USERNAME
+          DB_DATABASE_NAME:
+            valueFrom:
+              secretKeyRef:
+                name: immich-secret
+                key: DB_DATABASE_NAME
+          DB_PASSWORD:
+            valueFrom:
+              secretKeyRef:
+                name: immich-secret
+                key: DB_PASSWORD
 
 immich:
   metrics:
