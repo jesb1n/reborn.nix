@@ -1,3 +1,9 @@
+variable "config_file_profile" {
+  description = "OCI CLI config profile name"
+  type        = string
+  default     = "DEFAULT"
+}
+
 variable "tenancy_ocid" {
   description = "The OCID of the tenancy"
   type        = string
