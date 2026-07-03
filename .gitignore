@@ -1,15 +1,15 @@
 # Terraform/OpenTofu
-.terraform/
-*.tfstate
-*.tfstate.*
-*.tfplan
-tfplan
-errored.tfstate
-crash.log
-crash.*.log
+IaC/.terraform/
+IaC/*.tfstate
+IaC/*.tfstate.*
+IaC/*.tfplan
+IaC/tfplan
+IaC/errored.tfstate
+IaC/crash.log
+IaC/crash.*.log
 
 # Sensitive files — NEVER commit these
-terraform.tfvars
+IaC/terraform.tfvars
 *.pem
 *.key
 

@@ -11,15 +11,15 @@ git clone <this-repo>
 cd <this-repo>
 ```
 
-## Step 2: Create Your `terraform.tfvars`
+## Step 2: Create Your `IaC/terraform.tfvars`
 
 Copy the example file and fill in your real values:
 
 ```bash
-cp terraform.tfvars.example terraform.tfvars
+cp IaC/terraform.tfvars.example IaC/terraform.tfvars
 ```
 
-Edit `terraform.tfvars`:
+Edit `IaC/terraform.tfvars`:
 
 ```hcl
 tenancy_ocid = "ocid1.tenancy.oc1..aaaaaaaayour-actual-tenancy-ocid"
@@ -43,7 +43,7 @@ user_ip_address     = "YOUR.PUBLIC.IP/32"
 
 ## Step 3: Set Sensitive Environment Variables
 
-These should **not** go in `terraform.tfvars` (they'd be committed to git):
+These should **not** go in `IaC/terraform.tfvars` (they'd be committed to git):
 
 ```bash
 # Your OCI API private key (base64-encoded)
@@ -62,14 +62,14 @@ export AWS_SECRET_ACCESS_KEY="your-s3-secret-key"
 
 ## Step 4: Configure the Backend
 
-Edit `backend.tf` and replace the placeholder values:
+Edit `IaC/backend.tf` and replace the placeholder values:
 
 ```hcl
 terraform {
   backend "s3" {
     bucket = "your-bucket-name"
     region = "your-region"
-    key    = "infra/tf.tfstate"
+    key    = "IaC/tf.tfstate"
     # ... keep the other settings as-is ...
     endpoints = {
       s3 = "https://your-namespace.compat.objectstorage.your-region.oraclecloud.com"
@@ -78,18 +78,18 @@ terraform {
 }
 ```
 
-> **Alternative: Local backend.** If you don't want remote state, replace the entire `backend.tf` with:
+> **Alternative: Local backend.** If you don't want remote state, replace the entire `IaC/backend.tf` with:
 > ```hcl
 > terraform {
 >   backend "local" {}
 > }
 > ```
-> This stores state in a local `terraform.tfstate` file. Fine for personal use, but don't commit it to git.
+> This stores state in a local `IaC/terraform.tfstate` file. Fine for personal use, but don't commit it to git.
 
 ## Step 5: Initialize
 
 ```bash
-tofu init
+tofu -chdir=IaC init
 ```
 
 This downloads the OCI provider plugin and initializes the backend. You should see:
@@ -101,7 +101,7 @@ Terraform has been successfully initialized!
 ## Step 6: Preview Changes
 
 ```bash
-tofu plan
+tofu -chdir=IaC plan
 ```
 
 This shows what Terraform will create without actually doing anything. Review the output carefully. You should see resources like:
@@ -118,7 +118,7 @@ This shows what Terraform will create without actually doing anything. Review th
 ## Step 7: Apply
 
 ```bash
-tofu apply
+tofu -chdir=IaC apply
 ```
 
 Type `yes` when prompted. Terraform will create all resources. This typically takes 2-5 minutes.
@@ -151,20 +151,20 @@ ssh ubuntu@<micro2_public_ip>
 ### See current state
 
 ```bash
-tofu show
+tofu -chdir=IaC show
 ```
 
 ### Update after changing variables
 
 ```bash
-tofu plan    # preview
-tofu apply   # apply
+tofu -chdir=IaC plan    # preview
+tofu -chdir=IaC apply   # apply
 ```
 
 ### Tear everything down
 
 ```bash
-tofu destroy
+tofu -chdir=IaC destroy
 ```
 
 Type `yes` to confirm. This deletes all resources.
@@ -175,7 +175,7 @@ Type `yes` to confirm. This deletes all resources.
 
 The A1.Flex shape is popular and OCI may not have capacity in your availability domain. Try:
 
-1. Change the availability domain index in `instance.tf` (switch between 0 and 1).
+1. Change the availability domain index in `IaC/instance.tf` (switch between 0 and 1).
 2. Try at a different time (early morning tends to have more capacity).
 3. Reduce the shape config (e.g., 2 OCPUs, 12 GB RAM) and try again.
 
@@ -187,7 +187,7 @@ The A1.Flex shape is popular and OCI may not have capacity in your availability 
 
 ### SSH connection refused
 
-- Verify `user_ip_address` in `terraform.tfvars` matches your current public IP.
+- Verify `user_ip_address` in `IaC/terraform.tfvars` matches your current public IP.
 - Check that the instance has finished booting (allow 2-3 minutes after apply).
 - Confirm you're using the correct SSH key.
 

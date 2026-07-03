@@ -27,7 +27,7 @@ jobs:
           EOF
 
       - name: Terraform Init
-        run: tofu init
+        run: tofu -chdir=IaC init
 
       - name: Terraform Destroy
-        run: tofu destroy -auto-approve
+        run: tofu -chdir=IaC destroy -auto-approve

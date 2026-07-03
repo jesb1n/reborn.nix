@@ -153,7 +153,7 @@ Your S3 endpoint will be:
 https://<namespace>.compat.objectstorage.<region>.oraclecloud.com
 ```
 
-Update `backend.tf` with your bucket name, region, and endpoint.
+Update `IaC/backend.tf` with your bucket name, region, and endpoint.
 
 ## SSH Key
 
@@ -164,7 +164,7 @@ You need an SSH key pair to access your instances.
 ssh-keygen -t ed25519 -C "your-email@example.com"
 ```
 
-The public key (contents of `~/.ssh/id_ed25519.pub`) goes into `terraform.tfvars` as `ssh_authorized_keys`.
+The public key (contents of `~/.ssh/id_ed25519.pub`) goes into `IaC/terraform.tfvars` as `ssh_authorized_keys`.
 
 ## Tailscale Auth Key (Optional)
 
@@ -177,7 +177,7 @@ The micro instances auto-install [Tailscale](https://tailscale.com/) for private
    export TF_VAR_TAILSCALE_AUTH_KEY="tskey-auth-xxxxx"
    ```
 
-If you don't use Tailscale, you can remove the Tailscale-related `user_data` block from `instance.tf` and the `TAILSCALE_AUTH_KEY` variable from `variables.tf`.
+If you don't use Tailscale, you can remove the Tailscale-related `user_data` block from `IaC/instance.tf` and the `TAILSCALE_AUTH_KEY` variable from `IaC/variables.tf`.
 
 ## Your Public IP Address
 
@@ -187,12 +187,12 @@ The security list restricts SSH access to a single IP address. Find yours:
 curl -s ifconfig.me
 ```
 
-Use this IP with `/32` suffix in `terraform.tfvars`:
+Use this IP with `/32` suffix in `IaC/terraform.tfvars`:
 ```
 user_ip_address = "YOUR.IP.HERE/32"
 ```
 
-> **Tip:** If your IP changes frequently (e.g., residential ISP), you'll need to update this value and run `tofu apply` again, or consider using Tailscale SSH instead which bypasses the security list entirely.
+> **Tip:** If your IP changes frequently (e.g., residential ISP), you'll need to update this value and run `tofu -chdir=IaC apply` again, or consider using Tailscale SSH instead which bypasses the security list entirely.
 
 ## Summary Checklist
 

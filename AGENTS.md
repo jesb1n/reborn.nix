@@ -7,7 +7,7 @@
 
 ## Project Structure & Module Organization
 
-This repository provisions Oracle Cloud Always Free infrastructure with OpenTofu/Terraform at the repo root. Core files are split by concern: `provider.tf`, `versions.tf`, and `backend.tf` configure tooling; `variables.tf` and `locals.tf` define inputs and shared values; `vcn.tf`, `availability-domains.tf`, and `instance.tf` create OCI networking and instances; `output.tf` exposes instance IPs. Docs live in `docs/`. Ignore `retire.nix/`; it is a separate cloned repo.
+This repository provisions Oracle Cloud Always Free infrastructure with OpenTofu/Terraform under `IaC/`. Core files are split by concern: `IaC/provider.tf`, `IaC/versions.tf`, and `IaC/backend.tf` configure tooling; `IaC/variables.tf` and `IaC/locals.tf` define inputs and shared values; `IaC/vcn.tf`, `IaC/availability-domains.tf`, and `IaC/instance.tf` create OCI networking and instances; `IaC/output.tf` exposes instance IPs. Docs live in `docs/`. Ignore `retire.nix/`; it is a separate cloned repo.
 
 The `anywhere/` directory is a standalone Nix flake that manages NixOS configurations for the provisioned hosts:
 
@@ -32,14 +32,14 @@ anywhere/
 
 ## Build, Test, and Development Commands
 
-### Terraform (repo root)
+### Terraform (IaC/)
 
-- `cp terraform.tfvars.example terraform.tfvars`: create a local variable file; never commit it.
-- `tofu init`: initialize providers and backend.
-- `tofu fmt -recursive`: format all `.tf` files before committing.
-- `tofu validate`: validate configuration syntax and provider schema.
-- `tofu plan`: preview OCI changes; review creates, replacements, and destroys carefully.
-- `tofu apply`: apply reviewed infrastructure changes.
+- `cp IaC/terraform.tfvars.example IaC/terraform.tfvars`: create a local variable file; never commit it.
+- `tofu -chdir=IaC init`: initialize providers and backend.
+- `tofu -chdir=IaC fmt -recursive`: format all `.tf` files before committing.
+- `tofu -chdir=IaC validate`: validate configuration syntax and provider schema.
+- `tofu -chdir=IaC plan`: preview OCI changes; review creates, replacements, and destroys carefully.
+- `tofu -chdir=IaC apply`: apply reviewed infrastructure changes.
 
 ### NixOS (`anywhere/` directory)
 
@@ -53,13 +53,13 @@ anywhere/
 
 ## Coding Style & Naming Conventions
 
-Use standard Terraform formatting: two-space indentation, aligned attributes from `tofu fmt`, and descriptive `description` fields for variables and outputs. Keep resource names lowercase with underscores, such as `oci_core_vcn.vcn`, and OCI labels lowercase with hyphens. For Nix files, follow existing two-space indentation and keep host-specific logic under `anywhere/hosts/<host>/`.
+Use standard Terraform formatting: two-space indentation, aligned attributes from `tofu -chdir=IaC fmt`, and descriptive `description` fields for variables and outputs. Keep resource names lowercase with underscores, such as `oci_core_vcn.vcn`, and OCI labels lowercase with hyphens. For Nix files, follow existing two-space indentation and keep host-specific logic under `anywhere/hosts/<host>/`.
 
 ## Testing Guidelines
 
 There is no unit test suite. Treat formatting, validation, and planning as the main checks:
 
-- **Terraform**: `tofu fmt -recursive && tofu validate && tofu plan`
+- **Terraform**: `tofu -chdir=IaC fmt -recursive && tofu -chdir=IaC validate && tofu -chdir=IaC plan`
 - **Nix**: `nix flake check` and optionally `nix eval --raw .#nixosConfigurations.<host>.config.nixpkgs.hostPlatform.system`
 
 ## Commit & Pull Request Guidelines
@@ -68,7 +68,7 @@ Use short imperative subjects, for example `Add deploy-rs support...` or `Update
 
 ## Security & Configuration Tips
 
-Do not commit `terraform.tfvars`, `*.tfstate`, `*.tfplan`, private keys, or decrypted secrets. Prefer environment variables for sensitive Terraform inputs: `TF_VAR_OCA_PRIVATE_KEY`, `TF_VAR_TAILSCALE_AUTH_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`. SOPS-encrypted secrets live under `anywhere/secrets/`; each host decrypts with an age key at `/var/lib/sops-nix/key.txt`.
+Do not commit `IaC/terraform.tfvars`, `IaC/*.tfstate`, `IaC/*.tfplan`, private keys, or decrypted secrets. Prefer environment variables for sensitive Terraform inputs: `TF_VAR_OCA_PRIVATE_KEY`, `TF_VAR_TAILSCALE_AUTH_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`. SOPS-encrypted secrets live under `anywhere/secrets/`; each host decrypts with an age key at `/var/lib/sops-nix/key.txt`.
 
 ## Key Pitfalls
 

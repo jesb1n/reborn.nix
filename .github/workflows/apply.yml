@@ -27,21 +27,21 @@ jobs:
           EOF
 
       - name: Terraform Init
-        run: tofu init
+        run: tofu -chdir=IaC init
 
       - name: Terraform Validate
-        run: tofu validate
+        run: tofu -chdir=IaC validate
 
       - name: Terraform Plan
-        run: tofu plan -out=tfplan
+        run: tofu -chdir=IaC plan -out=tfplan
 
       - name: Terraform Apply
-        run: tofu apply -auto-approve tfplan
+        run: tofu -chdir=IaC apply -auto-approve tfplan
 
       - name: Recover state on failure
         if: failure()
         run: |
-          if [ -f errored.tfstate ]; then
-            echo "Pushing errored.tfstate to remote backend..."
-            tofu state push errored.tfstate || true
+          if [ -f IaC/errored.tfstate ]; then
+            echo "Pushing IaC/errored.tfstate to remote backend..."
+            tofu -chdir=IaC state push IaC/errored.tfstate || true
           fi
