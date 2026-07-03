@@ -1,0 +1,77 @@
+commonLabels:
+  app.kubernetes.io/part-of: storage
+
+garage:
+  replicationFactor: "3"
+  consistencyMode: consistent
+  compressionLevel: "1"
+  metadataAutoSnapshotInterval: "6h"
+  existingRpcSecret: garage-rpc-secret
+  s3:
+    api:
+      bindAddr: "[::]:3900"
+      region: garage
+      rootDomain: ".s3.beijns.eu.org"
+    web:
+      bindAddr: "[::]:3902"
+      rootDomain: ".web.garage.tld"
+      index: index.html
+  admin:
+    apiBindAddr: "[::]:3903"
+
+deployment:
+  kind: StatefulSet
+  replicaCount: 4
+  podManagementPolicy: Parallel
+
+image:
+  repository: dxflrs/garage
+  pullPolicy: IfNotPresent
+
+persistence:
+  enabled: true
+  meta:
+    size: 1Gi
+  data:
+    size: 30Gi
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: NotIn
+              values:
+                - rpi
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: garage
+          topologyKey: kubernetes.io/hostname
+
+resources:
+  requests:
+    memory: 64Mi
+    cpu: 50m
+  limits:
+    memory: 256Mi
+    cpu: 500m
+
+service:
+  type: ClusterIP
+  s3:
+    api:
+      port: 3900
+    web:
+      port: 3902
+
+ingress:
+  s3:
+    api:
+      enabled: false
+    web:
+      enabled: false

@@ -1,0 +1,29 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: garage-s3
+  namespace: garage
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`s3.beijns.eu.org`)
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: garage-garage
+          port: 3900
+    - match: HostRegexp(`{subresource:[a-z0-9-]+}.s3.beijns.eu.org`)
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: garage-garage
+          port: 3900
+  tls:
+    certResolver: cloudflare
+    domains:
+      - main: s3.beijns.eu.org
+        sans:
+          - "*.s3.beijns.eu.org"

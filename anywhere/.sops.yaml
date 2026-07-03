@@ -81,3 +81,11 @@ creation_rules:
           - *master
           - *mark
           - *s145_cluster
+
+  - path_regex: k8s/garage/garage-secret.yaml
+    encrypted_regex: "^(data|stringData)$"
+    key_groups:
+      - age:
+          - *master
+          - *mark
+          - *s145_cluster

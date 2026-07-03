@@ -1,0 +1,10 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: garage
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://git.deuxfleurs.fr/Deuxfleurs/garage.git
+  ref:
+    tag: v2.3.0
