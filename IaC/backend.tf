@@ -1,7 +1,7 @@
 terraform {
   backend "s3" {
     bucket                      = "tofu-backend"
-    key                         = "beijns/terraform.tfstate"
+    key                         = "beijns.tfstate"
     region                      = "garage"
     endpoint                    = "http://100.69.231.117:31900"
     skip_credentials_validation = true
