@@ -1,9 +1,10 @@
 ENV ?= beijns
+REGION := $(shell grep ^region $(ENV).tfvars | head -1 | cut -d'"' -f2)
 
 check-auth:
 	@OCI_CLI_PROFILE=$(ENV) oci iam region list > /dev/null 2>&1 || \
 		(echo "Session expired. Authenticating $(ENV)..."; \
-		 oci session authenticate --profile $(ENV))
+		 oci session authenticate --profile-name $(ENV) --region $(REGION))
 
 init: check-auth
 	tofu init -reconfigure \
