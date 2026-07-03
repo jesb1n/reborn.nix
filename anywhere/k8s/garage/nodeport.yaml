@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: garage-s3-nodeport
+  namespace: garage
+spec:
+  type: NodePort
+  ports:
+    - port: 3900
+      targetPort: 3900
+      nodePort: 31900
+  selector:
+    app.kubernetes.io/name: garage
