@@ -87,6 +87,36 @@
         ];
       };
 
+      nixosConfigurations.oracle-in-arm1 = nixpkgs-unstable.lib.nixosSystem {
+        system = "aarch64-linux";
+
+        modules = [
+          disko.nixosModules.disko
+          sops-nix.nixosModules.sops
+          ./hosts/oracle-in-arm1/configuration.nix
+        ];
+      };
+
+      nixosConfigurations.oracle-in-micro1 = nixpkgs-unstable.lib.nixosSystem {
+        system = "x86_64-linux";
+
+        modules = [
+          disko.nixosModules.disko
+          sops-nix.nixosModules.sops
+          ./hosts/oracle-in-micro1/configuration.nix
+        ];
+      };
+
+      nixosConfigurations.oracle-in-micro2 = nixpkgs-unstable.lib.nixosSystem {
+        system = "x86_64-linux";
+
+        modules = [
+          disko.nixosModules.disko
+          sops-nix.nixosModules.sops
+          ./hosts/oracle-in-micro2/configuration.nix
+        ];
+      };
+
       nixosConfigurations.s145 = nixpkgs-unstable.lib.nixosSystem {
         system = "x86_64-linux";
 
@@ -145,6 +175,47 @@
           profiles.system = {
             user = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.oracle-eu-micro2;
+          };
+        };
+
+        oracle-in-arm1 = {
+          hostname = "oracle-in-arm1";
+          sshUser = "duck";
+          remoteBuild = true;
+          activationTimeout = 600;
+          confirmTimeout = 60;
+
+          profiles.system = {
+            user = "root";
+            path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.oracle-in-arm1;
+          };
+        };
+
+        oracle-in-micro1 = {
+          hostname = "oracle-in-micro1";
+          sshUser = "duck";
+          remoteBuild = true;
+          fastConnection = true;
+          activationTimeout = 600;
+          confirmTimeout = 60;
+
+          profiles.system = {
+            user = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.oracle-in-micro1;
+          };
+        };
+
+        oracle-in-micro2 = {
+          hostname = "oracle-in-micro2";
+          sshUser = "duck";
+          remoteBuild = true;
+          fastConnection = true;
+          activationTimeout = 600;
+          confirmTimeout = 60;
+
+          profiles.system = {
+            user = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.oracle-in-micro2;
           };
         };
 

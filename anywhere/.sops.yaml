@@ -15,6 +15,9 @@ keys:
   - &rpi age1grhrmmx3xkvv9vfe5jtl33w6fntvc0095q35xdt0n8pz4neqnyaspld9y2
   - &s145_host age16039825yxfmxmgw6xd7ytd7p4zfpfuuv25czrpjsdlhcu3mrvursrxgl30
   - &s145_cluster age1f0zkp89kxtfgwm5wrdg0mdhgks93snxprjwkjdzmjr04f5yzqalszr74x7
+  - &oracle_in_arm age1nry5l990f3ja66c3zhl9peejhu9284s4j8pytk2cwfufsvkrtvrsh6asfc
+  - &oracle_in_micro1 age1hsdtg2f8xcc39exwy0gfmmhee60w95v7n5fhet6hmg7f6scqc9lqsfjmmp
+  - &oracle_in_micro2 age1xw3mt3hjyqx53kv3ptflvyywr77fc8wsy5xm7h099eax0u8p2c6sfnww50
 
 creation_rules:
   - path_regex: secrets/oracle-eu-arm1/.*
@@ -23,6 +26,27 @@ creation_rules:
           - *master
           - *mark
           - *oracle_eu_arm1
+
+  - path_regex: secrets/oracle-in-arm1/.*
+    key_groups:
+      - age:
+          - *master
+          - *mark
+          - *oracle_in_arm
+
+  - path_regex: secrets/oracle-in-micro1/.*
+    key_groups:
+      - age:
+          - *master
+          - *mark
+          - *oracle_in_micro1
+
+  - path_regex: secrets/oracle-in-micro2/.*
+    key_groups:
+      - age:
+          - *master
+          - *mark
+          - *oracle_in_micro2
 
   - path_regex: secrets/k3s/.*
     key_groups:
@@ -34,6 +58,9 @@ creation_rules:
           - *oracle_eu_micro1
           - *oracle_eu_micro2
           - *rpi
+          - *oracle_in_arm
+          - *oracle_in_micro1
+          - *oracle_in_micro2
 
   - path_regex: secrets/tailscale/.*
     key_groups:
@@ -45,6 +72,9 @@ creation_rules:
           - *oracle_eu_micro2
           - *rpi
           - *s145_host
+          - *oracle_in_arm
+          - *oracle_in_micro1
+          - *oracle_in_micro2
 
   - path_regex: secrets/oracle-eu-micro1/.*
     key_groups:
