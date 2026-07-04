@@ -70,6 +70,8 @@ Use short imperative subjects, for example `Add deploy-rs support...` or `Update
 
 Do not commit `IaC/terraform.tfvars`, `IaC/*.tfstate`, `IaC/*.tfplan`, private keys, or decrypted secrets. Prefer environment variables for sensitive Terraform inputs: `TF_VAR_OCA_PRIVATE_KEY`, `TF_VAR_TAILSCALE_AUTH_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`. SOPS-encrypted secrets live under `anywhere/secrets/`; each host decrypts with an age key at `/var/lib/sops-nix/key.txt`.
 
+- **Always set `SOPS_AGE_KEY_FILE` before running sops**: `export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"`. Without this, sops decrypt commands will fail to find the master identity key.
+
 ## Key Pitfalls
 
 - **Never use `nixos-anywhere` for routine updates** — it destroys and reinstalls. Use `deploy-rs` for config changes.
