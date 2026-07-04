@@ -52,7 +52,9 @@ resource "oci_core_instance" "arm_instance" {
     create_before_destroy = true
     ignore_changes = [
       # Ignore changes to availability_domain to prevent recreation
-      availability_domain
+      availability_domain,
+      # Ignore ssh key metadata — CLI-created instance has trailing newline mismatch
+      metadata["ssh_authorized_keys"],
     ]
   }
 }
