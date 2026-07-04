@@ -1,0 +1,18 @@
+keys:
+  - &master age1pszh4rajt03mcmkhgxuyqkyrnu2qe9xgv9g93kymu06z0pzw0feqmrcph8
+  - &mark age10dmkesu0j4zyr0xqkuvhzzdc2trlp93vlfvcwwfytzj9gefmp4equhleuw
+
+creation_rules:
+  - path_regex: secrets/.*\.env
+    encrypted_regex: "^(.*)$$"
+    key_groups:
+      - age:
+          - *master
+          - *mark
+
+  - path_regex: terraform\.tfvars$
+    encrypted_regex: "^(.*)$$"
+    key_groups:
+      - age:
+          - *master
+          - *mark
