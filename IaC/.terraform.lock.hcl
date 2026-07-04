@@ -5,7 +5,20 @@ provider "registry.opentofu.org/oracle/oci" {
   version     = "8.18.0"
   constraints = ">= 4.67.3"
   hashes = [
+    "h1:GZAOYUDh8KkiVKGQB4bzNRfa5bfGA7yQ+hITA3NkYvo=",
+    "h1:Lhd27q/JDmHaS5gMNi9AQLYsylD/5es8IisrgmA1wdY=",
+    "h1:N0hIF6NaBI/dH/sBVWOfDCft0Udh6U9YnquXQC47/EQ=",
     "h1:P5jNI8/VNJKNsX0Y/6dmjpRf5Qk7Flh4uXEE8n7bU1Q=",
+    "h1:Qsc2ulG+RE1XVeHsTOtGzBTfzFErY6ihfteEadBowp4=",
+    "h1:SoNvmCMnHzhbBE/FCxzu+F9fT0gdhTwSFTsjBNY1saM=",
+    "h1:TmHSi641yaAQNkgh2OEhvUh1xiWWiYOko5r+YSaPwwQ=",
+    "h1:fvfm064FncOH8ZzPsPuSNuXTWJ6JgS3zCLi/0+x9FGo=",
+    "h1:hVN+cGH3uo7DY+NqqD4J0LY3Cqz/J/nTR38RmBbTwpU=",
+    "h1:lW9tj21i5gyvKA8WP5ZkNrldEnWYonK6w7jBtBhcR3s=",
+    "h1:mSyF7349xoKWykZnrTj/uhgA+uzwhG1IVhHTJznIJvU=",
+    "h1:ndj/GFRiOYXtySQelyOvj3tE/PAOcE/0nMY6o22QAcM=",
+    "h1:tRzpWcJBw7n8K5yRFbnj8Nj1dJVeF6C8p9sn6iinA1w=",
+    "h1:yumZR8uyN1zW+BzmC7wCbl+IHJ5uQ2JhNDGhRl5QnR4=",
     "zh:04d8c7bd1110435028b321f2bf9597a40cab0fe4e5e48d756626ef6a43af552c",
     "zh:0836ad1892276e7a1fbabbd57f83e2c4ced4732934b2db705c03806cefbafae3",
     "zh:0de97ef3bc6d808cc15e3fcfb0b861e2f59029e8ce75f8bd42bb96047581315a",
