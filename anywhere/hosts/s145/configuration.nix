@@ -63,6 +63,13 @@ in
     notifications.test = false;
   };
 
+  # Keep server workloads running when the laptop lid is closed.
+  services.logind.settings.Login = {
+    HandleLidSwitch = "ignore";
+    HandleLidSwitchExternalPower = "ignore";
+    HandleLidSwitchDocked = "ignore";
+  };
+
   # Realtek USB WiFi adapter firmware
   hardware.enableRedistributableFirmware = true;
 
