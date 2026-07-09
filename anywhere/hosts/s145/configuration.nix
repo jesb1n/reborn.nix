@@ -89,7 +89,7 @@ in
         connection = {
           id = "s145-wifi";
           type = "wifi";
-          interface-name = "wlp2s0f3u2";
+          interface-name = "wlp2s0";
           autoconnect = true;
         };
         wifi = {
