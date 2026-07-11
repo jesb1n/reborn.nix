@@ -136,6 +136,16 @@
         ];
       };
 
+      nixosConfigurations.hp348 = nixpkgs-unstable.lib.nixosSystem {
+        system = "x86_64-linux";
+
+        modules = [
+          disko.nixosModules.disko
+          sops-nix.nixosModules.sops
+          ./hosts/hp348/configuration.nix
+        ];
+      };
+
       nixosConfigurations.rpi = nixos-raspberrypi.lib.nixosSystem {
         modules = [
           nixos-raspberrypi.nixosModules.raspberry-pi-4.base
@@ -266,6 +276,20 @@
           profiles.system = {
             user = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.s145;
+          };
+        };
+
+        hp348 = {
+          hostname = "hp348";
+          sshUser = "duck";
+          remoteBuild = true;
+          fastConnection = true;
+          activationTimeout = 600;
+          confirmTimeout = 60;
+
+          profiles.system = {
+            user = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.hp348;
           };
         };
       };
