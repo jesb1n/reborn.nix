@@ -11,6 +11,7 @@
 
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "1password"
+    "slack"
     "vscode"
   ];
 
@@ -48,8 +49,10 @@
     casks = [
       "arc"
       "cloudflare-warp"
+      "maccy"
       "tailscale-app"
       "warp"
+      "whatsapp"
     ];
   };
 
@@ -77,6 +80,11 @@
       install -m 755 "$TMPDIR/bin/gke-gcloud-auth-plugin" "$PLUGIN_BIN"
       echo "Installed gke-gcloud-auth-plugin"
     fi
+  '';
+
+  system.activationScripts.configureMaccy.text = ''
+    # Faster clipboard check (100ms vs default 500ms)
+    defaults write org.p0deje.Maccy clipboardCheckInterval -float 0.1
   '';
 
   time.timeZone = "Asia/Calcutta";

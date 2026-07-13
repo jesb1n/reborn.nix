@@ -101,6 +101,7 @@
     ripgrep
     yq-go
     tree
+    gh
     kubectl
     kubectx
     opencode
@@ -109,6 +110,7 @@
     wireguard-tools
     _1password-gui
     firefox
+    slack
     google-cloud-sdk
     iterm2
     vscode
