@@ -61,5 +61,23 @@
     defaultbrowser company.thebrowser.Browser
   '';
 
+  system.activationScripts.installGkePlugin.text = ''
+    PLUGIN_URL="https://dl.google.com/dl/cloudsdk/channels/rapid/components/google-cloud-sdk-gke-gcloud-auth-plugin-darwin-arm-20260522195849.tar.gz"
+    PLUGIN_BIN="/usr/local/bin/gke-gcloud-auth-plugin"
+
+    # Skip if already installed
+    if [ -x "$PLUGIN_BIN" ]; then
+      echo "gke-gcloud-auth-plugin already installed"
+    else
+      TMPDIR=$(mktemp -d)
+      trap 'rm -rf "$TMPDIR"' EXIT
+
+      curl -sL "$PLUGIN_URL" -o "$TMPDIR/plugin.tar.gz"
+      tar -xzf "$TMPDIR/plugin.tar.gz" -C "$TMPDIR"
+      install -m 755 "$TMPDIR/bin/gke-gcloud-auth-plugin" "$PLUGIN_BIN"
+      echo "Installed gke-gcloud-auth-plugin"
+    fi
+  '';
+
   time.timeZone = "Asia/Calcutta";
 }

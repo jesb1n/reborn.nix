@@ -25,6 +25,7 @@
         gd = "git diff";
         gl = "git log --oneline -20";
         k = "kubectl";
+        kx = "kubectx";
       };
       initContent = ''
         # gx: permanently switch gcloud project
@@ -51,6 +52,8 @@
     git = {
       enable = true;
       settings = {
+        user.name = "jesbinjoseph";
+        user.email = "jesbin.joseph@egovernments.org";
         init.defaultBranch = "main";
         pull.rebase = true;
         push.autoSetupRemote = true;
