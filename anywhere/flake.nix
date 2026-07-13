@@ -30,9 +30,18 @@
     # (uv2nix + recent Python/Node, won't build cleanly against 26.05).
     hermes-agent.url = "github:NousResearch/hermes-agent";
     hermes-agent.inputs.nixpkgs.follows = "nixpkgs-unstable";
+
+    nix-darwin.url = "github:LnL7/nix-darwin";
+    nix-darwin.inputs.nixpkgs.follows = "nixpkgs-unstable";
+
+    home-manager.url = "github:nix-community/home-manager";
+    home-manager.inputs.nixpkgs.follows = "nixpkgs-unstable";
+
+    mac-app-util.url = "github:hraban/mac-app-util";
+    mac-app-util.inputs.nixpkgs.follows = "nixpkgs-unstable";
   };
 
-  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-anywhere, nixos-raspberrypi, deploy-rs, disko, sops-nix, hermes-agent, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-anywhere, nixos-raspberrypi, deploy-rs, disko, sops-nix, hermes-agent, nix-darwin, home-manager, mac-app-util, ... }:
     let
       managementSystems = [
         "aarch64-darwin"
@@ -136,6 +145,20 @@
         ];
       };
 
+      darwinConfigurations.pro-darwin = nix-darwin.lib.darwinSystem {
+        system = "aarch64-darwin";
+        modules = [
+          ./hosts/pro-darwin/darwin-configuration.nix
+          home-manager.darwinModules.home-manager
+          mac-app-util.darwinModules.default
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.jesbin = import ./hosts/pro-darwin/home.nix;
+          }
+        ];
+      };
+
       deploy.nodes = {
         oracle-eu-arm1 = {
           hostname = "oracle-eu-arm1";
@@ -192,9 +215,9 @@
         };
 
         oracle-in-micro1 = {
-          hostname = "oracle-in-micro1";
-          sshUser = "duck";
-          remoteBuild = true;
+          hostname = "129.154.240.246";
+          sshUser = "ubuntu";
+          remoteBuild = false;
           fastConnection = true;
           activationTimeout = 600;
           confirmTimeout = 60;

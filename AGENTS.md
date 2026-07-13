@@ -5,85 +5,209 @@
 
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Project Structure
 
-This repository provisions Oracle Cloud Always Free infrastructure with OpenTofu/Terraform under `IaC/`. Core files are split by concern: `IaC/provider.tf`, `IaC/versions.tf`, and `IaC/backend.tf` configure tooling; `IaC/variables.tf` and `IaC/locals.tf` define inputs and shared values; `IaC/vcn.tf`, `IaC/availability-domains.tf`, and `IaC/instance.tf` create OCI networking and instances; `IaC/output.tf` exposes instance IPs. Docs live in `docs/`. Ignore `retire.nix/`; it is a separate cloned repo.
+- `IaC/` — OpenTofu/Terraform; provisions OCI VCN, subnets, and instances.
+- `anywhere/` — Standalone Nix flake; manages NixOS configs for all hosts via deploy-rs.
+- `docs/` — Architecture, setup, prerequisites, CI/CD docs.
+- `retire.nix/` — **Ignore.** Separate cloned repo, not part of this project.
 
-The `anywhere/` directory is a standalone Nix flake that manages NixOS configurations for the provisioned hosts:
+### Hosts (current state)
 
+| Host | Shape | Arch | Role | Tailscale IP |
+|------|-------|------|------|-------------|
+| `s145` | Home server | x86_64 | **k3s control-plane** | `100.69.231.117` |
+| `oracle-eu-arm1` | A1.Flex | aarch64 | k3s agent | `100.84.230.4` |
+| `oracle-eu-micro1` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | `100.96.237.114` |
+| `oracle-eu-micro2` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | `100.67.95.26` |
+| `oracle-in-arm1` | A1.Flex | aarch64 | k3s agent | `100.117.227.112` |
+| `oracle-in-micro1` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | `129.154.240.246` |
+| `oracle-in-micro2` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | — |
+| `rpi` | Raspberry Pi 4 | aarch64 | k3s agent | `100.118.166.120` |
+
+## IaC (OpenTofu/Terraform)
+
+### Commands
+
+```bash
+# Format before every commit
+tofu -chdir=IaC fmt -recursive && tofu -chdir=IaC validate
+
+# Standard flow
+tofu -chdir=IaC init
+tofu -chdir=IaC plan
+tofu -chdir=IaC apply
+
+# State recovery after failed apply
+tofu -chdir=IaC state push IaC/errored.tfstate
+
+# Local multi-env workflow (SOPS-integrated, preferred locally)
+make ENV=beijns check-auth   # Refresh OCI SecurityToken session first
+make ENV=beijns init
+make ENV=beijns plan
+make ENV=beijns deploy
 ```
-anywhere/
-├── flake.nix              # Inputs, deploy-rs nodes, NixOS configs
-├── hosts/<hostname>/      # Per-host: configuration.nix, disko-config.nix, sops.nix
-├── secrets/<hostname>/    # SOPS-encrypted age files (decrypted at activation)
-├── packages/              # Custom Nix derivations (kexec images)
-├── MAINTENANCE.md         # Runbook for routine ops
-└── GATEWAY-NLB-PLAN.md   # Planned NLB addition
+
+### Critical IaC quirks
+
+- **OCI uses SecurityToken auth** (`auth = "SecurityToken"` in `provider.tf`), not inline API keys. The session expires — run `make check-auth` or `oci session authenticate --profile-name <env> --region <region>` before any tofu command. This is what `make check-auth` automates.
+- **Backend is self-hosted Garage** (S3-compatible) running on `s145` at `http://100.69.231.117:31900` — NOT OCI Object Storage. Requires Tailscale to be connected. CI bypasses with `skip_credentials_validation = true`.
+- **Multi-env secrets**: the `Makefile` uses `sops exec-file <env>.tfvars 'tofu ... -var-file={}'` — never writes plaintext `.tfvars` to disk. `SOPS_AGE_KEY_FILE` is pre-set in the Makefile.
+- **`availability_domain` changes are ignored** in instance lifecycle (`ignore_changes`) to prevent recreation.
+- **Micro cloud-init is one-shot**: `metadata["user_data"]` is in `ignore_changes` — cloud-init runs only on first boot (installs Tailscale, joins tailnet, then clears user-data). Re-provisioning requires `taint` + `apply`.
+- **`TF_VAR_OCA_PRIVATE_KEY`** must be base64-encoded: `base64 < ~/.oci/key.pem` (macOS) or `base64 -w0 < ~/.oci/key.pem` (Linux).
+
+## NixOS / anywhere/
+
+### Commands (run from `anywhere/`)
+
+```bash
+# Enter dev shell first (provides deploy-rs, sops, age, nixos-anywhere, disko, ssh-to-age)
+nix develop
+# NOTE: direnv allow only sets KUBECONFIG and SOPS_AGE_KEY_FILE — it does NOT load dev shell tools
+# (nix print-dev-env is commented out in .envrc)
+
+# Validate on every Nix file change
+nix flake check
+
+# Build without activating (use before first deploy to a host)
+nix build -L .#nixosConfigurations.<host>.config.system.build.toplevel
+
+# Deploy via deploy-rs (routine updates)
+nix develop -c deploy .#<host>
+nix develop -c deploy --targets .#oracle-eu-micro1 .#oracle-eu-micro2
+nix develop -c deploy .   # all nodes
+
+# Evaluate without deploying
+nix eval --raw .#nixosConfigurations.<host>.config.networking.hostName
+nix eval .#deploy.nodes.<host>.remoteBuild
 ```
 
-### Hosts
+### Critical NixOS quirks
 
-| Host | Shape | Arch | Role |
-|------|-------|------|------|
-| `oci-nixos` | A1.Flex (4 OCPU, 24 GB) | aarch64 | k3s control-plane |
-| `oracle-eu-micro1` | E2.1.Micro (1 OCPU, 1 GB) | x86_64 | k3s worker (tainted `tiny`) |
-| `oracle-eu-micro2` | E2.1.Micro (1 OCPU, 1 GB) | x86_64 | k3s worker (tainted `tiny`) |
-| `rpi` | Raspberry Pi 4 | aarch64 | standalone |
+- **All NixOS systems use `nixpkgs-unstable`**. The `nixpkgs` input (26.05 stable) is only used for the devShell. Every `nixosSystem` call uses `nixpkgs-unstable.lib.nixosSystem`.
+- **New Nix files must be `git add`-ed before eval or deploy.** Flakes only see tracked/staged files; untracked files cause evaluation errors.
+- **ARM hosts build remotely** (`remoteBuild = true`): `oracle-eu-arm1` and `oracle-in-arm1` build on themselves because s145 is x86_64 and cannot cross-compile aarch64 by default.
+- **`oracle-in-micro1` is unique**: `sshUser = "ubuntu"` (not `duck`) and `remoteBuild = false`. Deploy target is a hardcoded IP (`129.154.240.246`), not hostname.
+- **`nixos-anywhere` is destructive** — reformats the disk via disko. Never use for routine updates; use deploy-rs instead.
+- **`--elevate=sudo`** (not `--use-remote-sudo`) is the correct flag for `nixos-rebuild` remote activation.
+- **`s145` overrides GRUB** with systemd-boot (`lib.mkForce`). All other OCI hosts use GRUB from `profiles/server.nix`.
+- **Deploy order for input updates**: workers (`oracle-eu-micro2` → `oracle-eu-micro1`) → ARM agents → control-plane (`s145`) last.
+- **`rpi` has a 900s activation timeout** (vs 600s for all others) due to slower Raspberry Pi hardware — deploys to rpi take longer.
 
-## Build, Test, and Development Commands
+### Profile composition
 
-### Terraform (IaC/)
+Every host imports from `profiles/`:
+```
+base.nix          ← users (duck), weekly GC, minimal footprint
++ server.nix      ← GRUB/systemd-boot, SSH hardening, TZ=Asia/Kolkata
++ tailscale.nix   ← gated on secrets/tailscale/secrets.yaml existing
++ k3s-server.nix  ← s145 only
+  OR k3s-agent.nix          ← arm + rpi
+  OR k3s-agent-tiny.nix     ← micro nodes (adds zramSwap 50%, max-pods=10)
++ hermes-agent.nix          ← oracle-eu-arm1 only
++ disko-config.nix          ← all except oracle-eu-arm1 (has hardware-configuration.nix)
++ sops.nix                  ← per-host secret declarations
+```
 
-- `cp IaC/terraform.tfvars.example IaC/terraform.tfvars`: create a local variable file; never commit it.
-- `tofu -chdir=IaC init`: initialize providers and backend.
-- `tofu -chdir=IaC fmt -recursive`: format all `.tf` files before committing.
-- `tofu -chdir=IaC validate`: validate configuration syntax and provider schema.
-- `tofu -chdir=IaC plan`: preview OCI changes; review creates, replacements, and destroys carefully.
-- `tofu -chdir=IaC apply`: apply reviewed infrastructure changes.
+Secret gating pattern (used for optional profiles):
+```nix
+let hasFoo = builtins.pathExists ./path/to/secrets.yaml;
+in lib.mkIf hasFoo { ... }
+```
 
-### NixOS (`anywhere/` directory)
+Host-specific `configuration.nix` only sets: `networking.hostName`, `services.k3s.nodeName`, `services.k3s.nodeIP`, `services.tailscale.extraUpFlags`, and host-unique hardware/boot overrides.
 
-- `cd anywhere && direnv allow`: enter the Nix dev shell (provides deploy-rs, sops, age, nixos-anywhere, disko).
-- `nix flake check`: validate flake outputs when Nix files change.
-- `nix flake show`: inspect available NixOS configurations.
-- `nix develop -c deploy .#<hostname>`: deploy a single host via deploy-rs.
-- `nix develop -c deploy --targets .#oracle-eu-micro1 .#oracle-eu-micro2`: deploy multiple hosts.
-- `nix develop -c deploy .`: deploy all hosts.
-- `nix build -L .#nixosConfigurations.<hostname>.config.system.build.toplevel`: build without activating.
+## SOPS / Secrets
 
-## Coding Style & Naming Conventions
+```bash
+# REQUIRED before any sops command
+export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
+# Also set by direnv in anywhere/ and by the IaC/Makefile
 
-Use standard Terraform formatting: two-space indentation, aligned attributes from `tofu -chdir=IaC fmt`, and descriptive `description` fields for variables and outputs. Keep resource names lowercase with underscores, such as `oci_core_vcn.vcn`, and OCI labels lowercase with hyphens. For Nix files, follow existing two-space indentation and keep host-specific logic under `anywhere/hosts/<host>/`.
+# Edit
+sops anywhere/secrets/<host>/secrets.yaml
+sops anywhere/secrets/k3s/secrets.yaml
+sops anywhere/secrets/tailscale/secrets.yaml
 
-## Testing Guidelines
+# Re-key after .sops.yaml changes
+sops updatekeys anywhere/secrets/<host>/secrets.yaml
 
-There is no unit test suite. Treat formatting, validation, and planning as the main checks:
+# Test decrypt
+sops -d anywhere/secrets/k3s/secrets.yaml >/dev/null
 
-- **Terraform**: `tofu -chdir=IaC fmt -recursive && tofu -chdir=IaC validate && tofu -chdir=IaC plan`
-- **Nix**: `nix flake check` and optionally `nix eval --raw .#nixosConfigurations.<host>.config.nixpkgs.hostPlatform.system`
+# Generate k3s token
+openssl rand -base64 48
 
-## Commit & Pull Request Guidelines
+# Get age public key from private key
+age-keygen -y /var/lib/sops-nix/key.txt
 
-Use short imperative subjects, for example `Add deploy-rs support...` or `Update oracle-eu-micro2 IP address...`. Keep commits focused and describe infrastructure impact. Pull requests should include a summary, affected hosts/resources, validation commands run, and relevant `tofu plan` highlights.
+# Provision host age key (online host)
+sudo mkdir -p /var/lib/sops-nix
+sudo age-keygen -o /var/lib/sops-nix/key.txt
+sudo chmod 600 /var/lib/sops-nix/key.txt
+sudo age-keygen -y /var/lib/sops-nix/key.txt  # → add public key to .sops.yaml, then sops updatekeys
+```
 
-## Security & Configuration Tips
+- `sops.age.generateKey = false` on all hosts — keys must be pre-provisioned.
+- Shared secrets (`k3s/`, `tailscale/`) are decryptable by all host keys; per-host secrets only by that host + master/mark.
 
-Do not commit `IaC/terraform.tfvars`, `IaC/*.tfstate`, `IaC/*.tfplan`, private keys, or decrypted secrets. Prefer environment variables for sensitive Terraform inputs: `TF_VAR_OCA_PRIVATE_KEY`, `TF_VAR_TAILSCALE_AUTH_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`. SOPS-encrypted secrets live under `anywhere/secrets/`; each host decrypts with an age key at `/var/lib/sops-nix/key.txt`.
+## k3s / Kubernetes
 
-- **Always set `SOPS_AGE_KEY_FILE` before running sops**: `export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"`. Without this, sops decrypt commands will fail to find the master identity key.
+```bash
+# Cluster health
+ssh duck@s145 'sudo k3s kubectl get nodes -o wide'
+ssh duck@s145 'sudo k3s kubectl get pods -A'
 
-## Key Pitfalls
+# KUBECONFIG (set by direnv in anywhere/)
+export KUBECONFIG=~/.kube/s145.yaml
+kubectl get nodes
 
-- **Never use `nixos-anywhere` for routine updates** — it destroys and reinstalls. Use `deploy-rs` for config changes.
-- **ARM host (`oci-nixos`) builds remotely** (`remoteBuild = true`) since the operator machine is x86.
-- **Micro instances have only 1 GB RAM** — zramSwap at 50%, max-pods=10; don't schedule heavy workloads.
-- **`availability_domain` changes are ignored** in instance lifecycle to prevent recreation.
-- **k3s cluster traffic flows over `tailscale0`** (`--flannel-iface=tailscale0`); Tailscale IP changes require updating `services.k3s.nodeIP`.
+# Apply k8s manifests (NOT auto-deployed — manual only)
+kubectl apply -f anywhere/k8s/_infra/
+kubectl apply -f anywhere/k8s/vaultwarden/
+
+# Flux reconcile
+flux reconcile kustomization immich -n flux-system --with-source
+```
+
+### Critical k8s/k3s quirks
+
+- **`tiny=true:NoSchedule` taint is NOT in NixOS config.** It must be re-applied manually after every cluster rebuild:
+  ```bash
+  ssh duck@s145 'sudo k3s kubectl taint node oracle-eu-micro1 tiny=true:NoSchedule --overwrite'
+  ssh duck@s145 'sudo k3s kubectl taint node oracle-eu-micro2 tiny=true:NoSchedule --overwrite'
+  # Repeat for oracle-in-micro1/2
+  ```
+- **`k3s serverAddr` is hardcoded** to `https://100.69.231.117:6443` (s145's Tailscale IP) in `profiles/k3s-agent.nix`. If s145's Tailscale IP changes, update this file and redeploy all agents.
+- **k8s manifests in `anywhere/k8s/` are NOT auto-deployed.** They are not in k3s's auto-deploy directory. Only Traefik's HelmChartConfig and Cloudflare secret are placed there by NixOS activation via s145's `sops.nix` + `traefik.nix`.
+- **Traefik Middleware is namespace-scoped.** App IngressRoutes reference `security-headers` in their own namespace, not `kube-system/security-headers`.
+- **All stateful workloads pin `nodeSelector: kubernetes.io/hostname: s145`** because PVCs use `local-path` storage backed by s145's 1 TB HDD.
+- **Flux GitOps** syncs `github.com/jesb1n/reborn.nix@main` → `anywhere/clusters/s145/` via `FluxInstance` in `anywhere/operator/flux-instance.yaml`.
+- **k3s SQLite state** is at `/var/lib/rancher/k3s/server/db/state.db` on s145 — no automated backup.
+- **All cluster traffic flows over `tailscale0`** (`--flannel-iface=tailscale0`).
+
+## Validation Checklist (before proposing changes)
+
+- **Terraform**: `tofu -chdir=IaC fmt -recursive && tofu -chdir=IaC validate`
+- **Nix**: `nix flake check` (from `anywhere/`)
+- **New Nix files**: `git add <file>` before any `nix eval` or deploy
+- **OCI session**: run `make check-auth` if session may have expired
+
+## CI (GitHub Actions)
+
+Both workflows (`apply.yml`, `destroy.yml`) are **manual-only** (`workflow_dispatch`). They use OpenTofu 1.9.1 on `ubuntu-latest`, write S3 backend creds from GitHub Secrets, and run the standard init → plan → apply/destroy flow. If `apply` fails, it pushes `errored.tfstate` to the backend for recovery.
+
+## What Not to Commit
+
+`IaC/terraform.tfvars`, `IaC/*.tfstate*`, `IaC/*.tfplan`, `IaC/errored.tfstate`, `IaC/.terraform/`, `*.pem`, `*.key`, decrypted secrets. Age *public* key files (e.g., `anywhere/secrets/oracle-in-arm1/key.txt`) are safe to commit.
 
 ## Related Documentation
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — full infrastructure diagram and component breakdown
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — full infrastructure diagram
 - [docs/SETUP.md](docs/SETUP.md) — step-by-step provisioning guide
-- [docs/PREREQUISITES.md](docs/PREREQUISITES.md) — required tools, accounts, and credentials
-- [docs/CICD.md](docs/CICD.md) — GitHub Actions deployment workflows
-- [anywhere/MAINTENANCE.md](anywhere/MAINTENANCE.md) — NixOS host operations runbook
+- [docs/PREREQUISITES.md](docs/PREREQUISITES.md) — required tools, accounts, credentials
+- [docs/CICD.md](docs/CICD.md) — GitHub Actions secrets and workflow details
+- [anywhere/MAINTENANCE.md](anywhere/MAINTENANCE.md) — NixOS host operations runbook (daily checks, rollback, GC, Hermes)
+- [anywhere/README.md](anywhere/README.md) — host management, Tailscale setup, nixos-anywhere install
+- [.github/instructions/nixos.instructions.md](.github/instructions/nixos.instructions.md) — NixOS deployment rules for GitHub Copilot
