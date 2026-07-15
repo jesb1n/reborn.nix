@@ -112,7 +112,6 @@
     opencode
     tailscale
     k9s
-    wireguard-tools
     firefox
     slack
     google-cloud-sdk
