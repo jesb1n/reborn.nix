@@ -82,6 +82,7 @@ The iCloud path (`/Users/jesbin/Library/Mobile Documents/com~apple~CloudDocs/Doc
 
 `nixpkgs.config.allowUnfreePredicate` currently allows:
 - `1password` (1Password GUI)
+- `slack` (Slack)
 - `vscode` (VS Code)
 
 If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree = true` globally.
@@ -99,11 +100,24 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | `tailscale-app` | Needs macOS Network Extension entitlements. (The `tailscale` CLI IS installed via Nix in home.packages — separate from the GUI app.) |
 | `warp` | Marked broken in nixpkgs. |
 | `maccy` | Not in nixpkgs. Configured via `defaults write org.p0deje.Maccy ...`. |
+| `docker` | Requires macOS system extensions; Docker Desktop is not available in nixpkgs. |
+| `whatsapp` | macOS app not in nixpkgs. |
 
-### Nix (already in home.packages)
+### Mac App Store (masApps)
 
-CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `kubectl`, `kubectx`, `opencode`, `tailscale` (CLI), `k9s`, `google-cloud-sdk`
-GUI: `_1password-gui`, `firefox`, `iterm2`, `vscode`
+| App | MAS ID | Reason |
+|-----|--------|--------|
+| `WireGuard` | `1451685025` | GUI VPN client. `wireguard-tools` (CLI) was removed since the MAS app covers the use case. |
+
+### Nix (system — environment.systemPackages)
+
+- `defaultbrowser` — sets the default browser via activation script
+- `_1password-gui` — 1Password GUI app (system-installed for proper macOS integration)
+
+### Nix (home.packages)
+
+CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `tailscale` (CLI), `k9s`, `google-cloud-sdk`, `opentofu`
+GUI: `firefox`, `iterm2`, `vscode`, `slack`
 
 ### Special case: `google-cloud-sdk` + `gke-gcloud-auth-plugin`
 
@@ -167,7 +181,8 @@ sudo darwin-rebuild switch --flake .#pro-darwin
 - **Do not** re-enable `nix.enable` — Determinate Nix owns the daemon.
 - **Do not** try to install `gke-gcloud-auth-plugin` via `gcloud components install` — it is blocked by both Nix and Homebrew SDK installations.
 - **Do not** replace the `defaultbrowser` activation with PlistBuddy hacks.
-- **Do not** move `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, or `maccy` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
+- **Do not** move `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker`, or `whatsapp` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
+- **Do not** add `wireguard-tools` back to `home.packages` — WireGuard is managed via the Mac App Store GUI app.
 - **Do not** hardcode `user.name`/`user.email` via `git config --global` — use `programs.git.settings` in `home.nix`.
 - **Do not** commit from the iCloud path — use `/Users/jesbin/Documents/oracle-cloud-free-tier/`.
 - **Do not** commit `anywhere/result` (Nix build symlink) — should be gitignored.
