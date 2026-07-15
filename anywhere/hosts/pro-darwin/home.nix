@@ -118,7 +118,6 @@
     opentofu
     iterm2
     vscode
-    bitwarden-desktop
   ];
 
   # iTerm2 Dynamic Profile — Dracula theme + JetBrains Mono

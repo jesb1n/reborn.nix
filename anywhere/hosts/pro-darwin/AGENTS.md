@@ -108,6 +108,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | App | MAS ID | Reason |
 |-----|--------|--------|
 | `WireGuard` | `1451685025` | GUI VPN client. `wireguard-tools` (CLI) was removed since the MAS app covers the use case. |
+| `Bitwarden` | `1352778147` | Password manager. nixpkgs `bitwarden-desktop` uses EOL electron (insecure) — MAS version is safe and auto-updates. |
 
 ### Nix (system — environment.systemPackages)
 
@@ -117,7 +118,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 ### Nix (home.packages)
 
 CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `tailscale` (CLI), `k9s`, `google-cloud-sdk`, `opentofu`
-GUI: `firefox`, `iterm2`, `vscode`, `slack`, `bitwarden-desktop`
+GUI: `firefox`, `iterm2`, `vscode`, `slack`
 
 ### Special case: `google-cloud-sdk` + `gke-gcloud-auth-plugin`
 
