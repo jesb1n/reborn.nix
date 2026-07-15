@@ -117,7 +117,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 ### Nix (home.packages)
 
 CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `tailscale` (CLI), `k9s`, `google-cloud-sdk`, `opentofu`
-GUI: `firefox`, `iterm2`, `vscode`, `slack`
+GUI: `firefox`, `iterm2`, `vscode`, `slack`, `bitwarden-desktop`
 
 ### Special case: `google-cloud-sdk` + `gke-gcloud-auth-plugin`
 
