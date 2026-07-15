@@ -49,6 +49,7 @@
     casks = [
       "arc"
       "cloudflare-warp"
+      "docker"
       "maccy"
       "tailscale-app"
       "warp"
@@ -58,7 +59,7 @@
 
   security.pam.services.sudo_local.touchIdAuth = true;
 
-  environment.systemPackages = [ pkgs.defaultbrowser ];
+  environment.systemPackages = [ pkgs.defaultbrowser pkgs._1password-gui ];
 
   system.activationScripts.setBrowser.text = ''
     defaultbrowser company.thebrowser.Browser
