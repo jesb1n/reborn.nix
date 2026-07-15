@@ -46,6 +46,9 @@
     enable = true;
     onActivation.cleanup = "none";
     onActivation.autoUpdate = false;
+    masApps = {
+      "WireGuard" = 1451685025;
+    };
     casks = [
       "arc"
       "cloudflare-warp"
