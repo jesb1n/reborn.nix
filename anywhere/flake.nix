@@ -154,6 +154,7 @@
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
+            home-manager.sharedModules = [ mac-app-util.homeManagerModules.default ];
             home-manager.users.jesbin = import ./hosts/pro-darwin/home.nix;
           }
         ];

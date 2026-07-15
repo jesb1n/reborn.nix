@@ -28,6 +28,10 @@
         kx = "kubectx";
       };
       initContent = ''
+        # kubectl-aliases (https://github.com/ahmetb/kubectl-aliases)
+        [ -f ~/.kubectl_aliases ] && source ~/.kubectl_aliases
+
+
         # gx: permanently switch gcloud project
         gx() {
           local project
@@ -104,19 +108,25 @@
     gh
     kubectl
     kubectx
+    kubernetes-helm
     opencode
     tailscale
     k9s
     wireguard-tools
-    _1password-gui
     firefox
     slack
     google-cloud-sdk
+    opentofu
     iterm2
     vscode
   ];
 
   # iTerm2 Dynamic Profile — Dracula theme + JetBrains Mono
+  home.file.".kubectl_aliases".source = builtins.fetchurl {
+    url = "https://raw.githubusercontent.com/ahmetb/kubectl-aliases/master/.kubectl_aliases";
+    sha256 = "sha256:1acyhhhbfxz17ch77nf26x0cj4immsl6drcpwwbklrl49n9gm9ia";
+  };
+
   home.file."Library/Application Support/iTerm2/DynamicProfiles/Nix.json".text = builtins.toJSON {
     Profiles = [
       {
