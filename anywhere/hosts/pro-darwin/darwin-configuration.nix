@@ -48,6 +48,7 @@
     onActivation.autoUpdate = false;
     masApps = {
       "WireGuard" = 1451685025;
+      "Bitwarden" = 1352778147;
     };
     casks = [
       "arc"
