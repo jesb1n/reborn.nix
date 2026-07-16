@@ -96,6 +96,12 @@
       enableZshIntegration = true;
     };
 
+    direnv = {
+      enable = true;
+      nix-direnv.enable = true;
+      enableZshIntegration = true;
+    };
+
     jq.enable = true;
     htop.enable = true;
   };
