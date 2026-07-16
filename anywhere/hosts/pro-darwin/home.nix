@@ -124,6 +124,7 @@
     opentofu
     iterm2
     vscode
+    spotify
   ];
 
   # iTerm2 Dynamic Profile — Dracula theme + JetBrains Mono
