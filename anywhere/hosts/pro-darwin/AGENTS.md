@@ -83,6 +83,7 @@ The iCloud path (`/Users/jesbin/Library/Mobile Documents/com~apple~CloudDocs/Doc
 `nixpkgs.config.allowUnfreePredicate` currently allows:
 - `1password` (1Password GUI)
 - `slack` (Slack)
+- `spotify` (Spotify)
 - `vscode` (VS Code)
 
 If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree = true` globally.
@@ -118,7 +119,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 ### Nix (home.packages)
 
 CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `tailscale` (CLI), `k9s`, `google-cloud-sdk`, `opentofu`
-GUI: `firefox`, `iterm2`, `vscode`, `slack`
+GUI: `firefox`, `iterm2`, `vscode`, `slack`, `spotify`
 
 ### Special case: `google-cloud-sdk` + `gke-gcloud-auth-plugin`
 
