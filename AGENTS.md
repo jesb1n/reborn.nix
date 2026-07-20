@@ -10,7 +10,7 @@
 - `IaC/` — OpenTofu/Terraform; provisions OCI VCN, subnets, and instances.
 - `anywhere/` — Standalone Nix flake; manages NixOS configs for all hosts via deploy-rs.
 - `docs/` — Architecture, setup, prerequisites, CI/CD docs.
-- `retire.nix/` — **Ignore.** Separate cloned repo, not part of this project.
+- `anywhere/hosts/pro-darwin/` — nix-darwin config for the maintainer's MacBook (Apple Silicon). Deployed with `darwin-rebuild`, not deploy-rs. **Read `anywhere/hosts/pro-darwin/AGENTS.md` before touching it** — it has host-specific rules (Determinate Nix, Homebrew cleanup=`none`, `Asia/Calcutta` TZ, etc.).
 
 ### Hosts (current state)
 
@@ -87,8 +87,10 @@ nix eval .#deploy.nodes.<host>.remoteBuild
 
 - **All NixOS systems use `nixpkgs-unstable`**. The `nixpkgs` input (26.05 stable) is only used for the devShell. Every `nixosSystem` call uses `nixpkgs-unstable.lib.nixosSystem`.
 - **New Nix files must be `git add`-ed before eval or deploy.** Flakes only see tracked/staged files; untracked files cause evaluation errors.
-- **ARM hosts build remotely** (`remoteBuild = true`): `oracle-eu-arm1` and `oracle-in-arm1` build on themselves because s145 is x86_64 and cannot cross-compile aarch64 by default.
-- **`oracle-in-micro1` is unique**: `sshUser = "ubuntu"` (not `duck`) and `remoteBuild = false`. Deploy target is a hardcoded IP (`129.154.240.246`), not hostname.
+- **Almost all hosts have `remoteBuild = true`** — each host builds its own closure. This is required for aarch64 (`oracle-eu-arm1`, `oracle-in-arm1`, `rpi`) since the local/CI builder is x86_64, and is used for micros to avoid pushing large closures over Tailscale.
+- **`oracle-in-micro1` is the only exception**: `sshUser = "ubuntu"` (not `duck`), `remoteBuild = false`, and deploy target is a hardcoded IP (`129.154.240.246`), not a hostname. Still stock Ubuntu — being migrated.
+- **`oracle-in-micro-test`** is a throwaway config in `flake.nix` for validating the kexec-syscall install method on a 1 GB Hyderabad micro. No SOPS, no deploy-rs node — do not treat it as a real host.
+- **`pro-darwin`** is a `darwinConfigurations` entry, NOT in `deploy.nodes`. Deploy with `sudo darwin-rebuild switch --flake .#pro-darwin` from `anywhere/`.
 - **`nixos-anywhere` is destructive** — reformats the disk via disko. Never use for routine updates; use deploy-rs instead.
 - **`--elevate=sudo`** (not `--use-remote-sudo`) is the correct flag for `nixos-rebuild` remote activation.
 - **`s145` overrides GRUB** with systemd-boot (`lib.mkForce`). All other OCI hosts use GRUB from `profiles/server.nix`.
