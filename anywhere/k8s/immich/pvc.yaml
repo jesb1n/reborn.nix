@@ -5,6 +5,7 @@ metadata:
   namespace: immich
 spec:
   accessModes: [ReadWriteOnce]
+  storageClassName: ""
   resources:
     requests:
       storage: 500Gi
@@ -17,6 +18,7 @@ metadata:
   namespace: immich
 spec:
   accessModes: [ReadWriteOnce]
+  storageClassName: ""
   resources:
     requests:
       storage: 50Gi
