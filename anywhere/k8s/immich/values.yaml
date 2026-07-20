@@ -69,18 +69,11 @@ server:
           image:
             repository: ghcr.io/immich-app/immich-server
             pullPolicy: IfNotPresent
-  ingress:
-    main:
-      enabled: false
-      annotations:
-        nginx.ingress.kubernetes.io/proxy-body-size: "0"
-      hosts:
-        - host: immich.local
-          paths:
-            - path: "/"
-              service:
-                identifier: main
-      tls: []
+      persistence:
+        dri:
+          type: hostPath
+          hostPath: /dev/dri
+          mountPath: /dev/dri
 
 machine-learning:
   enabled: true
