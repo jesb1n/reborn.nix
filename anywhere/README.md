@@ -80,7 +80,7 @@ Tailscale is configured declaratively in `hosts/oracle-eu-arm1/configuration.nix
 
 Secrets follow the same host-key pattern as `retire.nix`:
 
-- your Mac has a master age key for editing secrets;
+- your Mac has a pro_darwin age key for editing secrets;
 - the OCI host has its own age key at `/var/lib/sops-nix/key.txt`;
 - shared Tailscale credentials live under `secrets/tailscale/`;
 - `sops-nix` decrypts them into `/run/secrets/` during activation.
@@ -91,7 +91,7 @@ The service can start without a SOPS secret, but automatic login requires an enc
 secrets/tailscale/secrets.yaml
 ```
 
-### 1. Generate your master age key on the Mac
+### 1. Generate your pro_darwin age key on the Mac
 
 ```bash
 mkdir -p ~/.config/sops/age
@@ -127,14 +127,14 @@ The final file should look like:
 
 ```yaml
 keys:
-  - &master age1YOUR_MASTER_PUBLIC_AGE_KEY
+  - &pro_darwin age1YOUR_PRO_DARWIN_PUBLIC_AGE_KEY
   - &oci_nixos age1YOUR_OCI_NIXOS_PUBLIC_AGE_KEY
 
 creation_rules:
   - path_regex: secrets/tailscale/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *oci_nixos
 ```
 
@@ -235,13 +235,13 @@ Add rules for the host secrets:
   - path_regex: secrets/oracle-eu-micro1/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *oracle_eu_micro1
 
   - path_regex: secrets/oracle-eu-micro2/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *oracle_eu_micro2
 ```
 
@@ -251,7 +251,7 @@ Add the shared k3s secret rule:
   - path_regex: secrets/k3s/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *oci_nixos
           - *oracle_eu_micro1
           - *oracle_eu_micro2

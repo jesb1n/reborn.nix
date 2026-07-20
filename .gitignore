@@ -10,6 +10,7 @@ IaC/crash.*.log
 
 # Sensitive files — NEVER commit these
 IaC/terraform.tfvars
+IaC/retry-arm.sh
 *.pem
 *.key
 

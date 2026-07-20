@@ -1,13 +1,13 @@
 # Copy this file to .sops.yaml after replacing the placeholder age recipients.
 #
 # This mirrors the retire.nix pattern:
-# - master key: lives on your Mac and can edit/decrypt all secrets
+# - pro_darwin key: lives on your Mac and can edit/decrypt all secrets
 # - mark key: lives on the admin machine and can edit/decrypt all secrets
 # - host key: lives on oracle-eu-arm1 at /var/lib/sops-nix/key.txt and can decrypt
 #   only this host's secrets during NixOS activation
 
 keys:
-  - &master age1pszh4rajt03mcmkhgxuyqkyrnu2qe9xgv9g93kymu06z0pzw0feqmrcph8
+  - &pro_darwin age1s27ue93pce8p404tl7ycgfjgmdw7rxglhn8vgyajarv8g54pf5cq6hwzv9
   - &mark age10dmkesu0j4zyr0xqkuvhzzdc2trlp93vlfvcwwfytzj9gefmp4equhleuw
   - &oracle_eu_arm1 age12qrmjz3gz582fl2vnw6az2w5qphchejk96ucxh0ep36wf0me24cqyug2s8
   - &oracle_eu_micro1 age1dwkqee4rc5z8me08r32xcct8n0ah6suygrjme747y5g39a9lkusqx4cdhg
@@ -24,35 +24,35 @@ creation_rules:
   - path_regex: secrets/oracle-eu-arm1/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *mark
           - *oracle_eu_arm1
 
   - path_regex: secrets/oracle-in-arm1/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *mark
           - *oracle_in_arm
 
   - path_regex: secrets/oracle-in-micro1/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *mark
           - *oracle_in_micro1
 
   - path_regex: secrets/oracle-in-micro2/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *mark
           - *oracle_in_micro2
 
   - path_regex: secrets/k3s/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *mark
           - *s145_host
           - *oracle_eu_arm1
@@ -67,7 +67,7 @@ creation_rules:
   - path_regex: secrets/tailscale/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *mark
           - *oracle_eu_arm1
           - *oracle_eu_micro1
@@ -82,42 +82,42 @@ creation_rules:
   - path_regex: secrets/oracle-eu-micro1/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *mark
           - *oracle_eu_micro1
 
   - path_regex: secrets/oracle-eu-micro2/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *mark
           - *oracle_eu_micro2
 
   - path_regex: secrets/rpi/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *mark
           - *rpi
 
   - path_regex: secrets/s145/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *mark
           - *s145_host
 
   - path_regex: secrets/hp348/.*
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *hp348
 
   - path_regex: k8s/immich/immich-secret.yaml
     encrypted_regex: "^(data|stringData)$"
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *mark
           - *s145_cluster
 
@@ -125,6 +125,6 @@ creation_rules:
     encrypted_regex: "^(data|stringData)$"
     key_groups:
       - age:
-          - *master
+          - *pro_darwin
           - *mark
           - *s145_cluster
