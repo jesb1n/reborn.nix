@@ -12,14 +12,14 @@ spec:
       middlewares:
         - name: security-headers
       services:
-        - name: garage-garage
+        - name: garage
           port: 3900
     - match: HostRegexp(`{subresource:[a-z0-9-]+}.s3.beijns.eu.org`)
       kind: Rule
       middlewares:
         - name: security-headers
       services:
-        - name: garage-garage
+        - name: garage
           port: 3900
   tls:
     certResolver: cloudflare

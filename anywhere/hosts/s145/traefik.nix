@@ -18,6 +18,11 @@ let
   hostSecretsFile = ../../secrets/s145/secrets.yaml;
   hasHostSecretsFile = builtins.pathExists hostSecretsFile;
 
+  # Note: Traefik v40+ requires CRDs via a separate traefik-crds chart.
+  # k3s manages this via its built-in traefik-crd addon, but the chart
+  # exceeds the 1MB Helm release secret limit, so it always crash-loops.
+  # The CRDs are already installed (25 CRDs) — the crash loop is harmless.
+
   # Static (non-secret) HelmChartConfig. Lives in the Nix store so changes
   # flow through normal NixOS rebuilds.
   traefikChartConfig = pkgs.writeText "traefik-config.yaml" ''
