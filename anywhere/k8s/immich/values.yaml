@@ -69,11 +69,11 @@ server:
           image:
             repository: ghcr.io/immich-app/immich-server
             pullPolicy: IfNotPresent
-      persistence:
-        dri:
-          type: hostPath
-          hostPath: /dev/dri
-          mountPath: /dev/dri
+  persistence:
+    dri:
+      type: hostPath
+      hostPath: /dev/dri
+      mountPath: /dev/dri
 
 machine-learning:
   enabled: true
