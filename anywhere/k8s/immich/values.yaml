@@ -69,6 +69,8 @@ server:
           image:
             repository: ghcr.io/immich-app/immich-server
             pullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
   persistence:
     dri:
       type: hostPath
