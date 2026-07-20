@@ -55,6 +55,7 @@
       "arc"
       "cloudflare-warp"
       "docker"
+      "handy"
       "maccy"
       "tailscale-app"
       "warp"
@@ -66,31 +67,50 @@
 
   environment.systemPackages = [ pkgs.defaultbrowser pkgs._1password-gui ];
 
-  system.activationScripts.setBrowser.text = ''
-    defaultbrowser company.thebrowser.Browser
-  '';
+  # nix-darwin ≥ 26.05 only runs three shell-code slots on activation:
+  # `preActivation.text`, `extraActivation.text`, `postActivation.text`.
+  # Custom names like `system.activationScripts.installFoo` are silently
+  # NOT executed — they only produce dead file derivations. All custom
+  # activation must go here. See:
+  #   https://github.com/nix-darwin/nix-darwin/blob/main/modules/system/activation-scripts.nix
+  system.activationScripts.postActivation.text = ''
+    # --- Default browser (Arc) --------------------------------------------
+    defaultbrowser company.thebrowser.Browser || true
 
-  system.activationScripts.installGkePlugin.text = ''
-    PLUGIN_URL="https://dl.google.com/dl/cloudsdk/channels/rapid/components/google-cloud-sdk-gke-gcloud-auth-plugin-darwin-arm-20260522195849.tar.gz"
-    PLUGIN_BIN="/usr/local/bin/gke-gcloud-auth-plugin"
-
-    # Skip if already installed
-    if [ -x "$PLUGIN_BIN" ]; then
-      echo "gke-gcloud-auth-plugin already installed"
-    else
-      TMPDIR=$(mktemp -d)
-      trap 'rm -rf "$TMPDIR"' EXIT
-
-      curl -sL "$PLUGIN_URL" -o "$TMPDIR/plugin.tar.gz"
-      tar -xzf "$TMPDIR/plugin.tar.gz" -C "$TMPDIR"
-      install -m 755 "$TMPDIR/bin/gke-gcloud-auth-plugin" "$PLUGIN_BIN"
-      echo "Installed gke-gcloud-auth-plugin"
-    fi
-  '';
-
-  system.activationScripts.configureMaccy.text = ''
-    # Faster clipboard check (100ms vs default 500ms)
+    # --- Maccy: 100 ms clipboard poll (default 500 ms) --------------------
     defaults write org.p0deje.Maccy clipboardCheckInterval -float 0.1
+
+    # --- Blocked gcloud components ----------------------------------------
+    # `google-cloud-sdk` from nixpkgs / Homebrew rejects
+    # `gcloud components install` ("managed by an external package manager").
+    # Workaround: pull Google's official component tarball and drop the
+    # binary into /usr/local/bin. Bump URLs from:
+    #   https://dl.google.com/dl/cloudsdk/channels/rapid/components-2.json
+    # (look for `<component>-darwin-arm` -> `data.source`).
+    install_gcloud_component() {
+      local name="$1" url="$2" bin="/usr/local/bin/$1"
+      if [ -x "$bin" ]; then
+        echo "$name already installed"
+        return 0
+      fi
+      echo "Installing $name..."
+      local tmp
+      tmp=$(mktemp -d)
+      # trap in a subshell so it doesn't stomp postActivation's own traps
+      (
+        trap 'rm -rf "$tmp"' EXIT
+        curl -fsSL "$url" -o "$tmp/pkg.tar.gz"
+        tar -xzf "$tmp/pkg.tar.gz" -C "$tmp"
+        install -m 755 "$tmp/bin/$name" "$bin"
+      )
+      echo "Installed $name"
+    }
+
+    install_gcloud_component gke-gcloud-auth-plugin \
+      "https://dl.google.com/dl/cloudsdk/channels/rapid/components/google-cloud-sdk-gke-gcloud-auth-plugin-darwin-arm-20260522195849.tar.gz"
+
+    install_gcloud_component cloud-run-proxy \
+      "https://dl.google.com/dl/cloudsdk/channels/rapid/components/google-cloud-sdk-cloud-run-proxy-darwin-arm-20260109121340.tar.gz"
   '';
 
   time.timeZone = "Asia/Calcutta";
