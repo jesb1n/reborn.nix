@@ -53,6 +53,11 @@ let
           - "--entryPoints.web.http.redirections.entryPoint.to=websecure"
           - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
           - "--entryPoints.web.http.redirections.entryPoint.permanent=true"
+          # Disable read timeout — Traefik v2.11.2+ defaults to 60s which
+          # kills large Immich uploads (videos) mid-transfer.
+          # See: https://github.com/immich-app/immich/discussions/8872
+          - "--entryPoints.websecure.transport.respondingTimeouts.readTimeout=0s"
+          - "--entryPoints.web.transport.respondingTimeouts.readTimeout=0s"
           - "--certificatesresolvers.cloudflare.acme.email=acme@jesb.in"
           - "--certificatesresolvers.cloudflare.acme.storage=/data/acme.json"
           - "--certificatesresolvers.cloudflare.acme.dnschallenge=true"
