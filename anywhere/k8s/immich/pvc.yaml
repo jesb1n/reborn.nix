@@ -5,10 +5,22 @@ metadata:
   namespace: immich
 spec:
   accessModes: [ReadWriteOnce]
-  storageClassName: local-path
   resources:
     requests:
-      storage: 10Gi
+      storage: 500Gi
+  volumeName: immich-library-pv
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-postgres-data
+  namespace: immich
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 50Gi
+  volumeName: immich-postgres-pv
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
