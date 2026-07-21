@@ -5,10 +5,20 @@
 { ... }:
 {
   # Nix settings
-  nix.settings.trusted-users = [
-    "root"
-    "duck"
-  ];
+  nix.settings = {
+    trusted-users = [
+      "root"
+      "duck"
+    ];
+    substituters = [
+      "https://cache.nixos.org"
+      "https://nix-community.cachix.org"
+    ];
+    trusted-public-keys = [
+      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+      "nix-community.cachix.org-1:b9F6KGrNS7LDfJs+c9UF4/tEaS7KE0mTChZdG4h6IVk="
+    ];
+  };
 
   nix.gc = {
     automatic = true;

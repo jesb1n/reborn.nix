@@ -4,9 +4,11 @@
   nixConfig = {
     extra-substituters = [
       "https://nixos-raspberrypi.cachix.org"
+      "https://nix-community.cachix.org"
     ];
     extra-trusted-public-keys = [
       "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
+      "nix-community.cachix.org-1:b9F6KGrNS7LDfJs+c9UF4/tEaS7KE0mTChZdG4h6IVk="
     ];
   };
 
