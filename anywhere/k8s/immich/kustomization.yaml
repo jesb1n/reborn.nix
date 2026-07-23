@@ -10,6 +10,7 @@ resources:
   - pvc.yaml
   - security-headers.yaml
   - ingressroute.yaml
+  - nodeport.yaml
   - immich-helm.yaml
 configMapGenerator:
   - name: immich-values
