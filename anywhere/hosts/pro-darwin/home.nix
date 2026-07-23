@@ -124,7 +124,6 @@
     opentofu
     awscli2
     iterm2
-    vscode
     spotify
   ];
 

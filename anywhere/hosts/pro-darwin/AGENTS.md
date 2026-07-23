@@ -84,9 +84,9 @@ The iCloud path (`/Users/jesbin/Library/Mobile Documents/com~apple~CloudDocs/Doc
 - `1password` (1Password GUI)
 - `slack` (Slack)
 - `spotify` (Spotify)
-- `vscode` (VS Code)
 
 If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree = true` globally.
+(Note: `vscode` was removed from this list because it is now installed via Homebrew cask — see "Must be Homebrew" table.)
 
 ## Package Placement — Nix vs Homebrew Decision Tree
 
@@ -104,6 +104,8 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | `docker` | Requires macOS system extensions; Docker Desktop is not available in nixpkgs. |
 | `whatsapp` | macOS app not in nixpkgs. |
 | `handy` | Not in nixpkgs. GUI speech-to-text app; needs macOS Accessibility, Microphone, and Input Monitoring entitlements (granted manually in System Settings after first launch). |
+| `loom` | Not in nixpkgs. Proprietary screen-recording app; needs macOS Screen Recording, Microphone, and Camera entitlements (granted manually in System Settings after first launch). |
+| `visual-studio-code` | nixpkgs `vscode` has recurring build failures (broken ripgrep path inside the upstream zip). Moved to Homebrew cask as a reliable fallback. |
 
 ### Mac App Store (masApps)
 
@@ -120,7 +122,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 ### Nix (home.packages)
 
 CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `tailscale` (CLI), `k9s`, `google-cloud-sdk`, `opentofu`, `awscli2`
-GUI: `firefox`, `iterm2`, `vscode`, `slack`, `spotify`
+GUI: `firefox`, `iterm2`, `slack`, `spotify`
 
 ### Special case: blocked `gcloud components` (gke-gcloud-auth-plugin, cloud-run-proxy)
 
@@ -199,7 +201,7 @@ sudo darwin-rebuild switch --flake .#pro-darwin
 - **Do not** try to install blocked gcloud components (`gke-gcloud-auth-plugin`, `cloud-run-proxy`, ...) via `gcloud components install` — it is blocked by both Nix and Homebrew SDK installations. Add another `install_gcloud_component` call inside `postActivation.text` instead.
 - **Do not** add `system.activationScripts.<customName>.text = "..."` expecting it to run — only `preActivation` / `extraActivation` / `postActivation` execute; custom names are silently ignored. Merge new activation code into `postActivation.text`.
 - **Do not** replace the `defaultbrowser` activation with PlistBuddy hacks.
-- **Do not** move `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker`, or `whatsapp` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
+- **Do not** move `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker`, `whatsapp`, `handy`, `loom`, or `visual-studio-code` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
 - **Do not** add `wireguard-tools` back to `home.packages` — WireGuard is managed via the Mac App Store GUI app.
 - **Do not** hardcode `user.name`/`user.email` via `git config --global` — use `programs.git.settings` in `home.nix`.
 - **Do not** commit from the iCloud path — use `/Users/jesbin/Documents/oracle-cloud-free-tier/`.

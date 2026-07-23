@@ -13,7 +13,6 @@
     "1password"
     "slack"
     "spotify"
-    "vscode"
   ];
 
   documentation.enable = false;
@@ -56,8 +55,10 @@
       "cloudflare-warp"
       "docker"
       "handy"
+      "loom"
       "maccy"
       "tailscale-app"
+      "visual-studio-code"
       "warp"
       "whatsapp"
     ];
