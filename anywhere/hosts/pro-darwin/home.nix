@@ -31,6 +31,9 @@
         # kubectl-aliases (https://github.com/ahmetb/kubectl-aliases)
         [ -f ~/.kubectl_aliases ] && source ~/.kubectl_aliases
 
+        # oh-my-zsh git plugin aliases (https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/git)
+        [ -f ~/.oh-my-zsh/plugins/git/git.plugin.zsh ] && source ~/.oh-my-zsh/plugins/git/git.plugin.zsh
+
 
         # gx: permanently switch gcloud project
         gx() {
@@ -131,6 +134,12 @@
   home.file.".kubectl_aliases".source = builtins.fetchurl {
     url = "https://raw.githubusercontent.com/ahmetb/kubectl-aliases/master/.kubectl_aliases";
     sha256 = "sha256:1acyhhhbfxz17ch77nf26x0cj4immsl6drcpwwbklrl49n9gm9ia";
+  };
+
+  # oh-my-zsh git plugin — lightweight, single file, no full framework
+  home.file.".oh-my-zsh/plugins/git/git.plugin.zsh".source = builtins.fetchurl {
+    url = "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/plugins/git/git.plugin.zsh";
+    sha256 = "sha256:1al099fsaa9n620zaa82d4ragq87xvp76q6s389bcw92ibqr19ax";
   };
 
   home.file."Library/Application Support/iTerm2/DynamicProfiles/Nix.json".text = builtins.toJSON {
