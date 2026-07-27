@@ -39,6 +39,9 @@
   environment.defaultPackages = [ ];
   environment.systemPackages = [ ];
 
+  # SSH — pubkey only, no PAM (PAM account module rejects locked passwords)
+  services.openssh.settings.UsePAM = false;
+
   # Shared user account
   users.mutableUsers = false;
 
@@ -54,8 +57,6 @@
       "wheel"
       "networkmanager"
     ];
-
-    hashedPassword = "!";
 
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMDHy9Gc18Osi7HFBiUMm+Da9JQ95cU1a7dsmyJCY5s1 jesbin@Duck.local"
