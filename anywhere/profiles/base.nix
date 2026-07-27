@@ -55,6 +55,9 @@
       "networkmanager"
     ];
 
+    # Password hash for sudo/ PAM compatibility
+    hashedPassword = "$6$8vsKj99M8ZGAh5DC$q8d4.De1wuohQitTpG0scYlP9i2T85zIyXfED7GzmkbTD0gBY2dqxWVPt1omhHcqDrkj1nmn2Ae9qeKxlJFbQ/";
+
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMDHy9Gc18Osi7HFBiUMm+Da9JQ95cU1a7dsmyJCY5s1 jesbin@Duck.local"
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEDGmT5meeiDIK9c/W8imy++S7hb9TLBcHcPsWcml4D2 duck@Ducks-MacBook-Air.local"
