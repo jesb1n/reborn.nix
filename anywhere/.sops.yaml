@@ -19,6 +19,7 @@ keys:
   - &oracle_in_micro1 age1hsdtg2f8xcc39exwy0gfmmhee60w95v7n5fhet6hmg7f6scqc9lqsfjmmp
   - &oracle_in_micro2 age1xw3mt3hjyqx53kv3ptflvyywr77fc8wsy5xm7h099eax0u8p2c6sfnww50
   - &hp348 age183gx4gmkz23uwpr0xfttg28r3tkd0s9xey4jydfyva0ajx4l0yaslva92s
+  - &nitro age1p98cwv0p82dv6jvjuxrjh5fhdccwrr0amnkhqwtkgr37nzmujucqc69ffw
 
 creation_rules:
   - path_regex: secrets/oracle-eu-arm1/.*
@@ -63,6 +64,7 @@ creation_rules:
           - *oracle_in_micro1
           - *oracle_in_micro2
           - *hp348
+          - *nitro
 
   - path_regex: secrets/tailscale/.*
     key_groups:
@@ -78,6 +80,7 @@ creation_rules:
           - *oracle_in_micro1
           - *oracle_in_micro2
           - *hp348
+          - *nitro
 
   - path_regex: secrets/oracle-eu-micro1/.*
     key_groups:
@@ -112,6 +115,12 @@ creation_rules:
       - age:
           - *pro_darwin
           - *hp348
+
+  - path_regex: secrets/nitro/.*
+    key_groups:
+      - age:
+          - *pro_darwin
+          - *nitro
 
   - path_regex: k8s/immich/immich-secret.yaml
     encrypted_regex: "^(data|stringData)$"
