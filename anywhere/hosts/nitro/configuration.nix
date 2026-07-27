@@ -24,8 +24,9 @@ in
   # Remove serial console from server.nix — not useful on a laptop
   boot.kernelParams = lib.mkForce [ ];
 
-  # NVMe + standard laptop hardware
-  boot.initrd.availableKernelModules = [ "nvme" "xhci_pci" "ehci_pci" ];
+  # NVMe — force load in initrd so root partition is found
+  boot.initrd.kernelModules = [ "nvme" ];
+  boot.initrd.availableKernelModules = [ "xhci_pci" "ehci_pci" "ahci" "usb_storage" "sd_mod" "sr_mod" ];
 
   # WiFi firmware (covers common laptop adapters)
   hardware.enableRedistributableFirmware = true;
