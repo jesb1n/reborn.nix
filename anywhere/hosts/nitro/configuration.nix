@@ -1,6 +1,3 @@
-# hosts/hp348/configuration.nix — standalone server (x86_64, USB-booted laptop)
-#
-# Host-specific settings only. Shared config comes from profiles.
 { lib, ... }:
 
 let
@@ -17,31 +14,31 @@ in
     ./sops.nix
   ];
 
-  networking.hostName = "hp348";
+  networking.hostName = "nitro";
 
   # Boot — systemd-boot (override GRUB from server.nix)
   boot.loader.grub.enable = lib.mkForce false;
   boot.loader.systemd-boot.enable = lib.mkForce true;
   boot.loader.efi.canTouchEfiVariables = lib.mkForce true;
 
-  # Root disk is on USB — include USB storage drivers in initrd
-  boot.initrd.availableKernelModules = [
-    "xhci_pci"
-    "ehci_pci"
-    "usb_storage"
-    "uas"
-    "usbhid"
-  ];
+  # Remove serial console from server.nix — not useful on a laptop
+  boot.kernelParams = lib.mkForce [ ];
+
+  # NVMe + standard laptop hardware
+  boot.initrd.availableKernelModules = [ "nvme" "xhci_pci" "ehci_pci" ];
+
+  # WiFi firmware (covers common laptop adapters)
+  hardware.enableRedistributableFirmware = true;
 
   # Tailscale — host identity
   services.tailscale.extraUpFlags = lib.mkIf hasTailscaleSecretsFile [
-    "--hostname=hp348"
+    "--hostname=nitro"
     "--accept-dns=false"
   ];
 
   # k3s — host-specific identity
-  services.k3s.nodeName = "hp348";
-  services.k3s.nodeIP = "100.91.37.112";
+  services.k3s.nodeName = "nitro";
+  # services.k3s.nodeIP = "<tailscale-ip>";  # fill after first Tailscale join
 
   # Laptop running as a server — keep it awake.
   services.logind.settings.Login = {
@@ -56,6 +53,11 @@ in
     AllowSuspendThenHibernate = "no";
   };
 
+  # NVIDIA GTX 1650 — compute mode for k8s workloads
+  hardware.nvidia.modesetting.enable = true;
+  hardware.graphics.enable = true;
+
+  # zram (16GB RAM → 8GB zram)
   zramSwap = {
     enable = true;
     algorithm = "zstd";

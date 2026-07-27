@@ -148,6 +148,16 @@
         ];
       };
 
+      nixosConfigurations.nitro = nixpkgs-unstable.lib.nixosSystem {
+        system = "x86_64-linux";
+
+        modules = [
+          disko.nixosModules.disko
+          sops-nix.nixosModules.sops
+          ./hosts/nitro/configuration.nix
+        ];
+      };
+
       nixosConfigurations.rpi = nixos-raspberrypi.lib.nixosSystem {
         modules = [
           nixos-raspberrypi.nixosModules.raspberry-pi-4.base
@@ -292,6 +302,20 @@
           profiles.system = {
             user = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.hp348;
+          };
+        };
+
+        nitro = {
+          hostname = "nitro";
+          sshUser = "duck";
+          remoteBuild = true;
+          fastConnection = true;
+          activationTimeout = 600;
+          confirmTimeout = 60;
+
+          profiles.system = {
+            user = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.nitro;
           };
         };
       };
