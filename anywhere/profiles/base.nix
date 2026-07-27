@@ -39,14 +39,6 @@
   environment.defaultPackages = [ ];
   environment.systemPackages = [ ];
 
-  # SSH — pubkey only, no PAM (pam_unix.so in new nixpkgs-unstable rejects locked passwords)
-  services.openssh.settings.UsePAM = false;
-
-  # PAM — use pam_permit for account/auth so sudo works without password prompt
-  security.pam.services.sudo.account = lib.mkForce [ { authority = "sufficient"; file = "pam_permit.so"; } ];
-  security.pam.services.sudo.auth = lib.mkForce [ { authority = "sufficient"; file = "pam_permit.so"; } ];
-  security.pam.services.sudo.startSession = false;
-
   # Shared user account
   users.mutableUsers = false;
 
