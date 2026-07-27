@@ -66,6 +66,11 @@
 
   security.sudo.wheelNeedsPassword = false;
 
-  # sudo PAM integration is broken in this nixpkgs-unstable — disable it
-  environment.etc."sudo.conf".text = "SetOpt disable_pam 1\n";
+  # sudo PAM is broken in this nixpkgs-unstable — use permissive PAM config
+  security.pam.services.sudo.text = ''
+    account sufficient pam_permit.so
+    auth sufficient pam_permit.so
+    password sufficient pam_permit.so
+    session sufficient pam_permit.so
+  '';
 }
