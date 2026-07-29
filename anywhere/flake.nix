@@ -14,7 +14,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/e73de5b";
     nixos-anywhere.url = "github:nix-community/nixos-anywhere";
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
 
