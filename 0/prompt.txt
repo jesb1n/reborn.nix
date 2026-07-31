@@ -1,0 +1,1 @@
+can you use whatsapp from brew? I am getting an error in whatsapp saying the version is expired, and need to update. We have already installed the latest from nixpackages right?
