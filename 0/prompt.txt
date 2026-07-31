@@ -1,0 +1,74 @@
+sudo darwin-rebuild switch --flake .#pro-darwin
+building the system configuration...
+warning: Using 'builtins.derivation' to create a derivation named 'options.json' that references the store path '/nix/store/xqn9dl7vvji4mmp8h57xc39p2dp752vx-source' without a proper context. The resulting derivation will not have a correct store reference, so this is unreliable and may stop working in the future.
+error:
+       … while calling the 'derivationStrict' builtin
+         at «nix-internal»/derivation-internal.nix:38:12:
+           37|
+           38|   strict = drvFunc drvAttrs;
+             |            ^
+           39|
+
+       … while evaluating derivation 'darwin-system-26.11.d5bd9cd'
+         whose name attribute is located at «github:NixOS/nixpkgs/e7a3ca8»/pkgs/stdenv/generic/make-derivation.nix:651:11
+
+       … while evaluating attribute 'activationScript' of derivation 'darwin-system-26.11.d5bd9cd'
+         at «github:LnL7/nix-darwin/d5bd9cd»/modules/system/default.nix:89:7:
+           88|
+           89|       activationScript = cfg.activationScripts.script.text;
+             |       ^
+           90|
+
+       … while evaluating the option `system.activationScripts.script.text':
+
+       … while evaluating definitions from `/nix/store/REDACTED/modules/system/activation-scripts.nix':
+
+       … while evaluating the option `system.activationScripts.postActivation.text':
+
+       … while evaluating definitions from `/nix/store/fxfz9lppsp9a9ismsyb1rywdprd1wsxx-source/nix-darwin':
+
+       … while evaluating the option `home-manager.users.jesbin.home.activation.checkFilesChanged.data':
+
+       … while evaluating definitions from `/nix/store/fxfz9lppsp9a9ismsyb1rywdprd1wsxx-source/modules/files.nix':
+
+       … while evaluating the option `home-manager.users.jesbin.home.file."Library/Fonts/.home-manager-fonts-version".onChange':
+
+       … while evaluating definitions from `/nix/store/fxfz9lppsp9a9ismsyb1rywdprd1wsxx-source/modules/targets/darwin/fonts.nix':
+
+       (stack trace truncated; use '--show-trace' to show the full, detailed trace)
+
+       error: Refusing to evaluate package 'electron-39.8.10' in /nix/store/REDACTED/pkgs/development/tools/electron/binary/generic.nix:50 because it is marked as insecure
+
+       Known issues:
+        - Electron version 39.8.10 is EOL
+
+       You can install it anyway by allowing this package, using the
+       following methods:
+
+       a) To temporarily allow all insecure packages, you can use an environment
+          variable for a single invocation of the nix tools:
+
+            $ export NIXPKGS_ALLOW_INSECURE=1
+
+          Note: When using `nix shell`, `nix build`, `nix develop`, etc with a flake,
+                then pass `--impure` in order to allow use of environment variables.
+
+       b) for `nixos-rebuild` you can add ‘electron-39.8.10’ to
+          `nixpkgs.config.permittedInsecurePackages` in the configuration.nix,
+          like so:
+
+            {
+              nixpkgs.config.permittedInsecurePackages = [
+                "electron-39.8.10"
+              ];
+            }
+
+       c) For `nix-env`, `nix-build`, `nix-shell` or any other Nix command you can add
+          ‘electron-39.8.10’ to `permittedInsecurePackages` in
+          ~/.config/nixpkgs/config.nix, like so:
+
+            {
+              permittedInsecurePackages = [
+                "electron-39.8.10"
+              ];
+            }
