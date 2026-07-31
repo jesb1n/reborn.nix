@@ -14,6 +14,10 @@
       enable = true;
       autosuggestion.enable = true;
       syntaxHighlighting.enable = true;
+      envExtra = ''
+        export PATH="$HOME/.local/bin:$PATH"
+        export PATH="$PATH:/Users/jesbin/Library/Python/3.9/bin"
+      '';
       history = {
         size = 50000;
         save = 50000;
@@ -127,6 +131,7 @@
     opentofu
     awscli2
     oci-cli
+    sops
     iterm2
     spotify
   ];
