@@ -1,0 +1,1 @@
+is it possible to add extensions to arc using nnix config itself?
