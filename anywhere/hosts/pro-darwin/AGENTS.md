@@ -121,7 +121,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 
 ### Nix (home.packages)
 
-CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `tailscale` (CLI), `k9s`, `google-cloud-sdk`, `opentofu`, `awscli2`, `oci-cli`
+CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `tailscale` (CLI), `k9s`, `google-cloud-sdk`, `opentofu`, `awscli2`, `oci-cli`, `sops`
 GUI: `firefox`, `iterm2`, `slack`, `spotify`
 
 ### Special case: blocked `gcloud components` (gke-gcloud-auth-plugin, cloud-run-proxy)
