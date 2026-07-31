@@ -21,3 +21,11 @@ retire.nix
 
 # Nix build symlink
 anywhere/result
+
+# AI tooling / editor configs
+.codex/
+.cursor/
+.entire/
+.gemini/
+.github/hooks/
+.opencode/plugins/
