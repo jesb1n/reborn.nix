@@ -1,0 +1,1 @@
+install helm to p[ro darwin
