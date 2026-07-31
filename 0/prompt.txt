@@ -1,0 +1,1 @@
+add slack install via nix to pro-darwin
