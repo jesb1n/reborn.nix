@@ -1,0 +1,4 @@
+╷
+│ Error: storage.NewClient() failed: dialing: credentials: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information
+│
+│

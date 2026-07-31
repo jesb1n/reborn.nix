@@ -1,0 +1,22 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "4ded7fb120c2",
+  "session_id": "10834d9a-3a6b-40f6-ac89-f359ddd7c527",
+  "strategy": "import",
+  "created_at": "2026-07-14T06:38:26.333Z",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "agent": "Copilot CLI",
+  "model": "claude-sonnet-4.6",
+  "checkpoint_transcript_start": 47,
+  "transcript_lines_at_start": 47,
+  "compact_transcript_start": 8,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 220,
+    "api_call_count": 1
+  },
+  "kind": "imported"
+}
