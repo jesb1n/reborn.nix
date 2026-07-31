@@ -1,0 +1,1 @@
+1Password is not installed inside of /Applications. Please move 1Password and restart the app.
