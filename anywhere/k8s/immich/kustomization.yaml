@@ -6,7 +6,6 @@ resources:
   - helmrepository.yaml
   - pv.yaml
   - postgres.yaml
-  - valkey.yaml
   - pvc.yaml
   - security-headers.yaml
   - ingressroute.yaml
