@@ -126,6 +126,7 @@
     google-cloud-sdk
     opentofu
     awscli2
+    oci-cli
     iterm2
     spotify
   ];
