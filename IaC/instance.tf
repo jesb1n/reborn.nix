@@ -55,6 +55,9 @@ resource "oci_core_instance" "arm_instance" {
       availability_domain,
       # Ignore ssh key metadata — CLI-created instance has trailing newline mismatch
       metadata["ssh_authorized_keys"],
+      # Ignore image drift — the data source always resolves the latest Ubuntu image,
+      # and in-place source_id changes do not change the running OS
+      source_details.0.source_id,
     ]
   }
 }
@@ -121,7 +124,10 @@ EOF
 
   lifecycle {
     ignore_changes = [
-      metadata["user_data"]
+      metadata["user_data"],
+      # Ignore image drift — the data source always resolves the latest Ubuntu image,
+      # and in-place source_id changes do not change the running OS
+      source_details.0.source_id,
     ]
   }
 }
