@@ -9,8 +9,9 @@
 
 - `IaC/` — OpenTofu/Terraform; provisions OCI VCN, subnets, and instances.
 - `anywhere/` — Standalone Nix flake; manages NixOS configs for all hosts via deploy-rs.
-- `docs/` — Architecture, setup, prerequisites, CI/CD docs.
+- `docs/` — Architecture, setup, prerequisites, CI/CD docs. (Several docs are stale — README and docs/ still describe the old api-key auth / local backend; trust `IaC/` and `AGENTS.md`.)
 - `retire.nix/` — **Ignore.** Separate cloned repo, not part of this project.
+- `anywhere/hosts/pro-darwin/` — nix-darwin config for the operator's MacBook (user `jesbin`), not a cluster host. Rebuilt with `darwin-rebuild switch --flake .#pro-darwin`; home-manager + mac-app-util.
 
 ### Hosts (current state)
 
@@ -55,7 +56,6 @@ make ENV=beijns deploy
 - **Multi-env secrets**: the `Makefile` uses `sops exec-file <env>.tfvars 'tofu ... -var-file={}'` — never writes plaintext `.tfvars` to disk. `SOPS_AGE_KEY_FILE` is pre-set in the Makefile.
 - **`availability_domain` changes are ignored** in instance lifecycle (`ignore_changes`) to prevent recreation.
 - **Micro cloud-init is one-shot**: `metadata["user_data"]` is in `ignore_changes` — cloud-init runs only on first boot (installs Tailscale, joins tailnet, then clears user-data). Re-provisioning requires `taint` + `apply`.
-- **`TF_VAR_OCA_PRIVATE_KEY`** must be base64-encoded: `base64 < ~/.oci/key.pem` (macOS) or `base64 -w0 < ~/.oci/key.pem` (Linux).
 
 ## NixOS / anywhere/
 
@@ -85,10 +85,11 @@ nix eval .#deploy.nodes.<host>.remoteBuild
 
 ### Critical NixOS quirks
 
-- **All NixOS systems use `nixpkgs-unstable`**. The `nixpkgs` input (26.05 stable) is only used for the devShell. Every `nixosSystem` call uses `nixpkgs-unstable.lib.nixosSystem`.
+- **All NixOS systems use `nixpkgs-unstable`**; the `nixpkgs` input (26.05 stable) is only for devShell/tooling (deploy-rs, disko, sops-nix follow it). Exception: `rpi` is built via `nixos-raspberrypi.lib.nixosSystem` (its own nixpkgs), not `nixpkgs-unstable.lib.nixosSystem`.
 - **New Nix files must be `git add`-ed before eval or deploy.** Flakes only see tracked/staged files; untracked files cause evaluation errors.
-- **ARM hosts build remotely** (`remoteBuild = true`): `oracle-eu-arm1` and `oracle-in-arm1` build on themselves because s145 is x86_64 and cannot cross-compile aarch64 by default.
+- **Every deploy node uses `remoteBuild = true`** (builds its own closure) except `oracle-in-micro1` (`remoteBuild = false`). The operator machine is a Mac (`aarch64-darwin`) that cannot build Linux closures, so targets always build on themselves. (`.github/instructions/nixos.instructions.md` is stale on this — trust the flake.)
 - **`oracle-in-micro1` is unique**: `sshUser = "ubuntu"` (not `duck`) and `remoteBuild = false`. Deploy target is a hardcoded IP (`129.154.240.246`), not hostname.
+- **India micros (`oracle-in-micro1`/`oracle-in-micro2`) still have `services.k3s.nodeIP = "0.0.0.0"` placeholders** in their `configuration.nix` — update once Tailscale assigns IPs.
 - **`nixos-anywhere` is destructive** — reformats the disk via disko. Never use for routine updates; use deploy-rs instead.
 - **`--elevate=sudo`** (not `--use-remote-sudo`) is the correct flag for `nixos-rebuild` remote activation.
 - **`s145` overrides GRUB** with systemd-boot (`lib.mkForce`). All other OCI hosts use GRUB from `profiles/server.nix`.
@@ -180,7 +181,7 @@ flux reconcile kustomization immich -n flux-system --with-source
   # Repeat for oracle-in-micro1/2
   ```
 - **`k3s serverAddr` is hardcoded** to `https://100.69.231.117:6443` (s145's Tailscale IP) in `profiles/k3s-agent.nix`. If s145's Tailscale IP changes, update this file and redeploy all agents.
-- **k8s manifests in `anywhere/k8s/` are NOT auto-deployed.** They are not in k3s's auto-deploy directory. Only Traefik's HelmChartConfig and Cloudflare secret are placed there by NixOS activation via s145's `sops.nix` + `traefik.nix`.
+- **k8s manifests in `anywhere/k8s/` are NOT auto-deployed.** They are not in k3s's auto-deploy directory. Only Traefik's HelmChartConfig and Cloudflare secret are placed there by NixOS activation via s145's `sops.nix` + `traefik.nix`. `k8s/garage/` (the self-hosted Garage backend for IaC state) and `k8s/immich/` are Flux-managed via `clusters/s145/*.yaml`; their secrets are sops-encrypted files (`k8s/garage/garage-secret.yaml`, `k8s/immich/immich-secret.yaml`). See `anywhere/k8s/README.md` for conventions.
 - **Traefik Middleware is namespace-scoped.** App IngressRoutes reference `security-headers` in their own namespace, not `kube-system/security-headers`.
 - **All stateful workloads pin `nodeSelector: kubernetes.io/hostname: s145`** because PVCs use `local-path` storage backed by s145's 1 TB HDD.
 - **Flux GitOps** syncs `github.com/jesb1n/reborn.nix@main` → `anywhere/clusters/s145/` via `FluxInstance` in `anywhere/operator/flux-instance.yaml`.
@@ -200,7 +201,7 @@ Both workflows (`apply.yml`, `destroy.yml`) are **manual-only** (`workflow_dispa
 
 ## What Not to Commit
 
-`IaC/terraform.tfvars`, `IaC/*.tfstate*`, `IaC/*.tfplan`, `IaC/errored.tfstate`, `IaC/.terraform/`, `*.pem`, `*.key`, decrypted secrets. Age *public* key files (e.g., `anywhere/secrets/oracle-in-arm1/key.txt`) are safe to commit.
+`IaC/terraform.tfvars`, `IaC/*.tfstate*`, `IaC/*.tfplan`, `IaC/errored.tfstate`, `IaC/.terraform/`, `*.pem`, `*.key`, decrypted secrets, `anywhere/result` (leftover `nix build` symlink). SOPS-encrypted files **are** committed: `IaC/<env>.tfvars`, `IaC/secrets/<env>.env`, `anywhere/secrets/**/*.yaml`. Age *public* key files (e.g., `anywhere/secrets/oracle-in-arm1/key.txt`) are safe to commit.
 
 ## Related Documentation
 
