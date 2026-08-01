@@ -10,7 +10,7 @@ creation_rules:
           - *master
           - *mark
 
-  - path_regex: terraform\.tfvars$
+  - path_regex: .*\.tfvars$
     encrypted_regex: "^(.*)$$"
     key_groups:
       - age:
