@@ -23,6 +23,7 @@ in
   boot.loader.grub.enable = lib.mkForce false;
   boot.loader.systemd-boot.enable = lib.mkForce true;
   boot.loader.efi.canTouchEfiVariables = lib.mkForce true;
+  boot.kernelParams = [ "iomem=relaxed" ];
 
   # Root disk is on USB — include USB storage drivers in initrd
   boot.initrd.availableKernelModules = [
