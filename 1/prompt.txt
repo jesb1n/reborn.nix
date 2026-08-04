@@ -1,0 +1,3 @@
+can you revert this change in hp348
+
+boot.kernelParams = [ "iomem=relaxed" ];
