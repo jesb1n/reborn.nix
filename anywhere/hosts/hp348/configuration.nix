@@ -23,7 +23,6 @@ in
   boot.loader.grub.enable = lib.mkForce false;
   boot.loader.systemd-boot.enable = lib.mkForce true;
   boot.loader.efi.canTouchEfiVariables = lib.mkForce true;
-  boot.kernelParams = [ "iomem=relaxed" ];
 
   # Root disk is on USB — include USB storage drivers in initrd
   boot.initrd.availableKernelModules = [
@@ -56,6 +55,10 @@ in
     AllowHybridSleep = "no";
     AllowSuspendThenHibernate = "no";
   };
+
+  systemd.tmpfiles.rules = [
+    "d /home/duck/nvme 0755 duck users -"
+  ];
 
   zramSwap = {
     enable = true;
