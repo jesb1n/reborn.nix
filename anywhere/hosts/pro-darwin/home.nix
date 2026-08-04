@@ -125,6 +125,7 @@
     opencode
     tailscale
     k9s
+    code-cursor
     firefox
     slack
     google-cloud-sdk
