@@ -1,0 +1,1484 @@
+Create or update `AGENTS.md` for this repository.
+
+The goal is a compact instruction file that helps future OpenCode sessions avoid mistakes and ramp up quickly. Every line should answer: "Would an agent likely miss this without help?" If not, leave it out.
+
+User-provided focus or constraints (honor these):
+
+
+## How to investigate
+
+Read the highest-value sources first:
+- `README*`, root manifests, workspace config, lockfiles
+- build, test, lint, formatter, typecheck, and codegen config
+- CI workflows and pre-commit / task runner config
+- existing instruction files (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/`, `.cursorrules`, `.github/copilot-instructions.md`)
+- repo-local OpenCode config such as `opencode.json`
+
+If architecture is still unclear after reading config and docs, inspect a small number of representative code files to find the real entrypoints, package boundaries, and execution flow. Prefer reading the files that explain how the system is wired together over random leaf files.
+
+Prefer executable sources of truth over prose. If docs conflict with config or scripts, trust the executable source and only keep what you can verify.
+
+## What to extract
+
+Look for the highest-signal facts for an agent working in this repo:
+- exact developer commands, especially non-obvious ones
+- how to run a single test, a single package, or a focused verification step
+- required command order when it matters, such as `lint -> typecheck -> test`
+- monorepo or multi-package boundaries, ownership of major directories, and the real app/library entrypoints
+- framework or toolchain quirks: generated code, migrations, codegen, build artifacts, special env loading, dev servers, infra deploy flow
+- repo-specific style or workflow conventions that differ from defaults
+- testing quirks: fixtures, integration test prerequisites, snapshot workflows, required services, flaky or expensive suites
+- important constraints from existing instruction files worth preserving
+
+Good `AGENTS.md` content is usually hard-earned context that took reading multiple files to infer.
+
+## Questions
+
+Only ask the user questions if the repo cannot answer something important. Use the `question` tool for one short batch at most.
+
+Good questions:
+- undocumented team conventions
+- branch / PR / release expectations
+- missing setup or test prerequisites that are known but not written down
+
+Do not ask about anything the repo already makes clear.
+
+## Writing rules
+
+Include only high-signal, repo-specific guidance such as:
+- exact commands and shortcuts the agent would otherwise guess wrong
+- architecture notes that are not obvious from filenames
+- conventions that differ from language or framework defaults
+- setup requirements, environment quirks, and operational gotchas
+- references to existing instruction sources that matter
+
+Exclude:
+- generic software advice
+- long tutorials or exhaustive file trees
+- obvious language conventions
+- speculative claims or anything you could not verify
+- content better stored in another file referenced via `opencode.json` `instructions`
+
+When in doubt, omit.
+
+Prefer short sections and bullets. If the repo is simple, keep the file simple. If the repo is large, summarize the few structural facts that actually change how an agent should work.
+
+If `AGENTS.md` already exists at `/Users/jesbin/Documents/oracle-cloud-free-tier`, improve it in place rather than rewriting blindly. Preserve verified useful guidance, delete fluff or stale claims, and reconcile it with the current codebase.
+
+---
+
+there are a ot of commits after c21b853, caan we back it up somewhere for the time being? so the main will not be having the additional commits that are not working./
+
+---
+
+there are a ot of commits after c21b853, caan we back it up somewhere for the time being? so the main will not be having the additional commits that are not working./
+
+---
+
+there are a ot of commits after c21b853, caan we back it up somewhere for the time being? so the main will not be having the additional commits that are not working./
+
+---
+
+nix develop -c deploy .#hp348
+evaluating 'devShells.aarch64-darwin.default'
+✅ devShells.aarch64-darwin.default (build skipped)
+✅ darwinConfigurations.pro-darwin (build skipped)
+warning: The following flake outputs are unchecked: deploy.
+warning: The check omitted these incompatible systems: aarch64-linux, x86_64-linux
+Use '--all-systems' to check all.
+🚀 ℹ️ [deploy] [INFO] Evaluating flake in .
+🚀 ℹ️ [deploy] [INFO] The following profiles are going to be deployed:
+[hp348.system]
+user = "root"
+ssh_user = "duck"
+path = "/nix/store/REDACTED.11.20260723.e2587ca"
+hostname = "hp348"
+ssh_opts = []
+
+🚀 ℹ️ [deploy] [INFO] Building profile `system` for node `hp348` on remote host
+error: Cannot build '/nix/store/REDACTED.1.0.drv'.
+       Reason: builder failed with exit code 101.
+       Output paths:
+         /nix/store/dzi5zszflwzc5phx4l1c93brw9ril9kb-deploy-rs-0.1.0
+       Last 25 log lines:
+       > Running phase: patchPhase
+       > Executing cargoSetupPostPatchHook
+       > Validating consistency between /build/source/Cargo.lock and /build/cargo-vendor-dir/Cargo.lock
+       > Finished cargoSetupPostPatchHook
+       > Running phase: updateAutotoolsGnuConfigScriptsPhase
+       > Running phase: configurePhase
+       > Running phase: buildPhase
+       > Executing cargoBuildHook
+       > cargoBuildHook flags: -j 4 --target x86_64-unknown-linux-gnu --offline --profile release
+       > error: failed to get `clap` as a dependency of package `deploy-rs v0.1.0 (/build/source)`
+       >
+       > Caused by:
+       >   failed to load source for dependency `clap`
+       >
+       > Caused by:
+       >   unable to update registry `crates-io`
+       >
+       > Caused by:
+       >   failed to update replaced source registry `crates-io`
+       >
+       > Caused by:
+       >   failed to parse manifest at `/build/cargo-vendor-dir/windows_x86_64_gnu-0.52.6/Cargo.toml`
+       >
+       > Caused by:
+       >   manifest is missing either a `[package]` or a `[workspace]`
+       For full logs, run:
+         nix-store -l /nix/store/REDACTED.1.0.drv
+error: Cannot build '/nix/store/REDACTED.11.20260723.e2587ca-activate-rs.drv'.
+       Reason: 1 dependency failed.
+       Output paths:
+         /nix/store/REDACTED.11.20260723.e2587ca-activate-rs
+error: Build failed due to failed dependency
+error: Cannot build '/nix/store/REDACTED.11.20260723.e2587ca.drv'.
+       Reason: 1 dependency failed.
+       Output paths:
+         /nix/store/REDACTED.11.20260723.e2587ca
+❌ /nix/store/REDACTED.11.20260723.e2587ca.drv^out
+error: Build failed due to failed dependency
+🚀 ❌ [deploy] [ERROR] Failed to build profile on node hp348: Nix build command resulted in a bad exit status: exit status: 1. The failed command is provided below:
+Command { std: NIX_SSHOPTS="" "nix" "--experimental-features" "nix-command" "build" "/nix/store/REDACTED.11.20260723.e2587ca.drv^out" "--eval-store" "auto" "--store" "ssh-ng://duck@hp348", kill_on_drop: false } 
+
+what is this issue?
+
+---
+
+nix flake update
+warning: updating lock file "/Users/jesbin/Documents/oracle-cloud-free-tier/anywhere/flake.lock":
+• Updated input 'deploy-rs':
+    'github:serokell/deploy-rs/6d3087e' (2026-06-16)
+  → 'github:serokell/deploy-rs/4f4179e' (2026-07-27)
+• Updated input 'hermes-agent':
+    'github:NousResearch/hermes-agent/339d968' (2026-07-26)
+  → 'github:NousResearch/hermes-agent/0157180' (2026-07-29)
+• Updated input 'home-manager':
+    'github:nix-community/home-manager/079a3b5' (2026-07-24)
+  → 'github:nix-community/home-manager/e705714' (2026-07-29)
+• Updated input 'nixos-anywhere':
+    'github:nix-community/nixos-anywhere/91fc9b7' (2026-07-22)
+  → 'github:nix-community/nixos-anywhere/2d17d56' (2026-07-29)
+• Updated input 'nixos-anywhere/nixos-images':
+    'github:nix-community/nixos-images/27bfc9d' (2026-07-16)
+  → 'github:nix-community/nixos-images/6ece16b' (2026-07-23)
+• Updated input 'nixos-anywhere/nixos-stable':
+    'github:NixOS/nixpkgs/8eeec93' (2026-07-14)
+  → 'github:NixOS/nixpkgs/2f5a153' (2026-07-27)
+• Updated input 'nixpkgs':
+    'github:NixOS/nixpkgs/597283a' (2026-07-24)
+  → 'github:NixOS/nixpkgs/2f5a153' (2026-07-27)
+• Updated input 'nixpkgs-unstable':
+    'github:NixOS/nixpkgs/e2587ca' (2026-07-23)
+  → 'github:NixOS/nixpkgs/624af66' (2026-07-26) 
+
+is this enough?
+
+---
+
+open vscode
+
+---
+
+nix develop -c deploy .#hp348
+[46/55 built, 3/244/262 copied (1.4/3.2 GiB), 340.9/786.6 MiB DL] fetching llvm-21.1.8 from https://cache.nixos.org^R
+[46/55 built, 3/244/262 copied (1.4/3.2 GiB), 341.0/786.6 MiB DL] fetching llvm-21.1.8 from https://cache.nixos.org^R
+warning: unable to download 'https://cache.nixos.org/nar/REDACTED.nar.zst': HTTP error 200 (curl error: Timeout was reached); retrying from offset 82033758 in 265 ms (attempt 1/5)
+warning: unable to download 'https://cache.nixos.org/nar/1w8jyq3jmmwqvbca8lhinmkj8sarnwrsyss6ghmlqywchkk2j7mw.nar.zst': HTTP error 200 (curl error: Timeout was reached); retrying from offset 20315947 in 252 ms (attempt 1/5)
+warning: unable to download 'https://cache.nixos.org/nar/1w8jyq3jmmwqvbca8lhinmkj8sarnwrsyss6ghmlqywchkk2j7mw.nar.zst': Timeout was reached (28) Operation too slow. Less than 1 bytes/sec transferred the last 300 seconds; retrying from offset 20315947 in 671 ms (attempt 2/5)
+warning: unable to download 'https://cache.nixos.org/nar/REDACTED.nar.zst': Timeout was reached (28) Operation too slow. Less than 1 bytes/sec transferred the last 300 seconds; retrying from offset 82033758 in 647 ms (attempt 2/5)
+warning: unable to download 'https://cache.nixos.org/nar/1w8jyq3jmmwqvbca8lhinmkj8sarnwrsyss6ghmlqywchkk2j7mw.nar.zst': Failed sending data to the peer (55) OpenSSL SSL_read: OpenSSL/3.6.2: error:0A000126:SSL routines::unexpected eof while reading, errno 0; retrying from offset 20315947 in 1105 ms (attempt 3/5)
+🚀 ℹ️ [deploy] [INFO] Running checks for flake in .
+warning: Git tree '/Users/jesbin/Documents/oracle-cloud-free-tier' has uncommitted changes
+✅ devShells.aarch64-darwin.default (build skipped)
+✅ darwinConfigurations.pro-darwin (build skipped)
+warning: The following flake outputs are unchecked: deploy.
+warning: The check omitted these incompatible systems: aarch64-linux, x86_64-linux
+Use '--all-systems' to check all.
+🚀 ℹ️ [deploy] [INFO] Evaluating flake in .
+warning: Git tree '/Users/jesbin/Documents/oracle-cloud-free-tier' has uncommitted changes
+🚀 ℹ️ [deploy] [INFO] The following profiles are going to be deployed:
+[hp348.system]
+user = "root"
+ssh_user = "duck"
+path = "/nix/store/REDACTED.11.20260726.624af66"
+hostname = "hp348"
+ssh_opts = []
+
+🚀 ℹ️ [deploy] [INFO] starting build of profile system on node hp348
+🚀 ℹ️ [deploy] [INFO] Building profile `system` for node `hp348` on remote host
+🚀 ℹ️ [deploy] [INFO] Activating profile `system` for node `hp348`
+🚀 ℹ️ [deploy] [INFO] Creating activation waiter
+👀 ℹ️ [wait] [INFO] Waiting for confirmation event...
+⭐ ℹ️ [activate] [INFO] Activating profile
+Checking switch inhibitors... done
+Skipping "/boot/EFI/systemd/systemd-bootx64.efi", same boot loader version in place already.
+Skipping "/boot/EFI/BOOT/BOOTX64.EFI", same boot loader version in place already.
+stopping the following units: k3s.service, kmod-static-nodes.service, logrotate-checkconf.service, network-local-commands.service, NetworkManager-wait-online.service, NetworkManager.service, nscd.service, resolvconf.service, systemd-fsck-root.service, systemd-modules-load.service, systemd-oomd.service, systemd-oomd.socket, systemd-sysctl.service, systemd-timesyncd.service, systemd-vconsole-setup.service
+NOT restarting the following changed units: getty@tty1.service, post-boot.service, serial-getty@ttyS0.service, systemd-fsck@dev-disk-by\x2dpartlabel-disk\x2dmain\x2dESP.service, systemd-journal-flush.service, systemd-random-seed.service, systemd-remount-fs.service, systemd-update-utmp.service, systemd-user-sessions.service, systemd-zram-setup@zram0.service, user-runtime-dir@1000.service, user@1000.service
+activating the configuration...
+setting up /etc...
+removing obsolete symlink ‘/etc/ssh/moduli’...
+sops-install-secrets: Imported /etc/ssh/ssh_host_rsa_key as GPG key with fingerprint 8236b2ec6ed93961b263aaa32fb3bab4d423bb0f
+restarting systemd...
+reloading user units for duck...
+NOT restarting the following user units: systemd-tmpfiles-setup.service
+restarting the following user units: nixos-activation.service
+restarting sysinit-reactivation.target
+reloading the following units: dbus-broker.service, firewall.service, reload-systemd-vconsole-setup.service, systemd-logind.service
+restarting the following units: nix-daemon.service, sshd.service, systemd-journald.service, systemd-udevd.service, tailscaled.service, wpa_supplicant.service
+starting the following units: k3s.service, kmod-static-nodes.service, logrotate-checkconf.service, network-local-commands.service, NetworkManager-wait-online.service, NetworkManager.service, nscd.service, resolvconf.service, systemd-fsck-root.service, systemd-modules-load.service, systemd-oomd.socket, systemd-sysctl.service, systemd-timesyncd.service, systemd-vconsole-setup.service
+the following new units were started: NetworkManager-dispatcher.service, sysinit-reactivation.target, systemd-ask-password.socket, systemd-factory-reset.socket, systemd-hostnamed.service, systemd-importd.socket, systemd-machined.socket, systemd-mute-console.socket, systemd-repart.socket, systemd-tmpfiles-resetup.service, systemd-udevd-varlink.socket
+👀 ℹ️ [wait] [INFO] Found canary file, done waiting!
+⭐ ℹ️ [activate] [INFO] Activation succeeded!
+⭐ ℹ️ [activate] [INFO] Magic rollback is enabled, setting up confirmation hook...
+⭐ ℹ️ [activate] [INFO] Waiting for confirmation event...
+🚀 ℹ️ [deploy] [INFO] Success activating, attempting to confirm activation
+Connection closed by 100.91.37.112 port 22
+⭐ ⚠️ [activate] [WARN] De-activating due to error
+switching profile from version 6 to 5
+⭐ ⚠️ [activate] [WARN] Removing generation by ID 6
+removing profile version 6
+⭐ ℹ️ [activate] [INFO] Attempting to re-activate the last generation
+⭐ ❌ [activate] [ERROR] There was an error de-activating after an error was encountered: Failed to run Nix reactivate last generation command: No such file or directory (os error 2)
+🚀 ❌ [deploy] [ERROR] Error confirming deployment: SSH confirmation command (the server should roll back) command resulted in a bad exit status: exit status: 255. The failed command is provided below:
+Command { std: "ssh" "duck@hp348" "sudo -u root rm /tmp/REDACTED", kill_on_drop: false }
+🚀 ℹ️ [deploy] [INFO] Revoking previous deploys
+🚀 ❌ [deploy] [ERROR] Deployment to node hp348 failed, rolled back to previous generation 
+
+
+
+unable to ssh after this? rebooted it, do you have any fixes?
+
+---
+
+❯ ssh-keygen -R 100.91.37.112
+ssh duck@100.91.37.112
+# Host 100.91.37.112 found: line 23
+/Users/jesbin/.ssh/known_hosts updated.
+Original contents retained as /Users/jesbin/.ssh/known_hosts.old
+The authenticity of host '100.91.37.112 (100.91.37.112)' can't be established.
+ED25519 key fingerprint is: SHA256:BvKria8Zv8cSq/P6fzbeDPJWmKI4Mt/YfQuA949njYI
+This host key is known by the following other names/addresses:
+    ~/.ssh/known_hosts:21: hp348
+    ~/.ssh/known_hosts:22: hp348.panther-company.ts.net
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '100.91.37.112' (ED25519) to the list of known hosts.
+Connection closed by 100.91.37.112 port 22
+
+~ on ☁️  jesbin.joseph@egovernments.org took 2s
+❯ ssh duck@100.91.37.112 "sudo nix-env -p /nix/var/nix/profiles/system --list-generations"
+Connection closed by 100.91.37.112 port 22
+
+---
+
+can you confirm the root cause? does that mean this will also addect other machiens like s145?
+
+---
+
+fix the root cause in main
+
+---
+
+fix the issue
+
+---
+
+yes, its accessible
+
+---
+
+nothing on tge backup brnach worked
+
+---
+
+thats why i reverted this from my main
+
+---
+
+recovered the machine for furhter testing
+
+---
+
+is the issue fixed? can we deploy again?
+
+---
+
+yes, its done
+
+---
+
+give me the simple command to do it
+
+---
+
+yes
+
+---
+
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+
+---
+
+so i can use the nix depoy command for future dpelyoemtns>?
+
+---
+
+what was the actual fix? from where did you get the fix - osuirce?
+
+---
+
+so what about other machines?
+
+---
+
+so i can run nix deploy on them as well?
+
+---
+
+commit the latest changes
+
+---
+
+No fix — I just pinned nixpkgs-unstable back to e73de5b (June 26)
+
+
+is htere any stable version we can use instead of commiting to a single version?
+
+---
+
+deploy s145 and check wether its accessible
+
+---
+
+is this stuck?
+
+---
+
+I it possible to show the ouptput of htop in tty1 without logging in, i just neeed the server to show the resource statistics in tty1 without login or something?
+
+---
+
+I it possible to show the ouptput of htop in tty1 without logging in, i just neeed the server to show the resource statistics in tty1 without login or something?
+
+
+need this config in hp348
+
+---
+
+whic h is the recomended?
+
+---
+
+yes
+
+---
+
+also check wehter htop is installed actually
+
+---
+
+also check wehter htop is installed actually
+
+---
+
+how to deploy to all using sinfle command
+
+---
+
+how to find the nodes that are out of sync, uptodate and all, is there any tool for that
+
+---
+
+for host in s145 hp348 nitro oracle-eu-arm1 oracle-eu-micro1 oracle-eu-micro2 oracle-in-arm1 oracle-in-micro1 oracle-in-micro2 rpi; do
+  expected=$(nix eval ".#deploy.nodes.$host.profiles.system.path" --raw 2>/dev/null)
+  actual=$(ssh duck@$host readlink /run/current-system 2>/dev/null || echo UNREACHABLE)
+  status=$([ "$expected" = "$actual" ] && echo "✓" || echo "✗")
+  echo "$status $host: expected=$expected actual=$actual"
+done
+zsh: read-only variable: status
+
+---
+
+skip if the node is not ssh accessible
+
+---
+
+nix develop -c deploy .#oracle-eu-arm1 .#oracle-eu-micro1 .#oracle-eu-micro2
+error: unexpected argument '.#oracle-eu-micro1' found
+
+Usage: deploy [OPTIONS] [TARGET] [-- <EXTRA_BUILD_ARGS>...]
+
+For more information, try '--help'. 
+
+how to deploy these 3 at a time.
+
+---
+
+install cloudflare warp on pro-darwin
+
+---
+
+then why isnt showing up in seacrch
+
+---
+
+sudo darwin-rebuild switch --flake .#pro-darwin
+building the system configuration...
+warning: Using 'builtins.derivation' to create a derivation named 'options.json' that references the store path '/nix/store/kfs4nfy1705ksbn0gv15ls921cc90h2z-source' without a proper context. The resulting derivation will not have a correct store reference, so this is unreliable and may stop working in the future.
+error: Cannot build '/nix/store/REDACTED.drv'.
+       Reason: builder failed with exit code 2.
+       Output paths:
+         /nix/store/REDACTED
+       Last 2 log lines:
+       > usage: nixos-render-docs [-h] [-j JOBS] {options,manual} ...
+       > nixos-render-docs: error: unrecognized arguments: --sidebar-depth /nix/store/REDACTED/share/doc/darwin/index.html
+       For full logs, run:
+         nix log /nix/store/REDACTED.drv
+error: Cannot build '/nix/store/REDACTED.drv'.
+       Reason: 1 dependency failed.
+       Output paths:
+         /nix/store/REDACTED
+error: Cannot build '/nix/store/REDACTED.11.drv'.
+       Reason: 1 dependency failed.
+       Output paths:
+         /nix/store/REDACTED.11
+error: Cannot build '/nix/store/REDACTED.drv'.
+       Reason: 1 dependency failed.
+       Output paths:
+         /nix/store/REDACTED
+error: Cannot build '/nix/store/cnyn8q8wckmc9k9k363zvnw9s86n2q4m-system-applications.drv'.
+       Reason: 1 dependency failed.
+       Output paths:
+         /nix/store/REDACTED
+error: Cannot build '/nix/store/a08s1n80yapcc0mhxg19klykl46xav5b-system-path.drv'.
+       Reason: 1 dependency failed.
+       Output paths:
+         /nix/store/REDACTED
+❌ git+file:///Users/jesbin/Documents/oracle-cloud-free-tier?dir=anywhere#darwinConfigurations.pro-darwin.system
+error: Cannot build '/nix/store/svi3dplzcdd3gv5bkbmxcc5sdss3d4pa-darwin-system-26.11.57a3171.drv'.
+       Reason: 1 dependency failed.
+       Output paths:
+         /nix/store/REDACTED.11.57a3171
+
+---
+
+nix flake lock --update-input nix-darwin
+sudo darwin-rebuild switch --flake .#pro-darwin
+warning: '--update-input' is a deprecated alias for 'flake update' and will be removed in a future version.
+warning: updating lock file "/Users/jesbin/Documents/oracle-cloud-free-tier/anywhere/flake.lock":
+• Updated input 'nix-darwin':
+    'github:LnL7/nix-darwin/57a3171' (2026-07-19)
+  → 'github:LnL7/nix-darwin/15abb8c' (2026-07-30)
+building the system configuration...
+warning: Git tree '/Users/jesbin/Documents/oracle-cloud-free-tier' has uncommitted changes
+warning: Using 'builtins.derivation' to create a derivation named 'options.json' that references the store path '/nix/store/kfs4nfy1705ksbn0gv15ls921cc90h2z-source' without a proper context. The resulting derivation will not have a correct store reference, so this is unreliable and may stop working in the future.
+error: Cannot build '/nix/store/i1qra8blb8skq7xv8m84gaq31s2iibjq-darwin-manual-html.drv'.
+       Reason: builder failed with exit code 2.
+       Output paths:
+         /nix/store/REDACTED
+       Last 2 log lines:
+       > usage: nixos-render-docs [-h] [-j JOBS] {options,manual} ...
+       > nixos-render-docs: error: unrecognized arguments: --sidebar-depth /nix/store/REDACTED/share/doc/darwin/index.html
+       For full logs, run:
+         nix log /nix/store/i1qra8blb8skq7xv8m84gaq31s2iibjq-darwin-manual-html.drv
+error: Cannot build '/nix/store/REDACTED.drv'.
+       Reason: 1 dependency failed.
+       Output paths:
+         /nix/store/REDACTED
+error: Cannot build '/nix/store/REDACTED.11.drv'.
+       Reason: 1 dependency failed.
+       Output paths:
+         /nix/store/REDACTED.11
+error: Cannot build '/nix/store/REDACTED.drv'.
+       Reason: 1 dependency failed.
+       Output paths:
+         /nix/store/REDACTED
+error: Cannot build '/nix/store/REDACTED.drv'.
+       Reason: 1 dependency failed.
+       Output paths:
+         /nix/store/REDACTED
+error: Cannot build '/nix/store/REDACTED.drv'.
+       Reason: 1 dependency failed.
+       Output paths:
+         /nix/store/REDACTED
+❌ git+file:///Users/jesbin/Documents/oracle-cloud-free-tier?dir=anywhere#darwinConfigurations.pro-darwin.system
+error: Cannot build '/nix/store/REDACTED.11.15abb8c.drv'.
+       Reason: 1 dependency failed.
+       Output paths:
+         /nix/store/REDACTED.11.15abb8c
+
+---
+
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+
+---
+
+will this break any other machines in my manywhere?
+
+---
+
+try that fix
+
+---
+
+sudo nix run nix-darwin#darwin-rebuild -- switch --flake .#pro-darwin
+warning: $HOME ('/Users/jesbin') is not owned by you, falling back to the one defined in the 'passwd' file ('/var/root')
+building the system configuration...
+warning: Git tree '/Users/jesbin/Documents/oracle-cloud-free-tier' has uncommitted changes
+warning: Using 'builtins.derivation' to create a derivation named 'options.json' that references the store path '/nix/store/bzc7kf828kg6zlan92766rb2inciclc4-source' without a proper context. The resulting derivation will not have a correct store reference, so this is unreliable and may stop working in the future.
+setting up /Applications/Nix Apps...
+setting up pam...
+applying patches...
+setting up /etc...
+user defaults...
+restarting Dock...
+setting up launchd services...
+configuring time...
+configuring networking...
+configuring application firewall...
+configuring power...
+setting up /Library/Fonts/Nix Fonts...
+setting nvram variables...
+Homebrew bundle...
+Warning: docker was renamed to docker-desktop
+Warning: docker was renamed to docker-desktop
+Warning: Cask docker was renamed to docker-desktop.
+Warning: Cask docker was renamed to docker-desktop.
+Using arc
+Using cloudflare-warp
+Warning: docker was renamed to docker-desktop
+Using docker
+Using handy
+Using loom
+Using maccy
+Using tailscale-app
+Using visual-studio-code
+Using warp
+Using whatsapp
+Using Bitwarden
+Using WireGuard
+`brew bundle` complete! 12 Brewfile dependencies now installed.
+/nix/store/REDACTED.11.15abb8c/activate: line 664: defaultbrowser: command not found
+gke-gcloud-auth-plugin already installed
+cloud-run-proxy already installed
+Activating home-manager configuration for jesbin
+Starting Home Manager activation
+Activating checkFilesChanged
+Activating checkLinkTargets
+Activating writeBoundary
+Activating linkGeneration
+Cleaning up orphan links from /Users/jesbin
+Creating home file links in /Users/jesbin
+Activating batCache
+No themes were found in '/Users/jesbin/.config/bat/themes', using the default set
+No syntaxes were found in '/Users/jesbin/.config/bat/syntaxes', using the default set.
+Writing theme set to /Users/jesbin/.cache/bat/themes.bin ... okay
+Writing syntax set to /Users/jesbin/.cache/bat/syntaxes.bin ... okay
+Writing metadata to folder /Users/jesbin/.cache/bat ... okay
+Activating installPackages
+Activating onFilesChange
+Activating setupLaunchAgents
+Activating trampolineApps
+.: replacing existing signature
+.: replacing existing signature
+.: replacing existing signature
+.: replacing existing signature
+adding /nix/store/b7j981sm3j4pd9s2h8hvilva44zhlkd8-iterm2-3.6.10/Applications/iTerm2.app
+adding /nix/store/fp0ygh8pq9cjplw5qq75jii5dvc2v8w1-slack-4.51.180/Applications/Slack.app
+
+---
+
+commit the relevant changes.
+
+---
+
+also remove the nitor machine and coommit these changes
+
+---
+
+add the rest unrequired to git ignore
+
+---
+
+ya
+
+---
+
+pish rhw chanes
+
+---
+
+install oracle cloud cli on pro darwin
+
+---
+
+commit the changes
+
+---
+
+/bin/sh: sops: command not found
+
+---
+
+update the path for shells,
+
+add the follwoign,
+
+export PATH="$HOME/.local/bin:$PATH"
+export PATH="$PATH:/Users/jesbin/Library/Python/3.9/bin"
+
+---
+
+commit the latest changes, after that new task
+
+---
+
+i am currently running immich version 2.7.5 in @k8s/immich/ , can you go thorugh each releases after that to find the steps to upgrade without data loss
+Called the Read tool with the following input: {"filePath":"/Users/jesbin/Documents/oracle-cloud-free-tier/anywhere/k8s/immich/"}
+<path>/Users/jesbin/Documents/oracle-cloud-free-tier/anywhere/k8s/immich/</path>
+<type>directory</type>
+<entries>
+helmrepository.yaml
+immich-helm.yaml
+immich-secret.yaml
+ingressroute.yaml
+kustomization.yaml
+namespace.yaml
+nodeport.yaml
+postgres.yaml
+pv.yaml
+pvc.yaml
+README.md
+security-headers.yaml
+valkey.yaml
+values.yaml
+
+(14 entries)
+</entries>
+
+---
+
+https://github.com/jesb1n/immich-auto-updater this is what i was using when i was running hte same config in docker compose, now s you see its on k3s, i am not sure how to upgrade any more.
+
+---
+
+lets backup first
+
+---
+
+Restore database backup
+Rollback to an earlier database state using a backup file
+
+Upload database backup file
+
+Select from computer
+July 31, 2026
+
+02:00
+
+16 hours ago
+
+Restore
+
+immich-db-backup-20260731T020000-v2.7.5-pg14.19.sql.gz
+
+Version:
+
+v2.7.5
+
+Size:
+
+231.5 MiB
+
+July 25, 2026
+
+02:00
+
+6 days ago
+
+Restore
+
+immich-db-backup-20260725T020000-v2.7.5-pg14.19.sql.gz
+
+Version:
+
+v2.7.5
+
+Size:
+
+230.7 MiB
+
+July 23, 2026
+
+02:00
+
+8 days ago
+
+Restore
+
+immich-db-backup-20260723T020000-v2.7.5-pg14.19.sql.gz
+
+Version:
+
+v2.7.5
+
+Size:
+
+230.5 MiB
+
+July 22, 2026
+
+02:00
+
+9 days ago
+
+Restore
+
+immich-db-backup-20260722T020000-v2.7.5-pg14.19.sql.gz
+
+Version:
+
+v2.7.5
+
+Size:
+
+230.5 MiB
+
+June 29, 2026
+
+05:07
+
+1 month ago
+
+Restore
+
+immich-db-backup-20260629T050712-v2.7.5-pg14.19.sql.gz
+
+Version:
+
+v2.7.5
+
+Size:
+
+230.1 MiB
+
+June 26, 2026
+
+02:00
+
+1 month ago
+
+Restore
+
+immich-db-backup-20260626T020000-v2.7.5-pg14.19.sql.gz
+
+Version:
+
+v2.7.5
+
+Size:
+
+230.1 MiB
+
+June 25, 2026
+
+02:00
+
+1 month ago
+
+Restore
+
+immich-db-backup-20260625T020000-v2.7.5-pg14.19.sql.gz
+
+Version:
+
+v2.7.5
+
+Size:
+
+230.1 MiB
+
+June 24, 2026
+
+02:00
+
+1 month ago
+
+Restore
+
+immich-db-backup-20260624T020000-v2.7.5-pg14.19.sql.gz
+
+Version:
+
+v2.7.5
+
+Size:
+
+229.5 MiB
+
+June 23, 2026
+
+02:00
+
+1 month ago
+
+Restore
+
+immich-db-backup-20260623T020000-v2.7.5-pg14.19.sql.gz
+
+Version:
+
+v2.7.5
+
+Size:
+
+229.5 MiB
+
+June 22, 2026
+
+02:00
+
+1 month ago
+
+Restore
+
+immich-db-backup-20260622T020000-v2.7.5-pg14.19.sql.gz
+
+Version:
+
+v2.7.5
+
+Size:
+
+229.5 MiB
+
+June 21, 2026
+
+02:00
+
+1 month ago
+
+Restore
+
+immich-db-backup-20260621T020000-v2.7.5-pg14.19.sql.gz
+
+Version:
+
+v2.7.5
+
+Size:
+
+229.5 MiB
+
+June 20, 2026
+
+02:00
+
+1 month ago
+
+Restore
+
+immich-db-backup-20260620T020000-v2.7.5-pg14.19.sql.gz
+
+Version:
+
+v2.7.5
+
+Size:
+
+229.5 MiB
+
+June 19, 2026
+
+02:00
+
+1 month ago
+
+Restore
+
+immich-db-backup-20260619T020000-v2.7.5-pg14.19.sql.gz
+
+Version:
+
+v2.7.5
+
+Size:
+
+229.4 MiB
+
+June 18, 2026
+
+02:00
+
+1 month ago
+
+Restore
+
+immich-db-backup-20260618T020000-v2.7.5-pg14.19.sql.gz
+
+Version:
+
+v2.7.5
+
+Size:
+
+229.4 MiB 
+
+
+there are already backups
+
+---
+
+whats the next stage?
+
+---
+
+make the necessary changes to files. locally, once confirmed we will commit and push it
+
+---
+
+can you get the latest properties for other compoennts from the immich rleease you are using, on each release they provide with the dockercompose file, from these you can get the propertied and tags
+
+---
+
+does the default chart has the valkey>? if so why are we not using it? but using a seperate file to create valkey
+
+---
+
+try the built in and remove the extra file
+
+---
+
+what about the rest of the resources in immich ?
+
+---
+
+why did you remove the nodeselector for components in vlaues.yaml? os thos actually coprrect?
+
+---
+
+can you template it locally to confirm wether all the vlaues fromn values.yaml is taking correctly?
+
+---
+
+https://github.com/immich-app/immich/releases#release-v3.0.3
+
+use the battle tested versions , make sure you match all the depedencey component image tags to versions form ther espective docker comoose file
+
+---
+
+final confirmation: all tags in @k8s/immich/ maches the dockercompose for the specific version
+Called the Read tool with the following input: {"filePath":"/Users/jesbin/Documents/oracle-cloud-free-tier/anywhere/k8s/immich/"}
+<path>/Users/jesbin/Documents/oracle-cloud-free-tier/anywhere/k8s/immich/</path>
+<type>directory</type>
+<entries>
+helmrepository.yaml
+immich-helm.yaml
+immich-secret.yaml
+ingressroute.yaml
+kustomization.yaml
+namespace.yaml
+nodeport.yaml
+postgres.yaml
+pv.yaml
+pvc.yaml
+README.md
+security-headers.yaml
+values.yaml
+
+(13 entries)
+</entries>
+
+---
+
+Also check any of this is applicable for me: https://immich.app/blog/v3-migration
+
+---
+
+looks good . commit and push the changes related to immich upgrade.
+
+---
+
+how long does it take for flux to pick up these changes
+
+---
+
+Name:             immich-machine-learning-589f775678-5zhnm
+Namespace:        immich
+Priority:         0
+Service Account:  immich-machine-learning
+Node:             <none>
+Labels:           app.kubernetes.io/controller=main
+                  app.kubernetes.io/instance=immich
+                  app.kubernetes.io/name=machine-learning
+                  pod-template-hash=589f775678
+Annotations:      <none>
+Status:           Pending
+IP:               
+IPs:              <none>
+Controlled By:    ReplicaSet/immich-machine-learning-589f775678
+Containers:
+  main:
+    Image:      ghcr.io/immich-app/immich-machine-learning:v3.0.3
+    Port:       3003/TCP (http)
+    Host Port:  0/TCP (http)
+    Liveness:   http-get http://:http/ping delay=0s timeout=1s period=10s #success=1 #failure=3
+    Readiness:  http-get http://:http/ping delay=0s timeout=1s period=10s #success=1 #failure=3
+    Startup:    http-get http://:http/ping delay=0s timeout=1s period=10s #success=1 #failure=60
+    Environment:
+      DB_DATABASE_NAME:             <set to the key 'DB_DATABASE_NAME' in secret 'immich-secret'>  Optional: false
+      DB_HOSTNAME:                  immich-postgres
+      DB_PASSWORD:                  <set to the key 'DB_PASSWORD' in secret 'immich-secret'>  Optional: false
+      DB_PORT:                      5432
+      DB_USERNAME:                  <set to the key 'DB_USERNAME' in secret 'immich-secret'>  Optional: false
+      HF_XET_CACHE:                 /cache/huggingface-xet
+      IMMICH_MACHINE_LEARNING_URL:  http://immich-machine-learning:3003
+      MPLCONFIGDIR:                 /cache/matplotlib-config
+      REDIS_HOSTNAME:               immich-valkey
+      TRANSFORMERS_CACHE:           /cache
+      TZ:                           Asia/Kolkata
+    Mounts:
+      /cache from cache (rw)
+Conditions:
+  Type           Status
+  PodScheduled   False 
+Volumes:
+  cache:
+    Type:        PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
+    ClaimName:   immich-machine-learning-cache
+    ReadOnly:    false
+QoS Class:       BestEffort
+Node-Selectors:  kubernetes.io/hostname=s145
+Tolerations:     node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                 node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type     Reason            Age   From               Message
+  ----     ------            ----  ----               -------
+  Warning  FailedScheduling  101s  default-scheduler  0/7 nodes are available: 1 node(s) didn't match PersistentVolume's node affinity, 1 node(s) had untolerated taint(s), 5 node(s) didn't match Pod's node affinity/selector. no new claims to deallocate, preemption: 0/7 nodes are available: 7 Preemption is not helpful for scheduling.
+
+---
+
+is this stuck
+
+---
+
+is this stuck
+
+---
+
+continue
+
+---
+
+Name:         immich
+Namespace:    immich
+Labels:       kustomize.toolkit.fluxcd.io/name=immich
+              kustomize.toolkit.fluxcd.io/namespace=flux-system
+Annotations:  <none>
+API Version:  helm.toolkit.fluxcd.io/v2
+Kind:         HelmRelease
+Metadata:
+  Creation Timestamp:  2026-07-02T17:47:03Z
+  Finalizers:
+    finalizers.fluxcd.io
+  Generation:        2
+  Resource Version:  6818918
+  UID:               ec2e240b-709b-4406-b584-241bd022c1b6
+Spec:
+  Chart:
+    Spec:
+      Chart:               immich
+      Interval:            1h
+      Reconcile Strategy:  ChartVersion
+      Source Ref:
+        Kind:       HelmRepository
+        Name:       immich
+        Namespace:  flux-system
+      Version:      0.13.1
+  Interval:         1h
+  Values From:
+    Kind:  ConfigMap
+    Name:  immich-values
+Status:
+  Conditions:
+    Last Transition Time:  2026-07-31T16:13:57Z
+    Message:               Helm upgrade succeeded for release immich/immich.v7 with chart immich@0.13.1
+    Observed Generation:   2
+    Reason:                UpgradeSucceeded
+    Status:                True
+    Type:                  Ready
+    Last Transition Time:  2026-07-31T16:13:57Z
+    Message:               Helm upgrade succeeded for release immich/immich.v7 with chart immich@0.13.1
+    Observed Generation:   2
+    Reason:                UpgradeSucceeded
+    Status:                True
+    Type:                  Released
+  Failures:                1
+  Helm Chart:              flux-system/immich-immich
+  History:
+    Action:          upgrade
+    API Version:     v2
+    App Version:     v3.0.0
+    Chart Name:      immich
+    Chart Version:   0.13.1
+    Config Digest:   sha256:78912c5e46a567102442d17a85ef984e248d7424fdee54fec97e84ba03059a4a
+    Digest:          sha256:3001985d67dc094995be52b519341cd75b33ec79a1b476c9e90f08281633895c
+    First Deployed:  2026-07-02T17:47:13Z
+    Last Deployed:   2026-07-31T16:13:37Z
+    Name:            immich
+    Namespace:       immich
+    Status:          deployed
+    Version:         7
+    Action:          upgrade
+    API Version:     v2
+    App Version:     v3.0.0
+    Chart Name:      immich
+    Chart Version:   0.13.1
+    Config Digest:   sha256:78912c5e46a567102442d17a85ef984e248d7424fdee54fec97e84ba03059a4a
+    Digest:          sha256:6988ab18a054343d5d99a5574458d3a413e5cbae9ed82b4b06b06216e1143012
+    First Deployed:  2026-07-02T17:47:13Z
+    Last Deployed:   2026-07-31T13:44:58Z
+    Name:            immich
+    Namespace:       immich
+    Status:          failed
+    Version:         6
+    API Version:     v2
+    App Version:     v2.6.3
+    Chart Name:      immich
+    Chart Version:   0.12.0
+    Config Digest:   sha256:c781570530312ee2306ef79011d3e74bace23fa3a0cc8ec5befd8215b522c4c9
+    Digest:          sha256:32ee5048819eca55b7b6bcdefdd353c934367067762bbb32099cceafd550f04d
+    First Deployed:  2026-07-02T17:47:13Z
+    Last Deployed:   2026-07-20T14:44:49Z
+    Name:            immich
+    Namespace:       immich
+    Status:          superseded
+    Version:         5
+  Inventory:
+    Entries:
+      Id:                                  immich_immich-machine-learning__ServiceAccount
+      V:                                   v1
+      Id:                                  immich_immich-server__ServiceAccount
+      V:                                   v1
+      Id:                                  immich_immich-valkey__ServiceAccount
+      V:                                   v1
+      Id:                                  immich_immich-machine-learning__Service
+      V:                                   v1
+      Id:                                  immich_immich-server__Service
+      V:                                   v1
+      Id:                                  immich_immich-valkey__Service
+      V:                                   v1
+      Id:                                  immich_immich-machine-learning_apps_Deployment
+      V:                                   v1
+      Id:                                  immich_immich-server_apps_Deployment
+      V:                                   v1
+      Id:                                  immich_immich-valkey_apps_Deployment
+      V:                                   v1
+  Last Attempted Config Digest:            sha256:78912c5e46a567102442d17a85ef984e248d7424fdee54fec97e84ba03059a4a
+  Last Attempted Generation:               2
+  Last Attempted Release Action:           upgrade
+  Last Attempted Release Action Duration:  32.674691252s
+  Last Attempted Revision:                 0.13.1
+  Last Handled Force At:                   2026-07-31T16:13:18Z
+  Last Handled Reconcile At:               2026-07-31T16:13:18Z
+  Observed Generation:                     2
+  Storage Namespace:                       immich
+  Upgrade Failures:                        1
+Events:
+  Type    Reason            Age   From             Message
+  ----    ------            ----  ----             -------
+  Normal  UpgradeSucceeded  71s   helm-controller  Helm upgrade succeeded for release immich/immich.v7 with chart immich@0.13.1 
+
+
+this is copied from the immich dashboard. does all of this looks good? do i need to make any changes?
+
+---
+
+{
+  "backup": {
+    "database": {
+      "cronExpression": "0 02 * * *",
+      "enabled": true,
+      "keepLastAmount": 14
+    }
+  },
+  "ffmpeg": {
+    "accel": "vaapi",
+    "accelDecode": true,
+    "acceptedAudioCodecs": [
+      "aac",
+      "mp3",
+      "opus"
+    ],
+    "acceptedContainers": [
+      "mov",
+      "ogg",
+      "webm"
+    ],
+    "acceptedVideoCodecs": [
+      "h264"
+    ],
+    "bframes": -1,
+    "cqMode": "auto",
+    "crf": 23,
+    "gopSize": 0,
+    "maxBitrate": "0",
+    "preferredHwDevice": "auto",
+    "preset": "ultrafast",
+    "realtime": {
+      "enabled": false,
+      "resolutions": [
+        480,
+        720,
+        1080
+      ],
+      "videoCodecs": [
+        "h264",
+        "hevc"
+      ]
+    },
+    "refs": 0,
+    "targetAudioCodec": "aac",
+    "targetResolution": "720",
+    "targetVideoCodec": "h264",
+    "temporalAQ": false,
+    "threads": 0,
+    "tonemap": "hable",
+    "transcode": "required",
+    "twoPass": false
+  },
+  "image": {
+    "colorspace": "p3",
+    "extractEmbedded": false,
+    "fullsize": {
+      "enabled": false,
+      "format": "jpeg",
+      "progressive": false,
+      "quality": 80
+    },
+    "preview": {
+      "format": "jpeg",
+      "progressive": false,
+      "quality": 80,
+      "size": 1440
+    },
+    "thumbnail": {
+      "format": "webp",
+      "progressive": false,
+      "quality": 80,
+      "size": 250
+    }
+  },
+  "integrityChecks": {
+    "checksumFiles": {
+      "cronExpression": "0 03 * * *",
+      "enabled": true,
+      "percentageLimit": 1,
+      "timeLimit": 3600000
+    },
+    "missingFiles": {
+      "cronExpression": "0 03 * * *",
+      "enabled": true
+    },
+    "untrackedFiles": {
+      "cronExpression": "0 03 * * *",
+      "enabled": true
+    }
+  },
+  "job": {
+    "backgroundTask": {
+      "concurrency": 5
+    },
+    "editor": {
+      "concurrency": 2
+    },
+    "faceDetection": {
+      "concurrency": 2
+    },
+    "integrityCheck": {
+      "concurrency": 1
+    },
+    "library": {
+      "concurrency": 5
+    },
+    "metadataExtraction": {
+      "concurrency": 5
+    },
+    "migration": {
+      "concurrency": 5
+    },
+    "notifications": {
+      "concurrency": 5
+    },
+    "ocr": {
+      "concurrency": 1
+    },
+    "search": {
+      "concurrency": 5
+    },
+    "sidecar": {
+      "concurrency": 5
+    },
+    "smartSearch": {
+      "concurrency": 2
+    },
+    "thumbnailGeneration": {
+      "concurrency": 3
+    },
+    "videoConversion": {
+      "concurrency": 1
+    },
+    "workflow": {
+      "concurrency": 5
+    }
+  },
+  "library": {
+    "scan": {
+      "cronExpression": "0 0 * * *",
+      "enabled": true
+    },
+    "watch": {
+      "enabled": false
+    }
+  },
+  "logging": {
+    "enabled": true,
+    "level": "debug"
+  },
+  "machineLearning": {
+    "availabilityChecks": {
+      "enabled": true,
+      "interval": 30000,
+      "timeout": 2000
+    },
+    "clip": {
+      "enabled": true,
+      "modelName": "ViT-B-32__openai"
+    },
+    "duplicateDetection": {
+      "enabled": true,
+      "maxDistance": 0.01
+    },
+    "enabled": true,
+    "facialRecognition": {
+      "enabled": true,
+      "maxDistance": 0.5,
+      "minFaces": 3,
+      "minScore": 0.7,
+      "modelName": "buffalo_l"
+    },
+    "ocr": {
+      "enabled": true,
+      "maxResolution": 736,
+      "minDetectionScore": 0.5,
+      "minRecognitionScore": 0.8,
+      "modelName": "PP-OCRv5_mobile"
+    },
+    "urls": [
+      "http://immich-machine-learning:3003"
+    ]
+  },
+  "map": {
+    "darkStyle": "https://tiles.immich.cloud/v1/style/dark.json",
+    "enabled": true,
+    "lightStyle": "https://tiles.immich.cloud/v1/style/light.json"
+  },
+  "metadata": {
+    "faces": {
+      "import": true
+    }
+  },
+  "newVersionCheck": {
+    "channel": "stable",
+    "enabled": true
+  },
+  "nightlyTasks": {
+    "clusterNewFaces": true,
+    "databaseCleanup": true,
+    "generateMemories": true,
+    "missingThumbnails": true,
+    "startTime": "00:00",
+    "syncQuotaUsage": true
+  },
+  "notifications": {
+    "smtp": {
+      "enabled": false,
+      "from": "",
+      "replyTo": "",
+      "transport": {
+        "host": "",
+        "ignoreCert": false,
+        "password": "",
+        "port": 587,
+        "secure": false,
+        "username": ""
+      }
+    }
+  },
+  "oauth": {
+    "allowInsecureRequests": false,
+    "autoLaunch": false,
+    "autoRegister": false,
+    "buttonText": "Login with OAuth",
+    "clientId": "58e37d8cfa99185a4b6209a0e223c52d57624367f04baeeed22b3de17ced99cf",
+    "clientSecret": "REDACTED",
+    "defaultStorageQuota": null,
+    "enabled": false,
+    "endSessionEndpoint": "",
+    "issuerUrl": "https://makri.cloudflareaccess.com/cdn-cgi/access/sso/oidc/58e37d8cfa99185a4b6209a0e223c52d57624367f04baeeed22b3de17ced99cf",
+    "mobileOverrideEnabled": false,
+    "mobileRedirectUri": "",
+    "profileSigningAlgorithm": "none",
+    "prompt": "",
+    "roleClaim": "immich_role",
+    "scope": "openid email profile",
+    "signingAlgorithm": "RS256",
+    "storageLabelClaim": "preferred_username",
+    "storageQuotaClaim": "immich_quota",
+    "timeout": 30000,
+    "tokenEndpointAuthMethod": "client_secret_post"
+  },
+  "passwordLogin": {
+    "enabled": true
+  },
+  "reverseGeocoding": {
+    "enabled": true
+  },
+  "server": {
+    "externalDomain": "https://i1.beijns.eu.org",
+    "loginPageMessage": "",
+    "publicUsers": true
+  },
+  "storageTemplate": {
+    "enabled": true,
+    "hashVerificationEnabled": true,
+    "template": "{{y}}/{{y}}-{{MM}}-{{dd}}/{{filename}}"
+  },
+  "templates": {
+    "email": {
+      "albumInviteTemplate": "",
+      "albumUpdateTemplate": "",
+      "welcomeTemplate": ""
+    }
+  },
+  "theme": {
+    "customCss": ".license-status { display: none !important; }"
+  },
+  "trash": {
+    "days": 30,
+    "enabled": true
+  },
+  "user": {
+    "deleteDelay": 7
+  }
+}
+
+---
+
+does all of the local changes is pushed?
+
+---
+
+install cursor and chjaptgpot desktop app on pro-darwin
