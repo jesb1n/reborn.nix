@@ -82,6 +82,7 @@ The iCloud path (`/Users/jesbin/Library/Mobile Documents/com~apple~CloudDocs/Doc
 
 `nixpkgs.config.allowUnfreePredicate` currently allows:
 - `1password` (1Password GUI)
+- `cursor` (Cursor editor)
 - `slack` (Slack)
 - `spotify` (Spotify)
 
@@ -106,6 +107,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | `handy` | Not in nixpkgs. GUI speech-to-text app; needs macOS Accessibility, Microphone, and Input Monitoring entitlements (granted manually in System Settings after first launch). |
 | `loom` | Not in nixpkgs. Proprietary screen-recording app; needs macOS Screen Recording, Microphone, and Camera entitlements (granted manually in System Settings after first launch). |
 | `visual-studio-code` | nixpkgs `vscode` has recurring build failures (broken ripgrep path inside the upstream zip). Moved to Homebrew cask as a reliable fallback. |
+| `chatgpt` | Official ChatGPT desktop app is not available as a supported nixpkgs package. |
 
 ### Mac App Store (masApps)
 
@@ -122,7 +124,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 ### Nix (home.packages)
 
 CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `tailscale` (CLI), `k9s`, `google-cloud-sdk`, `opentofu`, `awscli2`, `oci-cli`, `sops`
-GUI: `firefox`, `iterm2`, `slack`, `spotify`
+GUI: `code-cursor`, `firefox`, `iterm2`, `slack`, `spotify`
 
 ### Special case: blocked `gcloud components` (gke-gcloud-auth-plugin, cloud-run-proxy)
 

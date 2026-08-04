@@ -11,6 +11,7 @@
 
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "1password"
+    "cursor"
     "slack"
     "spotify"
   ];
@@ -52,6 +53,7 @@
     };
     casks = [
       "arc"
+      "chatgpt"
       "cloudflare-warp"
       "docker"
       "handy"
