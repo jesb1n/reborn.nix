@@ -1,11 +1,3 @@
-<timestamp>Wednesday, Aug 5, 2026, 6:58 PM (UTC+5:30)</timestamp>
+<timestamp>Wednesday, Aug 5, 2026, 7:07 PM (UTC+5:30)</timestamp>
 
-Look at the host immich is running, ie ssh duck@s145, how much can i give for the server? also is there any env i can provide in ipp to reduce the number of parallel requersts? 
-
-When making the vlaues changes, make sure it matches what the helm char tis expecting.
-
-let me know once the changes are donw
-
----
-
-remove the cpu limits, also is the memory limits enough?
+commit and push only the relevant changes.
