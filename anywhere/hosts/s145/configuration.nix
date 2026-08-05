@@ -14,6 +14,7 @@ in
     ../../profiles/server.nix
     ../../profiles/tailscale.nix
     ../../profiles/k3s-server.nix
+    ../../profiles/smartd.nix
     ./disko-config.nix
     ./samba.nix
     ./sops.nix
@@ -54,13 +55,6 @@ in
       "x-systemd.device-timeout=30"
       "x-systemd.mount-timeout=30"
     ];
-  };
-
-  # SMART monitoring — surface impending disk failure before data loss.
-  services.smartd = {
-    enable = true;
-    autodetect = true;
-    notifications.test = false;
   };
 
   # Keep server workloads running when the laptop lid is closed.
