@@ -31,3 +31,6 @@
 {"type":"turn_ended","status":"success"}
 {"role":"user","message":{"content":[{"type":"text","text":"<timestamp>Wednesday, Aug 5, 2026, 7:04 PM (UTC+5:30)</timestamp>\n<user_query>\nCommit only the relevant cyhanges .\n</user_query>"}]}}
 {"role":"assistant","message":{"content":[{"type":"text","text":"I'll inspect git status and diffs, then commit only the pro-darwin changes."},{"type":"tool_use","name":"Shell","input":{"command":"git status"}},{"type":"tool_use","name":"Shell","input":{"command":"git diff && git diff --cached"}},{"type":"tool_use","name":"Shell","input":{"command":"git log -8 --oneline"}}]}}
+{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"git add anywhere/hosts/pro-darwin/AGENTS.md anywhere/hosts/pro-darwin/darwin-configuration.nix anywhere/hosts/pro-darwin/home.nix && git commit -m \"$(cat <<'EOF'\npro-darwin: align Homebrew with Nix and drop defaultbrowser.\n\nUse the docker-desktop cask rename, manage ffmpeg/k6 via Nix, and stop forcing the default browser in activation.\nEOF\n)\" && git status","required_permissions":["git_write"]}}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"Committed as `08f2bd3` — only the three `pro-darwin` files. Branch is 1 commit ahead of `origin/main`."}]}}
+{"type":"turn_ended","status":"success"}
