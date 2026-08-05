@@ -1,0 +1,19 @@
+# Scrape Garage's built-in Prometheus metrics on the admin API (:3903/metrics).
+# StatefulSet already declares containerPort name "admin"; no Service change needed.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: garage
+  namespace: garage
+  labels:
+    app.kubernetes.io/name: garage
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: garage
+      app.kubernetes.io/instance: garage
+  podMetricsEndpoints:
+    - port: admin
+      path: /metrics
+      scheme: http
+      interval: 30s

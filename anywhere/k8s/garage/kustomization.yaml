@@ -9,6 +9,7 @@ resources:
   - ingressroute.yaml
   - nodeport.yaml
   - garage-helm.yaml
+  - podmonitor.yaml
 configMapGenerator:
   - name: garage-values
     namespace: garage
