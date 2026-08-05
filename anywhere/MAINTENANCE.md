@@ -317,6 +317,8 @@ sops updatekeys secrets/tailscale/secrets.yaml
 sops updatekeys secrets/rpi/secrets.yaml
 ```
 
+Admin keys are `mark` + `pro_darwin` only (all secrets are decryptable by both). Host keys decrypt only their own host's secrets. The retired `master` key is not a recipient anywhere.
+
 Do not commit unencrypted secrets.
 
 ## Hermes Agent (Codex + Google Gemini + Telegram on `oracle-eu-arm1`)

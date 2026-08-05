@@ -191,6 +191,10 @@ sops anywhere/secrets/tailscale/secrets.yaml
 # Re-key after .sops.yaml changes
 sops updatekeys anywhere/secrets/<host>/secrets.yaml
 
+# Re-key IaC secrets (mark + pro_darwin recipients only — master is retired)
+cd IaC
+sops updatekeys -y beijns.tfvars beijnseu.tfvars secrets/beijns.env secrets/beijnseu.env
+
 # Test decrypt
 sops -d anywhere/secrets/k3s/secrets.yaml >/dev/null
 
@@ -209,6 +213,7 @@ sudo age-keygen -y /var/lib/sops-nix/key.txt  # → add public key to .sops.yaml
 
 - `sops.age.generateKey = false` on all hosts — keys must be pre-provisioned.
 - Shared secrets (`k3s/`, `tailscale/`) are decryptable by all host keys; per-host secrets only by that host + pro_darwin/mark.
+- **IaC secrets (`IaC/*.tfvars`, `IaC/secrets/*.env`) are encrypted only to `mark` + `pro_darwin`** — the `master` key is retired and appears nowhere in the repo. Both machines can decrypt; neither is required.
 
 ## k3s / Kubernetes
 
