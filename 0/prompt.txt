@@ -1,0 +1,15 @@
+<timestamp>Wednesday, Aug 5, 2026, 10:18 PM (UTC+5:30)</timestamp>
+
+Lets implement this one by one, verify when each one is done.
+
+---
+
+so what can i do with all the metrics in prometheus?
+
+---
+
+Can you look for official dashboards i can use to plug this data in?
+
+---
+
+Can you add these to the helm chart to get this automaticlaly dpeloyed? isnt it the best way?

@@ -1,0 +1,60 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01KZ9FQ013A1JW9F4MTP0SN3KM",
+  "session_id": "70a4a896-8a3d-441c-9051-66e85aeb6fcf",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-05T17:32:05.946522Z",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "save_step_count": 1,
+  "files_touched": [
+    "anywhere/k8s/monitoring/README.md",
+    "anywhere/k8s/monitoring/values.yaml"
+  ],
+  "agent": "Cursor",
+  "model": "cursor-grok-4.5-medium",
+  "turn_id": "20e1ed18ec12",
+  "checkpoint_transcript_start": 199,
+  "transcript_lines_at_start": 199,
+  "compact_transcript_start": 70,
+  "token_usage": {
+    "input_tokens": 43950,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 122368,
+    "output_tokens": 3189,
+    "api_call_count": 1
+  },
+  "session_metrics": {
+    "turn_count": 20,
+    "context_tokens": 248696,
+    "context_window_size": 256000
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-05T17:32:05.908564Z",
+    "agent_lines": 51,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 51,
+    "total_lines_changed": 51,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 51,
+      "agent_lines_removed": 0
+    }
+  ]
+}
