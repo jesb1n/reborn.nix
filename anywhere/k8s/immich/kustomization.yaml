@@ -4,11 +4,12 @@ resources:
   - namespace.yaml
   - immich-secret.yaml
   - helmrepository.yaml
+  - pv.yaml
   - postgres.yaml
-  - valkey.yaml
   - pvc.yaml
   - security-headers.yaml
   - ingressroute.yaml
+  - nodeport.yaml
   - immich-helm.yaml
 configMapGenerator:
   - name: immich-values

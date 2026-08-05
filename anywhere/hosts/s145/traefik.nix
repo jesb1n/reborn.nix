@@ -18,6 +18,11 @@ let
   hostSecretsFile = ../../secrets/s145/secrets.yaml;
   hasHostSecretsFile = builtins.pathExists hostSecretsFile;
 
+  # Note: Traefik v40+ requires CRDs via a separate traefik-crds chart.
+  # k3s manages this via its built-in traefik-crd addon, but the chart
+  # exceeds the 1MB Helm release secret limit, so it always crash-loops.
+  # The CRDs are already installed (25 CRDs) — the crash loop is harmless.
+
   # Static (non-secret) HelmChartConfig. Lives in the Nix store so changes
   # flow through normal NixOS rebuilds.
   traefikChartConfig = pkgs.writeText "traefik-config.yaml" ''
@@ -53,6 +58,11 @@ let
           - "--entryPoints.web.http.redirections.entryPoint.to=websecure"
           - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
           - "--entryPoints.web.http.redirections.entryPoint.permanent=true"
+          # Disable read timeout — Traefik v2.11.2+ defaults to 60s which
+          # kills large Immich uploads (videos) mid-transfer.
+          # See: https://github.com/immich-app/immich/discussions/8872
+          - "--entryPoints.websecure.transport.respondingTimeouts.readTimeout=0s"
+          - "--entryPoints.web.transport.respondingTimeouts.readTimeout=0s"
           - "--certificatesresolvers.cloudflare.acme.email=acme@jesb.in"
           - "--certificatesresolvers.cloudflare.acme.storage=/data/acme.json"
           - "--certificatesresolvers.cloudflare.acme.dnschallenge=true"

@@ -1,6 +1,7 @@
 keys:
   - &master age1pszh4rajt03mcmkhgxuyqkyrnu2qe9xgv9g93kymu06z0pzw0feqmrcph8
   - &mark age10dmkesu0j4zyr0xqkuvhzzdc2trlp93vlfvcwwfytzj9gefmp4equhleuw
+  - &pro_darwin age1s27ue93pce8p404tl7ycgfjgmdw7rxglhn8vgyajarv8g54pf5cq6hwzv9
 
 creation_rules:
   - path_regex: secrets/.*\.env
@@ -9,6 +10,7 @@ creation_rules:
       - age:
           - *master
           - *mark
+          - *pro_darwin
 
   - path_regex: .*\.tfvars$
     encrypted_regex: "^(.*)$$"
@@ -16,3 +18,4 @@ creation_rules:
       - age:
           - *master
           - *mark
+          - *pro_darwin

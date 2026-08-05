@@ -13,7 +13,7 @@ spec:
         name: immich
         namespace: flux-system
       interval: 1h
-      version: "0.12.0"
+      version: "0.13.1"
   valuesFrom:
     - kind: ConfigMap
       name: immich-values

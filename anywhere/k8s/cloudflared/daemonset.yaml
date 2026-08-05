@@ -1,0 +1,90 @@
+# Remotely-managed Cloudflare Tunnel — follows
+# https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/deployment-guides/kubernetes/
+#
+# DaemonSet: one connector per node so the tunnel stays up if individual
+# nodes fail. All pods share the same remotely-managed tunnel token.
+# Add Published application routes in the Cloudflare dashboard (FQDN
+# ClusterIP URLs across namespaces).
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cloudflared
+  namespace: cloudflared
+  labels:
+    app: cloudflared
+spec:
+  selector:
+    matchLabels:
+      pod: cloudflared
+  template:
+    metadata:
+      labels:
+        pod: cloudflared
+        app: cloudflared
+    spec:
+      # Nodes carry taints; this pod carries the matching toleration.
+      # Live: oracle-eu-micro{1,2} have tiny=true:NoSchedule (others untainted).
+      tolerations:
+        - key: tiny
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      securityContext:
+        sysctls:
+          # Allows ICMP traffic (ping, traceroute) to resources behind cloudflared.
+          - name: net.ipv4.ping_group_range
+            value: "65532 65532"
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2026.7.3
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: tunnel-token
+                  key: token
+          command:
+            - cloudflared
+            - tunnel
+            - --no-autoupdate
+            # QUIC (UDP/7844) times out through flannel-over-Tailscale pod net;
+            # HTTP/2 over TCP reaches the edge reliably from this cluster.
+            - --protocol
+            - http2
+            - --loglevel
+            - info
+            - --metrics
+            - 0.0.0.0:2000
+            - run
+          # /ready is 200 only after an edge connection exists. Give cloudflared
+          # time to dial/retry before kubelet restarts the pod.
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            failureThreshold: 5
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            runAsUser: 65532
+            readOnlyRootFilesystem: true
