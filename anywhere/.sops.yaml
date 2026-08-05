@@ -128,3 +128,12 @@ creation_rules:
           - *pro_darwin
           - *mark
           - *s145_cluster
+
+  - path_regex: k8s/cloudflared/tunnel-secret.yaml
+    encrypted_regex: "^(data|stringData)$"
+    key_groups:
+      - age:
+          - *pro_darwin
+          - *mark
+          - *s145_cluster
+

@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-public-proxy
+  namespace: immich
+  labels:
+    app: immich-public-proxy
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: immich-public-proxy
+  template:
+    metadata:
+      labels:
+        app: immich-public-proxy
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: s145
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: immich-public-proxy
+          image: alangrainger/immich-public-proxy:3.2.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: IMMICH_URL
+              # Cluster Service: immich/immich-server ClusterIP port 2283
+              value: http://immich-server.immich.svc.cluster.local:2283
+            - name: PUBLIC_BASE_URL
+              value: https://i1-proxy.beijns.eu.org
+          readinessProbe:
+            httpGet:
+              path: /share/healthcheck
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /share/healthcheck
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
