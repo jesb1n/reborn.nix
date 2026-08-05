@@ -1,0 +1,17 @@
+<timestamp>Wednesday, Aug 5, 2026, 7:56 PM (UTC+5:30)</timestamp>
+
+yes, updat ethe reosurces.
+
+---
+
+<timestamp>Wednesday, Aug 5, 2026, 8:04 PM (UTC+5:30)</timestamp>
+
+We had some follow up taks, lets get into it one by one.
+
+---
+
+I have all of my machines configure in @hosts folder, plan where all we need to make changes
+
+---
+
+modify the files , let me confirm once the configs are updated.
