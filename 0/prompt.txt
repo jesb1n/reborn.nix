@@ -1,0 +1,41 @@
+I nedd to monitor the reosurce and applications in my k3s clsuter in anywhere/k8s  . What are my options?
+
+do this in plan mode
+
+---
+
+I want to monitor whats happening on the host as well as whats happeing inside the k8s cluster. This will be installed and managed by flux , like other apps i have
+
+---
+
+note some where to add SMART to all of the machines that are not in cloud.
+
+---
+
+note some where to enable metrics endpoints for all of the apps in cluster, if they support ths out of the box.
+
+---
+
+Can we pin the prometheus/grafana and alert maanger to ay of the oracle machine with 2 cpu/ 12 gb ram, I dont want to overload my s145 machine
+
+---
+
+oracle-eu-arm1 has 4/24 config
+
+---
+
+I will reduce the recources on this machine, for the time being can you try the resources in oracle-in-arm1, is that enough?
+
+---
+
+Pull the official helm chart to get an idea on what all need to customise and how to do it.
+
+---
+
+DO you have any doubts or questions ?
+
+---
+
+1. USe the endpoinmt g1.beijns.eu.org
+2. Admin passowrd is grafana@k3s
+3. Prepare the files locally, once I verify we will implement.
