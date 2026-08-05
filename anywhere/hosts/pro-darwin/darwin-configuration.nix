@@ -55,7 +55,7 @@
       "arc"
       "chatgpt"
       "cloudflare-warp"
-      "docker"
+      "docker-desktop"
       "handy"
       "loom"
       "maccy"
@@ -68,7 +68,7 @@
 
   security.pam.services.sudo_local.touchIdAuth = true;
 
-  environment.systemPackages = [ pkgs.defaultbrowser pkgs._1password-gui ];
+  environment.systemPackages = [ pkgs._1password-gui ];
 
   # nix-darwin ≥ 26.05 only runs three shell-code slots on activation:
   # `preActivation.text`, `extraActivation.text`, `postActivation.text`.
@@ -77,9 +77,6 @@
   # activation must go here. See:
   #   https://github.com/nix-darwin/nix-darwin/blob/main/modules/system/activation-scripts.nix
   system.activationScripts.postActivation.text = ''
-    # --- Default browser (Arc) --------------------------------------------
-    defaultbrowser company.thebrowser.Browser || true
-
     # --- Maccy: 100 ms clipboard poll (default 500 ms) --------------------
     defaults write org.p0deje.Maccy clipboardCheckInterval -float 0.1
 
