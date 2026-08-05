@@ -18,11 +18,22 @@ In the shared tunnel (**Networking → Tunnels**), add a Published application:
 - Hostname: `i1-proxy.beijns.eu.org`
 - Service: `http://immich-public-proxy.immich.svc.cluster.local:3000`
 
-Also set a Cache Rule to **Bypass** `i1-proxy.beijns.eu.org/share/video/*`.
+Also set Cloudflare Cache Rules:
+
+- **Cache** `i1-proxy.beijns.eu.org/share/photo/*/thumbnail*` (gallery stampedes)
+- **Bypass** `i1-proxy.beijns.eu.org/share/video/*` (video playback)
 
 ## Immich setting
 
 **Server Settings → External domain** → `https://i1-proxy.beijns.eu.org`
+
+## Concurrency note
+
+IPP has **no** setting to limit parallel **gallery thumbnail** fetches. The only
+concurrency knob is `ipp.downloadFromImmichConcurrencyLimit` (default 20), and
+that applies solely to “download all” zip staging — not `/share/photo/.../thumbnail`.
+Large albums can still stampede Immich; prefer Cloudflare thumbnail caching and
+adequate Immich server CPU (see `anywhere/k8s/immich/values.yaml`).
 
 ## Apply (Flux)
 
