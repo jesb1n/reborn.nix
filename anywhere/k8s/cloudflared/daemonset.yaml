@@ -1,17 +1,18 @@
 # Remotely-managed Cloudflare Tunnel — follows
 # https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/deployment-guides/kubernetes/
 #
-# One tunnel for the cluster. Add Published application routes in the
-# Cloudflare dashboard for each service (FQDN ClusterIP URLs across namespaces).
+# DaemonSet: one connector per node so the tunnel stays up if individual
+# nodes fail. All pods share the same remotely-managed tunnel token.
+# Add Published application routes in the Cloudflare dashboard (FQDN
+# ClusterIP URLs across namespaces).
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
   name: cloudflared
   namespace: cloudflared
   labels:
     app: cloudflared
 spec:
-  replicas: 2
   selector:
     matchLabels:
       pod: cloudflared
@@ -21,15 +22,13 @@ spec:
         pod: cloudflared
         app: cloudflared
     spec:
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    pod: cloudflared
-                topologyKey: kubernetes.io/hostname
+      # Nodes carry taints; this pod carries the matching toleration.
+      # Live: oracle-eu-micro{1,2} have tiny=true:NoSchedule (others untainted).
+      tolerations:
+        - key: tiny
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
       securityContext:
         sysctls:
           # Allows ICMP traffic (ping, traceroute) to resources behind cloudflared.
@@ -49,18 +48,33 @@ spec:
             - cloudflared
             - tunnel
             - --no-autoupdate
+            # QUIC (UDP/7844) times out through flannel-over-Tailscale pod net;
+            # HTTP/2 over TCP reaches the edge reliably from this cluster.
+            - --protocol
+            - http2
             - --loglevel
             - info
             - --metrics
             - 0.0.0.0:2000
             - run
+          # /ready is 200 only after an edge connection exists. Give cloudflared
+          # time to dial/retry before kubelet restarts the pod.
           livenessProbe:
             httpGet:
               path: /ready
               port: 2000
-            failureThreshold: 1
+            failureThreshold: 5
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            failureThreshold: 3
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 5
           resources:
             requests:
               cpu: 25m
