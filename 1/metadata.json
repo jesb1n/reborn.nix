@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01KZ901Y0HS2H05G5GV5FHDKA1",
+  "session_id": "f573cc9c-8b0d-4681-a0ca-8f19aeb79467",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-05T12:58:27.06205Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "anywhere/.sops.yaml"
+  ],
+  "agent": "Cursor",
+  "model": "cursor-grok-4.5-medium",
+  "turn_id": "8ceb8f807f1a",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 33767,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 26240,
+    "output_tokens": 771,
+    "api_call_count": 1
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-05T12:58:27.059902Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 182,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 182,
+    "total_lines_changed": 182,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 270,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "anywhere/.sops.yaml": 9,
+        "anywhere/clusters/s145/immich-public-proxy.yaml": 21,
+        "anywhere/k8s/immich-public-proxy/README.md": 41,
+        "anywhere/k8s/immich-public-proxy/cloudflared-deployment.yaml": 73,
+        "anywhere/k8s/immich-public-proxy/cloudflared-secret.yaml": 43,
+        "anywhere/k8s/immich-public-proxy/deployment.yaml": 61,
+        "anywhere/k8s/immich-public-proxy/kustomization.yaml": 7,
+        "anywhere/k8s/immich-public-proxy/service.yaml": 15
+      }
+    }
+  ]
+}

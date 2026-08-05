@@ -1,0 +1,3 @@
+I am managing a machine pro-darwin using nix,
+
+Can you get more context on that
