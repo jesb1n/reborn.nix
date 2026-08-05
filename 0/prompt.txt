@@ -1,0 +1,7 @@
+<timestamp>Wednesday, Aug 5, 2026, 6:27 PM (UTC+5:30)</timestamp>
+
+commit and push only the relevant changes
+
+---
+
+Can we convert the cloudflare dpeloyment into a daemon set? SO essentially it would work even if the main nodes are down?

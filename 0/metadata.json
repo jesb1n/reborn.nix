@@ -1,0 +1,60 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01KZ90ABY2P9JXDZ7EH6G8V90M",
+  "session_id": "27f5e618-fcb7-431e-86bd-35df3d8f5c1e",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-05T13:03:03.417017Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [
+    "anywhere/k8s/cloudflared/README.md",
+    "anywhere/k8s/cloudflared/daemonset.yaml",
+    "anywhere/k8s/cloudflared/deployment.yaml",
+    "anywhere/k8s/cloudflared/kustomization.yaml"
+  ],
+  "agent": "Cursor",
+  "model": "cursor-grok-4.5-medium",
+  "turn_id": "8022d1b29946",
+  "checkpoint_transcript_start": 79,
+  "transcript_lines_at_start": 79,
+  "compact_transcript_start": 24,
+  "token_usage": {
+    "input_tokens": 3135,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 362240,
+    "output_tokens": 1894,
+    "api_call_count": 1
+  },
+  "session_metrics": {
+    "turn_count": 13
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-05T13:03:03.401271Z",
+    "agent_lines": 77,
+    "agent_removed": 81,
+    "human_added": 55,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 135,
+    "total_lines_changed": 216,
+    "agent_percentage": 73.14814814814815,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 80,
+      "agent_lines_removed": 81
+    }
+  ]
+}
