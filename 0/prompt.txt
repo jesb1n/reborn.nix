@@ -1,7 +1,31 @@
-<timestamp>Wednesday, Aug 5, 2026, 6:27 PM (UTC+5:30)</timestamp>
+<timestamp>Wednesday, Aug 5, 2026, 6:30 PM (UTC+5:30)</timestamp>
 
-commit and push only the relevant changes
+Can you confirm wether the nodes have the toleration? Update the docs if there is any mismatch
 
 ---
 
-Can we convert the cloudflare dpeloyment into a daemon set? SO essentially it would work even if the main nodes are down?
+<timestamp>Wednesday, Aug 5, 2026, 6:31 PM (UTC+5:30)</timestamp>
+
+2026-08-05T13:00:54Z INF Starting tunnel tunnelID=786be2b6-0bf7-45f8-8b8a-d3a9bb6c6e3c
+2026-08-05T13:00:54Z INF Version 2026.7.3 (Checksum b3416ec0180fabfc307622bd041a6d6039f268f40d84e99e352fc0633bc1bca8)
+2026-08-05T13:00:54Z INF GOOS: linux, GOVersion: go1.26.4, GoArch: amd64
+2026-08-05T13:00:54Z INF Settings: map[loglevel:info metrics:0.0.0.0:2000 no-autoupdate:true]
+2026-08-05T13:00:54Z INF Environmental variables map[TUNNEL_TOKEN:*****]
+2026-08-05T13:00:54Z INF Generated Connector ID: ec2e560d-c4d7-4d64-a56f-913e5b1f100e
+2026-08-05T13:00:55Z INF Initial protocol quic
+2026-08-05T13:00:55Z INF ICMP proxy will use 10.42.5.31 as source for IPv4
+2026-08-05T13:00:55Z INF ICMP proxy will use ::1 in zone lo as source for IPv6
+2026-08-05T13:00:56Z INF ICMP proxy will use 10.42.5.31 as source for IPv4
+2026-08-05T13:00:56Z INF ICMP proxy will use ::1 in zone lo as source for IPv6
+2026-08-05T13:00:56Z INF Starting metrics server on [::]:2000/metrics
+2026-08-05T13:00:58Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.200.193
+2026-08-05T13:01:03Z ERR Failed to dial a quic connection error="failed to dial to edge with quic: timeout: no recent network activity" connIndex=0 event=0 ip=198.41.200.193
+2026-08-05T13:01:03Z INF Retrying connection in up to 2s connIndex=0 event=0 ip=198.41.200.193
+2026-08-05T13:01:03Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.200.13
+2026-08-05T13:01:03Z INF Initiating graceful shutdown due to signal terminated ...
+2026-08-05T13:01:03Z INF Tunnel server stopped
+2026-08-05T13:01:03Z ERR Failed to dial a quic connection error="failed to dial to edge with quic: context canceled" connIndex=0 event=0 ip=198.41.200.13
+2026-08-05T13:01:03Z INF Metrics server stopped
+stream closed: EOF for cloudflared/cloudflared-6759c56744-c584j (cloudflared)
+
+Both the cloudflare pods are in crash loopbackoff dure to this erro
