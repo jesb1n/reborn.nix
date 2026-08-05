@@ -75,6 +75,21 @@ server:
             pullPolicy: IfNotPresent
           securityContext:
             privileged: true
+          # s145: 8 CPU / ~5.7Gi RAM; server already ~1Gi RSS with no prior
+          # requests/limits. Gallery thumbnail stampedes from IPP caused
+          # UND_ERR_CONNECT_TIMEOUT — reserve CPU/memory; no CPU limit so
+          # bursts can use idle cores. Memory limit 2Gi: current RSS ~981Mi,
+          # ~1Gi headroom for concurrent thumbnail work; node still has
+          # ~1.9Gi available and limit-sum overcommit is acceptable here.
+          env:
+            # Default libuv pool is 4; thumbnails hit the HDD library path.
+            UV_THREADPOOL_SIZE: "16"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              memory: 2Gi
   persistence:
     dri:
       type: hostPath
