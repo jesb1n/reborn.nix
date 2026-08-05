@@ -1,15 +1,9 @@
-<timestamp>Wednesday, Aug 5, 2026, 7:42 PM (UTC+5:30)</timestamp>
-
-Commit and push the relevant changes
-
----
-
-its coming up, check wether its having nay issues.
-
----
-
-grafana pod restarted once, can you check why?
-
----
+<timestamp>Wednesday, Aug 5, 2026, 7:56 PM (UTC+5:30)</timestamp>
 
 yes, updat ethe reosurces.
+
+---
+
+<timestamp>Wednesday, Aug 5, 2026, 8:04 PM (UTC+5:30)</timestamp>
+
+We had some follow up taks, lets get into it one by one.
