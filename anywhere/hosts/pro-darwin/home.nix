@@ -135,6 +135,8 @@
     sops
     iterm2
     spotify
+    ffmpeg
+    k6
   ];
 
   # iTerm2 Dynamic Profile — Dracula theme + JetBrains Mono
