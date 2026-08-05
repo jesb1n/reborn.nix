@@ -1,0 +1,61 @@
+Analyse my k3s setup in anywhere/k8s 
+
+Get context
+
+---
+
+https://github.com/alangrainger/immich-public-proxy
+
+https://docs.ipp.nz/kubernetes
+
+Can you plan on how to add this service to my k8s cluster? 
+
+Just give me the plan, once confirmed we will movw
+
+---
+
+We will have a no domain i1-proxy.beijns.eu.org.
+
+This will be publically exposed using a cloudlfare tunnel.
+
+So i also need to figure out how to run the tunnel in k8s deployment.
+
+---
+
+Have to looked at this https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/deployment-guides/kubernetes/ ?
+
+---
+
+Looks good, letts implement this
+
+---
+
+Just create the files for now with dummy crednetials, will update it once the files are in place. 
+
+I will verify it and apply it once verfied.
+
+---
+
+Why do we have a cloudflare deployment inside the ipp? cant this be a generic seperate deploymetn? so it can be reused in future?
+
+---
+
+In which namespace will these be installed?
+
+---
+
+We can sue the internal service url for immich righjt? can you update it by getting this from the cluster?
+
+---
+
+```/Users/jesbin/.cursor/projects/Users-jesbin-Documents-oracle-cloud-free-tier/terminals/15.txt:10:11
+sops anywhere/k8s/immich-public-proxy/cloudflared-secret.yaml
+config file not found, or has no creation rules, and no keys provided through command line options
+```
+ 
+
+why this error?
+
+---
+
+secret is updated.

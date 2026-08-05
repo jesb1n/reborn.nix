@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01KZ901Y0HS2H05G5GV5FHDKA1",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "anywhere/.sops.yaml",
+    "anywhere/clusters/s145/cloudflared.yaml",
+    "anywhere/clusters/s145/immich-public-proxy.yaml",
+    "anywhere/k8s/cloudflared/README.md",
+    "anywhere/k8s/cloudflared/deployment.yaml",
+    "anywhere/k8s/cloudflared/kustomization.yaml",
+    "anywhere/k8s/cloudflared/namespace.yaml",
+    "anywhere/k8s/cloudflared/tunnel-secret.yaml",
+    "anywhere/k8s/immich-public-proxy/README.md",
+    "anywhere/k8s/immich-public-proxy/deployment.yaml",
+    "anywhere/k8s/immich-public-proxy/kustomization.yaml",
+    "anywhere/k8s/immich-public-proxy/service.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 165883,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 2162432,
+    "output_tokens": 10709,
+    "api_call_count": 6
+  }
+}
