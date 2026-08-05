@@ -15,3 +15,7 @@ I have all of my machines configure in @hosts folder, plan where all we need to 
 ---
 
 modify the files , let me confirm once the configs are updated.
+
+---
+
+Execute the selected diff-tab commit-and-push action.
