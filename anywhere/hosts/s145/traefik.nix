@@ -68,6 +68,13 @@ let
           - "--certificatesresolvers.cloudflare.acme.dnschallenge=true"
           - "--certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare"
           - "--certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
+        # Prometheus metrics for kube-prometheus-stack (ServiceMonitor CRDs present).
+        metrics:
+          prometheus:
+            service:
+              enabled: true
+            serviceMonitor:
+              enabled: true
   '';
 in
 {

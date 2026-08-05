@@ -49,5 +49,5 @@ After Prometheus is healthy, enable out-of-box `/metrics` where supported and sc
 | Garage | **Done** — PodMonitor on admin `:3903/metrics` |
 | Vaultwarden | Skip on `1.36.0` (no native metrics in this tag) |
 | cloudflared | **Done** — PodMonitor on `:2000/metrics` (DaemonSet) |
-| Traefik | Enable Prometheus metrics in `hosts/s145/traefik.nix` HelmChartConfig |
+| Traefik | **Done** — `metrics.prometheus` service + ServiceMonitor in `traefik.nix` (needs `deploy .#s145`) |
 | immich-public-proxy | Skip — no upstream metrics |
