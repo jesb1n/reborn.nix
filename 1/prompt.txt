@@ -1,0 +1,13 @@
+Figure our how to run the tofu in IaC  for beijns and beijnseu tenancy
+
+---
+
+I have logged into beijns, can you run plan for be9ijns
+
+---
+
+How can i add pro darwin to decrypt?
+
+---
+
+I dont have access to master, but have access to mark, how to proceed further.
