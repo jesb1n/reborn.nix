@@ -57,12 +57,17 @@ spec:
             - --metrics
             - 0.0.0.0:2000
             - run
+          ports:
+            # Prometheus /metrics + /ready probes share this listener.
+            - name: metrics
+              containerPort: 2000
+              protocol: TCP
           # /ready is 200 only after an edge connection exists. Give cloudflared
           # time to dial/retry before kubelet restarts the pod.
           livenessProbe:
             httpGet:
               path: /ready
-              port: 2000
+              port: metrics
             failureThreshold: 5
             initialDelaySeconds: 30
             periodSeconds: 10
@@ -70,7 +75,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /ready
-              port: 2000
+              port: metrics
             failureThreshold: 3
             initialDelaySeconds: 10
             periodSeconds: 10

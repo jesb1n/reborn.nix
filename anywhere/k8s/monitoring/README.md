@@ -45,9 +45,9 @@ After Prometheus is healthy, enable out-of-box `/metrics` where supported and sc
 
 | App | Action |
 |-----|--------|
-| Immich | Set `immich.metrics.enabled: true` in `k8s/immich/values.yaml` |
+| Immich | **Done** — `immich.metrics.enabled: true` (ServiceMonitor; Prometheus scrapes `:8081`/`:8082`) |
 | Garage | ServiceMonitor on admin `:3903` |
-| Vaultwarden | Enable only if image `1.36.0` documents `/metrics` |
-| cloudflared | PodMonitor for existing `--metrics :2000` |
+| Vaultwarden | Skip on `1.36.0` (no native metrics in this tag) |
+| cloudflared | **Done** — PodMonitor on `:2000/metrics` (DaemonSet) |
 | Traefik | Enable Prometheus metrics in `hosts/s145/traefik.nix` HelmChartConfig |
-| immich-public-proxy | Skip unless upstream documents metrics |
+| immich-public-proxy | Skip — no upstream metrics |
