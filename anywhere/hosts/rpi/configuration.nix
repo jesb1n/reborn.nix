@@ -14,6 +14,7 @@ in
     ../../profiles/base.nix
     ../../profiles/tailscale.nix
     ../../profiles/k3s-agent.nix
+    ../../profiles/smartd.nix
     ./disko-config.nix
     ./sops.nix
   ];
