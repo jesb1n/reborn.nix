@@ -1,0 +1,13 @@
+give me the commnds to build and dpeloy the machines
+
+---
+
+what are the other items follow up?
+
+---
+
+Reasearch about how I have installed all these applications on my k3s cluster, check wether these have builditn support metrics?
+
+---
+
+Lets implement this one by one, verify when each one is done.
