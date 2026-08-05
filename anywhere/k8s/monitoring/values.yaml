@@ -47,6 +47,44 @@ grafana:
       memory: 256Mi
     limits:
       memory: 512Mi
+  # Extra dashboards (downloaded from grafana.com on Grafana start).
+  # Provider name must match the key under dashboards: — keep separate from
+  # the sidecar provider that loads kube-prometheus ConfigMap dashboards.
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: apps
+          orgId: 1
+          folder: Apps
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/apps
+  dashboards:
+    apps:
+      traefik:
+        # Official Traefik Labs — Kubernetes / ServiceMonitor layout
+        gnetId: 17347
+        revision: 9
+        datasource:
+          - name: DS_PROMETHEUS
+            value: Prometheus
+      cloudflared:
+        # Community Cloudflare Tunnel dashboard (no official grafana.com ID)
+        gnetId: 24874
+        revision: 4
+        datasource:
+          - name: DS_PROMETHEUS
+            value: Prometheus
+      immich:
+        # Community Immich overview (Immich has no official dashboard)
+        gnetId: 22555
+        revision: 1
+        datasource:
+          - name: DS_PROMETHEUS
+            value: Prometheus
 
 kube-state-metrics:
   nodeSelector:
