@@ -11,18 +11,6 @@ spec:
       port: 5432
       targetPort: postgres
 ---
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: immich-postgres-data
-  namespace: immich
-spec:
-  accessModes: [ReadWriteOnce]
-  storageClassName: local-path
-  resources:
-    requests:
-      storage: 10Gi
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -95,7 +83,7 @@ spec:
               cpu: 100m
               memory: 256Mi
             limits:
-              memory: 512Mi
+              memory: 2Gi
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data

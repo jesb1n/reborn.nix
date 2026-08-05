@@ -1,0 +1,85 @@
+# Overrides for kube-prometheus-stack 88.1.5 — host + cluster metrics.
+# Heavy components pin to oracle-in-arm1 (2 OCPU / 12 GB). Immich/Vaultwarden stay on s145.
+
+defaultRules:
+  rules:
+    etcd: false
+    windows: false
+    kubeControllerManager: false
+    kubeProxy: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+
+# k3s embeds these; default ServiceMonitors fail or noisily alert.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeEtcd:
+  enabled: false
+
+alertmanager:
+  alertmanagerSpec:
+    nodeSelector:
+      kubernetes.io/hostname: oracle-in-arm1
+    resources:
+      requests:
+        cpu: 20m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+
+grafana:
+  defaultDashboardsTimezone: Asia/Kolkata
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  ingress:
+    enabled: false
+  nodeSelector:
+    kubernetes.io/hostname: oracle-in-arm1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+kube-state-metrics:
+  nodeSelector:
+    kubernetes.io/hostname: oracle-in-arm1
+
+# node-exporter DaemonSet: chart default tolerates all NoSchedule (covers tiny micros).
+
+prometheusOperator:
+  nodeSelector:
+    kubernetes.io/hostname: oracle-in-arm1
+
+prometheus:
+  prometheusSpec:
+    scrapeInterval: 30s
+    retention: 15d
+    retentionSize: 18GB
+    nodeSelector:
+      kubernetes.io/hostname: oracle-in-arm1
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 2Gi
+    # Discover ServiceMonitors / PodMonitors in any namespace (app metrics follow-up).
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi

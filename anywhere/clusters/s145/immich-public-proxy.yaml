@@ -1,0 +1,17 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: immich-public-proxy
+  namespace: flux-system
+spec:
+  interval: 3m
+  retryInterval: 1m
+  timeout: 5m
+  dependsOn:
+    - name: immich
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./anywhere/k8s/immich-public-proxy
+  prune: true
+  wait: true

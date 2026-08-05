@@ -9,15 +9,15 @@
 
 - `IaC/` — OpenTofu/Terraform; provisions OCI VCN, subnets, and instances.
 - `anywhere/` — Standalone Nix flake; manages NixOS configs for all hosts via deploy-rs.
-- `docs/` — Architecture, setup, prerequisites, CI/CD docs. (Several docs are stale — README and docs/ still describe the old api-key auth / local backend; trust `IaC/` and `AGENTS.md`.)
-- `retire.nix/` — **Ignore.** Separate cloned repo, not part of this project.
-- `anywhere/hosts/pro-darwin/` — nix-darwin config for the operator's MacBook (user `jesbin`), not a cluster host. Rebuilt with `darwin-rebuild switch --flake .#pro-darwin`; home-manager + mac-app-util.
+- `docs/` — Architecture, setup, prerequisites, CI/CD docs.
+- `anywhere/hosts/pro-darwin/` — nix-darwin config for the maintainer's MacBook (Apple Silicon). Deployed with `darwin-rebuild`, not deploy-rs. **Read `anywhere/hosts/pro-darwin/AGENTS.md` before touching it** — it has host-specific rules (Determinate Nix, Homebrew cleanup=`none`, `Asia/Calcutta` TZ, etc.).
 
 ### Hosts (current state)
 
 | Host | Shape | Arch | Role | Tailscale IP |
 |------|-------|------|------|-------------|
 | `s145` | Home server | x86_64 | **k3s control-plane** | `100.69.231.117` |
+| `hp348` | HP 348 G7 laptop | x86_64 | k3s agent | `100.91.37.112` |
 | `oracle-eu-arm1` | A1.Flex | aarch64 | k3s agent | `100.84.230.4` |
 | `oracle-eu-micro1` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | `100.96.237.114` |
 | `oracle-eu-micro2` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | `100.67.95.26` |
@@ -25,6 +25,40 @@
 | `oracle-in-micro1` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | `129.154.240.246` |
 | `oracle-in-micro2` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | — |
 | `rpi` | Raspberry Pi 4 | aarch64 | k3s agent | `100.118.166.120` |
+
+The `anywhere/` directory is a standalone Nix flake that manages NixOS configurations and Kubernetes workloads:
+
+```
+anywhere/
+├── flake.nix              # Inputs, deploy-rs nodes, NixOS configs
+├── profiles/              # Shared NixOS modules (base, server, tailscale, k3s-*, hermes-agent)
+├── hosts/<hostname>/      # Per-host: configuration.nix, disko-config.nix, sops.nix
+├── secrets/<hostname>/    # SOPS-encrypted age files (decrypted at activation)
+├── clusters/s145/         # Flux Operator GitOps manifests (Kustomizations for apps)
+├── k8s/                   # Raw k8s manifests (manually applied, not Flux-managed)
+├── operator/              # Flux Operator FluxInstance CR
+├── docs/                  # Planning docs (GATEWAY-NLB-PLAN, K3S-S145-MIGRATION, RPI4-KEXEC-FIX)
+├── .sops.yaml             # SOPS creation rules — maps age keys to secret paths
+├── .envrc                 # direnv: sets KUBECONFIG + SOPS_AGE_KEY_FILE
+├── MAINTENANCE.md         # Runbook for routine ops
+└── README.md
+```
+
+### Profile-based composition
+
+Host configs import reusable profiles from `anywhere/profiles/`. Shared settings live in profiles; each host only sets what's unique:
+
+| Change needed | Edit this file |
+|--------------|----------------|
+| SSH keys, user accounts, nix GC settings | `profiles/base.nix` |
+| Boot loader, serial console, firewall, SSH settings | `profiles/server.nix` |
+| Tailscale enable/openFirewall settings | `profiles/tailscale.nix` |
+| k3s server flags, disabled components | `profiles/k3s-server.nix` |
+| k3s agent flags, taints, labels, zramSwap | `profiles/k3s-agent.nix` or `profiles/k3s-agent-tiny.nix` |
+| Hermes Agent gateway config | `profiles/hermes-agent.nix` |
+| Hostname, node IP, Tailscale extra flags | `hosts/<name>/configuration.nix` |
+| Disk layout | `hosts/<name>/disko-config.nix` |
+| SOPS secret declarations | `hosts/<name>/sops.nix` |
 
 ## IaC (OpenTofu/Terraform)
 
@@ -83,18 +117,41 @@ nix eval --raw .#nixosConfigurations.<host>.config.networking.hostName
 nix eval .#deploy.nodes.<host>.remoteBuild
 ```
 
+### Deployment (deploy-rs, preferred)
+
+Deploy from `anywhere/`. Prefer workers first, then control-plane.
+
+- `nix develop -c deploy .#<hostname>`: deploy a single host.
+- `nix develop -c deploy --targets .#oracle-eu-micro1 .#oracle-eu-micro2`: deploy multiple hosts.
+- `nix develop -c deploy .`: deploy all hosts.
+
+`oracle-eu-arm1` and `rpi` are `aarch64-linux` — deploy-rs builds on the host itself (`remoteBuild = true`). Micro nodes build on s145.
+
+### Kubernetes (s145 cluster)
+
+- `KUBECONFIG` is set by `.envrc` to `~/.kube/s145.yaml`.
+- **Flux-managed apps**: push to `anywhere/clusters/s145/`, then `flux reconcile kustomization <name> -n flux-system --with-source`.
+- **Manual apps**: `kubectl apply -f anywhere/k8s/<app>/`. Stateful workloads pin to `s145` via `nodeSelector` so PVCs land on the HDD.
+- **From s145 directly** (no kubeconfig): `ssh duck@s145 'sudo k3s kubectl apply -f -' < file.yaml`.
+
 ### Critical NixOS quirks
 
 - **All NixOS systems use `nixpkgs-unstable`**; the `nixpkgs` input (26.05 stable) is only for devShell/tooling (deploy-rs, disko, sops-nix follow it). Exception: `rpi` is built via `nixos-raspberrypi.lib.nixosSystem` (its own nixpkgs), not `nixpkgs-unstable.lib.nixosSystem`.
 - **New Nix files must be `git add`-ed before eval or deploy.** Flakes only see tracked/staged files; untracked files cause evaluation errors.
-- **Every deploy node uses `remoteBuild = true`** (builds its own closure) except `oracle-in-micro1` (`remoteBuild = false`). The operator machine is a Mac (`aarch64-darwin`) that cannot build Linux closures, so targets always build on themselves. (`.github/instructions/nixos.instructions.md` is stale on this — trust the flake.)
-- **`oracle-in-micro1` is unique**: `sshUser = "ubuntu"` (not `duck`) and `remoteBuild = false`. Deploy target is a hardcoded IP (`129.154.240.246`), not hostname.
-- **India micros (`oracle-in-micro1`/`oracle-in-micro2`) still have `services.k3s.nodeIP = "0.0.0.0"` placeholders** in their `configuration.nix` — update once Tailscale assigns IPs.
+- **Almost all hosts have `remoteBuild = true`** — each host builds its own closure. This is required for aarch64 (`oracle-eu-arm1`, `oracle-in-arm1`, `rpi`) since the local/CI builder is x86_64, and is used for micros to avoid pushing large closures over Tailscale.
+- **`oracle-in-micro1` is the only exception**: `sshUser = "ubuntu"` (not `duck`), `remoteBuild = false`, and deploy target is a hardcoded IP (`129.154.240.246`), not a hostname. Still stock Ubuntu — being migrated.
+- **`oracle-in-micro-test`** is a throwaway config in `flake.nix` for validating the kexec-syscall install method on a 1 GB Hyderabad micro. No SOPS, no deploy-rs node — do not treat it as a real host.
+- **`pro-darwin`** is a `darwinConfigurations` entry, NOT in `deploy.nodes`. Deploy with `sudo darwin-rebuild switch --flake .#pro-darwin` from `anywhere/`.
 - **`nixos-anywhere` is destructive** — reformats the disk via disko. Never use for routine updates; use deploy-rs instead.
 - **`--elevate=sudo`** (not `--use-remote-sudo`) is the correct flag for `nixos-rebuild` remote activation.
 - **`s145` overrides GRUB** with systemd-boot (`lib.mkForce`). All other OCI hosts use GRUB from `profiles/server.nix`.
 - **Deploy order for input updates**: workers (`oracle-eu-micro2` → `oracle-eu-micro1`) → ARM agents → control-plane (`s145`) last.
 - **`rpi` has a 900s activation timeout** (vs 600s for all others) due to slower Raspberry Pi hardware — deploys to rpi take longer.
+- **ARM hosts build remotely** (`remoteBuild = true`) since the primary operator machine (s145) is x86. First deploy of `oracle-eu-arm1` is slow.
+- **Micro instances have only 1 GB RAM** — zramSwap at 50%, max-pods=10; don't schedule heavy workloads. Tiny taint (`tiny=true:NoSchedule`) is applied out-of-band after node registration.
+- **s145 holds critical data** (1 TB XFS at `/home/duck/sda`). Oracle VMs are disposable; loss of any one degrades capacity but not data.
+- **Traefik is the only ingress controller** with Cloudflare DNS-01 ACME. No cert-manager. HTTP → HTTPS redirect is global at the Traefik entrypoint.
+- **`anywhere/docs/` is planning docs for `anywhere/`**, not the repo root `docs/` which covers IaC/setup.
 
 ### Profile composition
 
@@ -104,7 +161,7 @@ base.nix          ← users (duck), weekly GC, minimal footprint
 + server.nix      ← GRUB/systemd-boot, SSH hardening, TZ=Asia/Kolkata
 + tailscale.nix   ← gated on secrets/tailscale/secrets.yaml existing
 + k3s-server.nix  ← s145 only
-  OR k3s-agent.nix          ← arm + rpi
+  OR k3s-agent.nix          ← arm + rpi + hp348
   OR k3s-agent-tiny.nix     ← micro nodes (adds zramSwap 50%, max-pods=10)
 + hermes-agent.nix          ← oracle-eu-arm1 only
 + disko-config.nix          ← all except oracle-eu-arm1 (has hardware-configuration.nix)
@@ -151,7 +208,7 @@ sudo age-keygen -y /var/lib/sops-nix/key.txt  # → add public key to .sops.yaml
 ```
 
 - `sops.age.generateKey = false` on all hosts — keys must be pre-provisioned.
-- Shared secrets (`k3s/`, `tailscale/`) are decryptable by all host keys; per-host secrets only by that host + master/mark.
+- Shared secrets (`k3s/`, `tailscale/`) are decryptable by all host keys; per-host secrets only by that host + pro_darwin/mark.
 
 ## k3s / Kubernetes
 
@@ -212,3 +269,5 @@ Both workflows (`apply.yml`, `destroy.yml`) are **manual-only** (`workflow_dispa
 - [anywhere/MAINTENANCE.md](anywhere/MAINTENANCE.md) — NixOS host operations runbook (daily checks, rollback, GC, Hermes)
 - [anywhere/README.md](anywhere/README.md) — host management, Tailscale setup, nixos-anywhere install
 - [.github/instructions/nixos.instructions.md](.github/instructions/nixos.instructions.md) — NixOS deployment rules for GitHub Copilot
+- [anywhere/docs/K3S-S145-MIGRATION.md](anywhere/docs/K3S-S145-MIGRATION.md) — cluster migration runbook from oracle-eu-arm1 to s145
+- [anywhere/docs/GATEWAY-NLB-PLAN.md](anywhere/docs/GATEWAY-NLB-PLAN.md) — planned OCI NLB + Gateway API rollout

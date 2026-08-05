@@ -14,6 +14,10 @@
       enable = true;
       autosuggestion.enable = true;
       syntaxHighlighting.enable = true;
+      envExtra = ''
+        export PATH="$HOME/.local/bin:$PATH"
+        export PATH="$PATH:/Users/jesbin/Library/Python/3.9/bin"
+      '';
       history = {
         size = 50000;
         save = 50000;
@@ -28,6 +32,13 @@
         kx = "kubectx";
       };
       initContent = ''
+        # kubectl-aliases (https://github.com/ahmetb/kubectl-aliases)
+        [ -f ~/.kubectl_aliases ] && source ~/.kubectl_aliases
+
+        # oh-my-zsh git plugin aliases (https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/git)
+        [ -f ~/.oh-my-zsh/plugins/git/git.plugin.zsh ] && source ~/.oh-my-zsh/plugins/git/git.plugin.zsh
+
+
         # gx: permanently switch gcloud project
         gx() {
           local project
@@ -92,6 +103,12 @@
       enableZshIntegration = true;
     };
 
+    direnv = {
+      enable = true;
+      nix-direnv.enable = true;
+      enableZshIntegration = true;
+    };
+
     jq.enable = true;
     htop.enable = true;
   };
@@ -101,20 +118,39 @@
     ripgrep
     yq-go
     tree
+    gh
     kubectl
     kubectx
+    kubernetes-helm
     opencode
     tailscale
     k9s
-    wireguard-tools
-    _1password-gui
+    code-cursor
     firefox
+    slack
     google-cloud-sdk
+    opentofu
+    awscli2
+    oci-cli
+    sops
     iterm2
-    vscode
+    spotify
+    ffmpeg
+    k6
   ];
 
   # iTerm2 Dynamic Profile — Dracula theme + JetBrains Mono
+  home.file.".kubectl_aliases".source = builtins.fetchurl {
+    url = "https://raw.githubusercontent.com/ahmetb/kubectl-aliases/master/.kubectl_aliases";
+    sha256 = "sha256:1acyhhhbfxz17ch77nf26x0cj4immsl6drcpwwbklrl49n9gm9ia";
+  };
+
+  # oh-my-zsh git plugin — lightweight, single file, no full framework
+  home.file.".oh-my-zsh/plugins/git/git.plugin.zsh".source = builtins.fetchurl {
+    url = "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/plugins/git/git.plugin.zsh";
+    sha256 = "sha256:1al099fsaa9n620zaa82d4ragq87xvp76q6s389bcw92ibqr19ax";
+  };
+
   home.file."Library/Application Support/iTerm2/DynamicProfiles/Nix.json".text = builtins.toJSON {
     Profiles = [
       {

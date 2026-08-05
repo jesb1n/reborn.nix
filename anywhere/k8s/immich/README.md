@@ -8,7 +8,7 @@ Flux-managed Immich deployment for the `s145` k3s cluster.
 - `Secret`: `immich-secret`, SOPS-encrypted database credentials
 - `HelmRelease`: upstream Immich chart
 - `Deployment` + `Service`: Postgres using the Immich-recommended image
-- `Deployment` + `Service`: Valkey for Redis-compatible queues
+- Helm-managed `Deployment` + `Service`: Valkey for Redis-compatible queues
 - `PersistentVolumeClaim`: `immich-library`, `immich-postgres-data`, and `immich-machine-learning-cache`
 - `Middleware`: security headers in the `immich` namespace
 - `IngressRoute`: public HTTPS route at `i1.beijns.eu.org`

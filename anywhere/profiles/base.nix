@@ -5,10 +5,20 @@
 { ... }:
 {
   # Nix settings
-  nix.settings.trusted-users = [
-    "root"
-    "duck"
-  ];
+  nix.settings = {
+    trusted-users = [
+      "root"
+      "duck"
+    ];
+    substituters = [
+      "https://cache.nixos.org"
+      "https://nix-community.cachix.org"
+    ];
+    trusted-public-keys = [
+      "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+      "nix-community.cachix.org-1:b9F6KGrNS7LDfJs+c9UF4/tEaS7KE0mTChZdG4h6IVk="
+    ];
+  };
 
   nix.gc = {
     automatic = true;
@@ -50,6 +60,7 @@
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMDHy9Gc18Osi7HFBiUMm+Da9JQ95cU1a7dsmyJCY5s1 jesbin@Duck.local"
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEDGmT5meeiDIK9c/W8imy++S7hb9TLBcHcPsWcml4D2 duck@Ducks-MacBook-Air.local"
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHXD9NvwXKTrqrH2kZmuDkU4CeUEpf3e7JmWGze7E1HP jesbin@Jesbins-MacBook-Pro.local"
     ];
   };
 

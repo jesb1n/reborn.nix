@@ -4,15 +4,22 @@
   nixConfig = {
     extra-substituters = [
       "https://nixos-raspberrypi.cachix.org"
+      "https://nix-community.cachix.org"
     ];
     extra-trusted-public-keys = [
       "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
+      "nix-community.cachix.org-1:b9F6KGrNS7LDfJs+c9UF4/tEaS7KE0mTChZdG4h6IVk="
     ];
   };
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/e73de5b";
+    # Fresh nixpkgs for macOS-only builds (nix-darwin). Decoupled from the
+    # pinned nixpkgs-unstable because that pin predates nixos-render-docs'
+    # --sidebar-depth support, and the Linux PAM regression in newer nixpkgs
+    # does not affect darwin.
+    nixpkgs-latest.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixos-anywhere.url = "github:nix-community/nixos-anywhere";
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
 
@@ -32,7 +39,7 @@
     hermes-agent.inputs.nixpkgs.follows = "nixpkgs-unstable";
 
     nix-darwin.url = "github:LnL7/nix-darwin";
-    nix-darwin.inputs.nixpkgs.follows = "nixpkgs-unstable";
+    nix-darwin.inputs.nixpkgs.follows = "nixpkgs-latest";
 
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs-unstable";
@@ -136,6 +143,16 @@
         ];
       };
 
+      nixosConfigurations.hp348 = nixpkgs-unstable.lib.nixosSystem {
+        system = "x86_64-linux";
+
+        modules = [
+          disko.nixosModules.disko
+          sops-nix.nixosModules.sops
+          ./hosts/hp348/configuration.nix
+        ];
+      };
+
       nixosConfigurations.rpi = nixos-raspberrypi.lib.nixosSystem {
         modules = [
           nixos-raspberrypi.nixosModules.raspberry-pi-4.base
@@ -154,6 +171,7 @@
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
+            home-manager.sharedModules = [ mac-app-util.homeManagerModules.default ];
             home-manager.users.jesbin = import ./hosts/pro-darwin/home.nix;
           }
         ];
@@ -265,6 +283,20 @@
           profiles.system = {
             user = "root";
             path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.s145;
+          };
+        };
+
+        hp348 = {
+          hostname = "hp348";
+          sshUser = "duck";
+          remoteBuild = true;
+          fastConnection = true;
+          activationTimeout = 600;
+          confirmTimeout = 60;
+
+          profiles.system = {
+            user = "root";
+            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.hp348;
           };
         };
       };
