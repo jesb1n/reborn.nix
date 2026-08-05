@@ -12,6 +12,19 @@ chart (`88.1.5`).
 | Pin | Prometheus, Grafana, Alertmanager, Operator, kube-state-metrics → `oracle-in-arm1` |
 | DaemonSet | node-exporter on every node (incl. `tiny` micros; chart default tolerations) |
 
+## Grafana dashboards
+
+| Source | Folder | How |
+|--------|--------|-----|
+| kube-prometheus mixins (k8s / nodes / PV) | default | Chart-bundled ConfigMaps (sidecar) |
+| Traefik Official Kubernetes ([17347](https://grafana.com/grafana/dashboards/17347) r9) | **Apps** | `grafana.dashboards` `gnetId` in `values.yaml` |
+| Cloudflare Tunnel ([24874](https://grafana.com/grafana/dashboards/24874) r4) | **Apps** | same |
+| Immich Overview ([22555](https://grafana.com/grafana/dashboards/22555) r1) | **Apps** | same |
+
+Garage has no Prometheus grafana.com dashboard (upstream ships Elasticsearch-oriented JSON only) — use Explore on `garage_*` or a custom board.
+
+Grafana needs egress to `grafana.com` once per pod start to fetch the Apps dashboards. Pin revisions in `values.yaml` when bumping.
+
 ## Reconcile (after review + push to `main`)
 
 ```bash
