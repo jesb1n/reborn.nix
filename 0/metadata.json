@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01KZ9DM83YDMGSW1RRS5MCWPSD",
+  "session_id": "70a4a896-8a3d-441c-9051-66e85aeb6fcf",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-05T16:55:38.719982Z",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "anywhere/k8s/cloudflared/daemonset.yaml",
+    "anywhere/k8s/cloudflared/kustomization.yaml",
+    "anywhere/k8s/cloudflared/podmonitor.yaml",
+    "anywhere/k8s/monitoring/README.md"
+  ],
+  "agent": "Cursor",
+  "model": "cursor-grok-4.5-medium",
+  "turn_id": "96c9d84563b1",
+  "checkpoint_transcript_start": 154,
+  "transcript_lines_at_start": 154,
+  "compact_transcript_start": 51,
+  "session_metrics": {
+    "turn_count": 16
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-05T16:55:38.698266Z",
+    "agent_lines": 30,
+    "agent_removed": 6,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 30,
+    "total_lines_changed": 36,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
