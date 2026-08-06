@@ -22,8 +22,8 @@
 | `oracle-eu-micro1` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | `100.96.237.114` |
 | `oracle-eu-micro2` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | `100.67.95.26` |
 | `oracle-in-arm1` | A1.Flex | aarch64 | k3s agent | `100.117.227.112` |
-| `oracle-in-micro1` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | `129.154.240.246` |
-| `oracle-in-micro2` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | — |
+| `oracle-in-micro1` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | `100.79.237.15` |
+| `oracle-in-micro2` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | `100.91.37.26` |
 | `rpi` | Raspberry Pi 4 | aarch64 | k3s agent | `100.118.166.120` |
 
 The `anywhere/` directory is a standalone Nix flake that manages NixOS configurations and Kubernetes workloads:
@@ -33,11 +33,11 @@ anywhere/
 ├── flake.nix              # Inputs, deploy-rs nodes, NixOS configs
 ├── profiles/              # Shared NixOS modules (base, server, tailscale, k3s-*, hermes-agent)
 ├── hosts/<hostname>/      # Per-host: configuration.nix, disko-config.nix, sops.nix
-├── secrets/<hostname>/    # SOPS-encrypted age files (decrypted at activation)
+├── secrets/<hostname>/    # SOPS-encrypted host secrets (decrypted at activation)
 ├── clusters/s145/         # Flux Operator GitOps manifests (Kustomizations for apps)
 ├── k8s/                   # Raw k8s manifests (manually applied, not Flux-managed)
 ├── operator/              # Flux Operator FluxInstance CR
-├── docs/                  # Planning docs (GATEWAY-NLB-PLAN, K3S-S145-MIGRATION, RPI4-KEXEC-FIX)
+├── docs/                  # Planning/runbooks (GATEWAY-NLB-PLAN, K3S-S145-MIGRATION, ORACLE-IN-MICRO-NIXOS, RPI4-KEXEC-FIX)
 ├── .sops.yaml             # SOPS creation rules — maps age keys to secret paths
 ├── .envrc                 # direnv: sets KUBECONFIG + SOPS_AGE_KEY_FILE
 ├── MAINTENANCE.md         # Runbook for routine ops
@@ -125,7 +125,10 @@ Deploy from `anywhere/`. Prefer workers first, then control-plane.
 - `nix develop -c deploy --targets .#oracle-eu-micro1 .#oracle-eu-micro2`: deploy multiple hosts.
 - `nix develop -c deploy .`: deploy all hosts.
 
-`oracle-eu-arm1` and `rpi` are `aarch64-linux` — deploy-rs builds on the host itself (`remoteBuild = true`). Micro nodes build on s145.
+All current deploy-rs nodes use `remoteBuild = true`, so routine deployments
+build on the target host. The separate `nixos-anywhere` installation flow for
+1 GB x86 micro nodes runs from s145 with `--build-on local` so s145 builds the
+initial closure.
 
 ### Kubernetes (s145 cluster)
 
@@ -138,11 +141,12 @@ Deploy from `anywhere/`. Prefer workers first, then control-plane.
 
 - **All NixOS systems use `nixpkgs-unstable`**; the `nixpkgs` input (26.05 stable) is only for devShell/tooling (deploy-rs, disko, sops-nix follow it). Exception: `rpi` is built via `nixos-raspberrypi.lib.nixosSystem` (its own nixpkgs), not `nixpkgs-unstable.lib.nixosSystem`.
 - **New Nix files must be `git add`-ed before eval or deploy.** Flakes only see tracked/staged files; untracked files cause evaluation errors.
-- **Almost all hosts have `remoteBuild = true`** — each host builds its own closure. This is required for aarch64 (`oracle-eu-arm1`, `oracle-in-arm1`, `rpi`) since the local/CI builder is x86_64, and is used for micros to avoid pushing large closures over Tailscale.
-- **`oracle-in-micro1` is the only exception**: `sshUser = "ubuntu"` (not `duck`), `remoteBuild = false`, and deploy target is a hardcoded IP (`129.154.240.246`), not a hostname. Still stock Ubuntu — being migrated.
-- **`oracle-in-micro-test`** is a throwaway config in `flake.nix` for validating the kexec-syscall install method on a 1 GB Hyderabad micro. No SOPS, no deploy-rs node — do not treat it as a real host.
+- **All current hosts have `remoteBuild = true`** — each host builds its own
+  closure during routine deploy-rs updates. This is required for aarch64
+  (`oracle-eu-arm1`, `oracle-in-arm1`, `rpi`) when the operator is x86_64 and is
+  also the configured behavior for the micro nodes.
 - **`pro-darwin`** is a `darwinConfigurations` entry, NOT in `deploy.nodes`. Deploy with `sudo darwin-rebuild switch --flake .#pro-darwin` from `anywhere/`.
-- **`nixos-anywhere` is destructive** — reformats the disk via disko. Never use for routine updates; use deploy-rs instead.
+- **`nixos-anywhere` is destructive** — reformats the disk via disko. Never use for routine updates; use deploy-rs instead. For 1 GB Oracle micros, run it from **s145**, prep **2G swap** on the Ubuntu target, and use `--build-on local --no-disko-deps --kexec-extra-flags "--kexec-syscall"`. See [anywhere/docs/ORACLE-IN-MICRO-NIXOS.md](anywhere/docs/ORACLE-IN-MICRO-NIXOS.md).
 - **`--elevate=sudo`** (not `--use-remote-sudo`) is the correct flag for `nixos-rebuild` remote activation.
 - **`s145` overrides GRUB** with systemd-boot (`lib.mkForce`). All other OCI hosts use GRUB from `profiles/server.nix`.
 - **Deploy order for input updates**: workers (`oracle-eu-micro2` → `oracle-eu-micro1`) → ARM agents → control-plane (`s145`) last.
@@ -240,7 +244,8 @@ flux reconcile kustomization immich -n flux-system --with-source
   ```bash
   ssh duck@s145 'sudo k3s kubectl taint node oracle-eu-micro1 tiny=true:NoSchedule --overwrite'
   ssh duck@s145 'sudo k3s kubectl taint node oracle-eu-micro2 tiny=true:NoSchedule --overwrite'
-  # Repeat for oracle-in-micro1/2
+  ssh duck@s145 'sudo k3s kubectl taint node oracle-in-micro1 tiny=true:NoSchedule --overwrite'
+  ssh duck@s145 'sudo k3s kubectl taint node oracle-in-micro2 tiny=true:NoSchedule --overwrite'
   ```
 - **`k3s serverAddr` is hardcoded** to `https://100.69.231.117:6443` (s145's Tailscale IP) in `profiles/k3s-agent.nix`. If s145's Tailscale IP changes, update this file and redeploy all agents.
 - **k8s manifests in `anywhere/k8s/` are NOT auto-deployed.** They are not in k3s's auto-deploy directory. Only Traefik's HelmChartConfig and Cloudflare secret are placed there by NixOS activation via s145's `sops.nix` + `traefik.nix`. `k8s/garage/` (the self-hosted Garage backend for IaC state) and `k8s/immich/` are Flux-managed via `clusters/s145/*.yaml`; their secrets are sops-encrypted files (`k8s/garage/garage-secret.yaml`, `k8s/immich/immich-secret.yaml`). See `anywhere/k8s/README.md` for conventions.
@@ -263,7 +268,14 @@ Both workflows (`apply.yml`, `destroy.yml`) are **manual-only** (`workflow_dispa
 
 ## What Not to Commit
 
-`IaC/terraform.tfvars`, `IaC/*.tfstate*`, `IaC/*.tfplan`, `IaC/errored.tfstate`, `IaC/.terraform/`, `*.pem`, `*.key`, decrypted secrets, `anywhere/result` (leftover `nix build` symlink). SOPS-encrypted files **are** committed: `IaC/<env>.tfvars`, `IaC/secrets/<env>.env`, `anywhere/secrets/**/*.yaml`. Age *public* key files (e.g., `anywhere/secrets/oracle-in-arm1/key.txt`) are safe to commit.
+`IaC/terraform.tfvars`, `IaC/*.tfstate*`, `IaC/*.tfplan`, `IaC/errored.tfstate`,
+`IaC/.terraform/`, `*.pem`, `*.key`, age private keys, decrypted secrets, and
+`anywhere/result` (a leftover `nix build` symlink). SOPS-encrypted files **are**
+committed: `IaC/<env>.tfvars`, `IaC/secrets/<env>.env`, and
+`anywhere/secrets/**/*.yaml`. An `age1...` recipient is public and belongs in
+`.sops.yaml`; an `AGE-SECRET-KEY-...` value is private and must never be
+committed. Legacy tracked `anywhere/secrets/*/key.txt` private keys require
+separate rotation/removal and must not be copied as a pattern for new hosts.
 
 ## Related Documentation
 
@@ -273,6 +285,7 @@ Both workflows (`apply.yml`, `destroy.yml`) are **manual-only** (`workflow_dispa
 - [docs/CICD.md](docs/CICD.md) — GitHub Actions secrets and workflow details
 - [anywhere/MAINTENANCE.md](anywhere/MAINTENANCE.md) — NixOS host operations runbook (daily checks, rollback, GC, Hermes)
 - [anywhere/README.md](anywhere/README.md) — host management, Tailscale setup, nixos-anywhere install
+- [anywhere/docs/ORACLE-IN-MICRO-NIXOS.md](anywhere/docs/ORACLE-IN-MICRO-NIXOS.md) — India E2.1.Micro Ubuntu → NixOS via nixos-anywhere (s145 builder, swap prep)
 - [.github/instructions/nixos.instructions.md](.github/instructions/nixos.instructions.md) — NixOS deployment rules for GitHub Copilot
 - [anywhere/docs/K3S-S145-MIGRATION.md](anywhere/docs/K3S-S145-MIGRATION.md) — cluster migration runbook from oracle-eu-arm1 to s145
 - [anywhere/docs/GATEWAY-NLB-PLAN.md](anywhere/docs/GATEWAY-NLB-PLAN.md) — planned OCI NLB + Gateway API rollout

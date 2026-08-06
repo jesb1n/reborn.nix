@@ -1,14 +1,23 @@
 # Maintaining the OCI NixOS hosts
 
-This repo manages three NixOS machines:
+This flake manages nine NixOS machines:
 
 | Host | Role | Architecture | Access |
 | --- | --- | --- | --- |
-| `oracle-eu-arm1` | k3s control-plane | `aarch64-linux` | `ubuntu@129.159.222.42` or `ubuntu@oracle-eu-arm1` |
-| `oracle-eu-micro1` | k3s worker | `x86_64-linux` | `ubuntu@oracle-eu-micro1` |
-| `oracle-eu-micro2` | k3s worker | `x86_64-linux` | `ubuntu@oracle-eu-micro2` |
+| `s145` | k3s control-plane | `x86_64-linux` | `duck@s145` |
+| `hp348` | k3s agent | `x86_64-linux` | `duck@hp348` |
+| `oracle-eu-arm1` | k3s agent | `aarch64-linux` | `duck@oracle-eu-arm1` |
+| `oracle-eu-micro1` | k3s agent (`tiny`) | `x86_64-linux` | `duck@oracle-eu-micro1` |
+| `oracle-eu-micro2` | k3s agent (`tiny`) | `x86_64-linux` | `duck@oracle-eu-micro2` |
+| `oracle-in-arm1` | k3s agent | `aarch64-linux` | `duck@oracle-in-arm1` |
+| `oracle-in-micro1` | k3s agent (`tiny`) | `x86_64-linux` | `duck@oracle-in-micro1` |
+| `oracle-in-micro2` | k3s agent (`tiny`) | `x86_64-linux` | `duck@oracle-in-micro2` |
+| `rpi` | k3s agent | `aarch64-linux` | `duck@rpi` |
 
-The preferred management machine is `s145`, because it is AMD/x86 and can build the two micro nodes locally.
+Routine deploy-rs updates use `remoteBuild = true` for every current node, so
+the target builds its own closure. For a destructive first install of a 1 GB
+Oracle micro, run `nixos-anywhere` from s145 with `--build-on local`; in that
+specific flow, s145 builds the initial closure.
 
 ## Configuration architecture
 
@@ -20,12 +29,11 @@ anywhere/
 │   ├── base.nix          # Users, nix GC, sudo, minimal footprint
 │   ├── server.nix        # GRUB boot, serial console, SSH hardening, timezone
 │   ├── tailscale.nix     # Tailscale + SOPS auth key integration
-│   ├── k3s-server.nix    # k3s server role, disable traefik, flannel over tailscale0
-│   └── k3s-agent.nix     # k3s agent role, tiny taint, max-pods=10, zramSwap
+│   ├── k3s-server.nix       # k3s server role, flannel over tailscale0
+│   ├── k3s-agent.nix        # standard k3s agent role
+│   └── k3s-agent-tiny.nix   # 1 GB agent limits (zram, max-pods)
 ├── hosts/
-│   ├── oracle-eu-arm1/configuration.nix       # imports: base + server + tailscale + k3s-server
-│   ├── oracle-eu-micro1/configuration.nix # imports: base + server + tailscale + k3s-agent
-│   └── oracle-eu-micro2/configuration.nix # imports: base + server + tailscale + k3s-agent
+│   └── <hostname>/       # host identity, Disko, and SOPS declarations
 ```
 
 ### What goes WHERE
@@ -36,7 +44,8 @@ anywhere/
 | Boot loader, serial console, firewall, SSH settings | `profiles/server.nix` |
 | Tailscale enable/openFirewall settings | `profiles/tailscale.nix` |
 | k3s server flags, disabled components | `profiles/k3s-server.nix` |
-| k3s agent flags, taints, labels, zramSwap | `profiles/k3s-agent.nix` |
+| k3s agent flags and labels | `profiles/k3s-agent.nix` |
+| 1 GB agent limits (`zramSwap`, `max-pods`) | `profiles/k3s-agent-tiny.nix` |
 | Hostname, node IP, Tailscale extra flags | `hosts/<name>/configuration.nix` |
 | Disk layout | `hosts/<name>/disko-config.nix` |
 | SOPS secret declarations | `hosts/<name>/sops.nix` |
@@ -50,14 +59,12 @@ anywhere/
 
 ## Recommendation: use `deploy-rs` for normal updates
 
-For normal updates, use `deploy-rs` from `s145`:
+For normal updates, use deploy-rs from an operator machine with the dev shell:
 
-- it has been tested on all three nodes;
 - it gives shorter commands than `nixos-rebuild`;
-- it supports deploying the two workers together;
+- it supports deploying multiple workers together;
 - it confirms activation with magic rollback;
-- it builds the two `x86_64-linux` workers on `s145`;
-- it builds the ARM control-plane on `oracle-eu-arm1` itself.
+- current nodes build on themselves because `remoteBuild = true`.
 
 Keep `nixos-rebuild` around as the transparent fallback when debugging.
 
@@ -66,30 +73,30 @@ Keep `nixos-rebuild` around as the transparent fallback when debugging.
 From any machine that can SSH into the control-plane:
 
 ```bash
-ssh ubuntu@129.159.222.42 'sudo k3s kubectl get nodes -o wide'
-ssh ubuntu@129.159.222.42 'sudo k3s kubectl get pods -A'
+ssh duck@s145 'sudo k3s kubectl get nodes -o wide'
+ssh duck@s145 'sudo k3s kubectl get pods -A'
 ```
 
 Check each NixOS host:
 
 ```bash
-ssh ubuntu@129.159.222.42 'hostname; systemctl is-system-running; systemctl --failed'
-ssh ubuntu@oracle-eu-micro1 'hostname; systemctl is-system-running; systemctl --failed'
-ssh ubuntu@oracle-eu-micro2 'hostname; systemctl is-system-running; systemctl --failed'
+ssh duck@s145 'hostname; systemctl is-system-running; systemctl --failed'
+ssh duck@oracle-in-micro1 'hostname; systemctl is-system-running; systemctl --failed'
+ssh duck@oracle-in-micro2 'hostname; systemctl is-system-running; systemctl --failed'
 ```
 
 Check Tailscale:
 
 ```bash
-ssh ubuntu@129.159.222.42 'sudo tailscale status'
-ssh ubuntu@oracle-eu-micro1 'sudo tailscale ip -4'
-ssh ubuntu@oracle-eu-micro2 'sudo tailscale ip -4'
+ssh duck@s145 'sudo tailscale status'
+ssh duck@oracle-in-micro1 'sudo tailscale ip -4'
+ssh duck@oracle-in-micro2 'sudo tailscale ip -4'
 ```
 
 The hosts intentionally do not install convenience tools like `vim`, `nano`, `git`, `curl`, `wget`, `htop`, or `tmux`. If you need a temporary tool while debugging, use `nix shell` on the host:
 
 ```bash
-ssh ubuntu@oracle-eu-micro1
+ssh duck@oracle-eu-micro1
 nix shell nixpkgs#vim nixpkgs#curl
 ```
 
@@ -103,10 +110,10 @@ Then deploy that host again.
 
 ## Normal edit and deploy flow
 
-From `s145`:
+From the source-of-truth operator checkout:
 
 ```bash
-cd ~/oracle-cloud-free-tier/anywhere
+cd /path/to/oracle-cloud-free-tier/anywhere
 git status --short
 ```
 
@@ -141,25 +148,25 @@ nix develop -c deploy .#oracle-eu-micro1
 nix develop -c deploy .#oracle-eu-micro2
 ```
 
-### Deploy both workers together
+### Deploy multiple workers together
 
 ```bash
 cd ~/oracle-cloud-free-tier/anywhere
 
-nix develop -c deploy --targets .#oracle-eu-micro1 .#oracle-eu-micro2
+nix develop -c deploy --targets .#oracle-in-micro1 .#oracle-in-micro2
 ```
 
-This builds both worker systems on `s145`, copies them to the workers, activates them, and confirms the deploy.
+Each target builds its own system, activates it, and confirms the deployment.
 
 ### Deploy the control-plane
 
 ```bash
 cd ~/oracle-cloud-free-tier/anywhere
 
-nix develop -c deploy .#oracle-eu-arm1
+nix develop -c deploy .#s145
 ```
 
-`oracle-eu-arm1` is `aarch64-linux`, so deploy-rs is configured with `remoteBuild = true` for that node. The ARM host builds its own system.
+Keep the control-plane last unless the change specifically targets s145.
 
 ### Deploy everything
 
@@ -169,12 +176,19 @@ cd ~/oracle-cloud-free-tier/anywhere
 nix develop -c deploy .
 ```
 
-This deploys all configured nodes:
+This deploys all configured nodes. Prefer explicit worker batches followed by
+the control-plane rather than this broad command for risky changes:
 
 ```text
 oracle-eu-arm1
 oracle-eu-micro1
 oracle-eu-micro2
+oracle-in-arm1
+oracle-in-micro1
+oracle-in-micro2
+hp348
+rpi
+s145
 ```
 
 Prefer workers first, then control-plane separately, unless the change is small and you are confident.
@@ -190,8 +204,8 @@ nix eval .#deploy.nodes.oracle-eu-arm1.remoteBuild
 Expected:
 
 ```text
-false
-false
+true
+true
 true
 ```
 
@@ -217,56 +231,35 @@ Deployment confirmed.
 
 Use these when debugging deploy-rs or when you want the most explicit command.
 
-### Deploy `oracle-eu-micro1`
+### Generic remote-build fallback
 
 ```bash
 nix run nixpkgs#nixos-rebuild -- \
   switch \
-  --flake .#oracle-eu-micro1 \
-  --target-host ubuntu@oracle-eu-micro1 \
+  --flake .#<host> \
+  --target-host duck@<host> \
+  --build-host duck@<host> \
   --elevate=sudo \
   --no-reexec \
   --use-substitutes
 ```
 
-### Deploy `oracle-eu-micro2`
-
-```bash
-nix run nixpkgs#nixos-rebuild -- \
-  switch \
-  --flake .#oracle-eu-micro2 \
-  --target-host ubuntu@oracle-eu-micro2 \
-  --elevate=sudo \
-  --no-reexec \
-  --use-substitutes
-```
-
-### Deploy `oracle-eu-arm1`
-
-```bash
-nix run nixpkgs#nixos-rebuild -- \
-  switch \
-  --flake .#oracle-eu-arm1 \
-  --target-host ubuntu@oracle-eu-arm1 \
-  --build-host ubuntu@oracle-eu-arm1 \
-  --elevate=sudo \
-  --no-reexec \
-  --use-substitutes
-```
+Use `--elevate=sudo`; `--use-remote-sudo` is not the correct flag for the
+`nixos-rebuild` version used here.
 
 ## After every deploy
 
 Check the target:
 
 ```bash
-ssh ubuntu@oracle-eu-micro1 'readlink -f /run/current-system; systemctl is-system-running; systemctl --failed'
+ssh duck@oracle-eu-micro1 'readlink -f /run/current-system; systemctl is-system-running; systemctl --failed'
 ```
 
 Check the cluster:
 
 ```bash
-ssh ubuntu@129.159.222.42 'sudo k3s kubectl get nodes -o wide'
-ssh ubuntu@129.159.222.42 'sudo k3s kubectl get pods -A'
+ssh duck@s145 'sudo k3s kubectl get nodes -o wide'
+ssh duck@s145 'sudo k3s kubectl get pods -A'
 ```
 
 ## Rollback
@@ -274,20 +267,20 @@ ssh ubuntu@129.159.222.42 'sudo k3s kubectl get pods -A'
 Rollback the current host to the previous generation:
 
 ```bash
-ssh ubuntu@oracle-eu-micro1 'sudo nixos-rebuild switch --rollback'
+ssh duck@oracle-eu-micro1 'sudo nixos-rebuild switch --rollback'
 ```
 
 Check generations:
 
 ```bash
-ssh ubuntu@oracle-eu-micro1 'sudo nixos-rebuild list-generations | tail'
+ssh duck@oracle-eu-micro1 'sudo nixos-rebuild list-generations | tail'
 ```
 
 If the system is unreachable after a bad boot, use Oracle Cloud console recovery. This is why one-host-at-a-time deploys are safer for this cluster.
 
 ## SOPS secrets
 
-Use the local age key on `s145`:
+Use an authorized operator age key:
 
 ```bash
 export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
@@ -319,18 +312,23 @@ sops updatekeys secrets/rpi/secrets.yaml
 
 Admin keys are `mark` + `pro_darwin` only (all secrets are decryptable by both). Host keys decrypt only their own host's secrets. The retired `master` key is not a recipient anywhere.
 
-Do not commit unencrypted secrets.
+Do not commit unencrypted secrets or age private keys. Only `age1...` public
+recipients and SOPS-encrypted files belong in Git.
 
 ## Hermes Agent (Codex + Google Gemini + Telegram on `oracle-eu-arm1`)
 
-The control-plane also runs the [Hermes Agent](https://github.com/NousResearch/hermes-agent) gateway. Its default model remains OpenAI Codex through ChatGPT OAuth, with Google Gemini available through Google's OpenAI-compatible endpoint. Inbound chat lives on Telegram.
+The `oracle-eu-arm1` agent also runs the
+[Hermes Agent](https://github.com/NousResearch/hermes-agent) gateway. Its
+default model remains OpenAI Codex through ChatGPT OAuth, with Google Gemini
+available through Google's OpenAI-compatible endpoint. Inbound chat lives on
+Telegram.
 
-### Secrets (one-time, on `s145`)
+### Secrets (one-time, from an operator checkout)
 
 Get a bot token from `@BotFather` and your numeric Telegram user ID from `@userinfobot`, then encrypt them:
 
 ```bash
-cd ~/oracle-cloud-free-tier/anywhere
+cd /path/to/oracle-cloud-free-tier/anywhere
 sops secrets/oracle-eu-arm1/secrets.yaml
 ```
 
@@ -363,7 +361,7 @@ The first build pulls the full hermes-agent flake (Python venv via uv2nix + Node
 Codex credentials are minted via device-code OAuth against your ChatGPT account. From any shell on `oracle-eu-arm1`:
 
 ```bash
-ssh ubuntu@oracle-eu-arm1
+ssh duck@oracle-eu-arm1
 hermes auth add codex-oauth
 # Open the printed URL in a browser, sign in with ChatGPT, paste the code.
 sudo systemctl restart hermes-agent
@@ -382,8 +380,8 @@ hermes model
 ### Health checks
 
 ```bash
-ssh ubuntu@oracle-eu-arm1 'systemctl status hermes-agent --no-pager; journalctl -u hermes-agent -n 50 --no-pager'
-ssh ubuntu@oracle-eu-arm1 'hermes doctor'
+ssh duck@oracle-eu-arm1 'systemctl status hermes-agent --no-pager; journalctl -u hermes-agent -n 50 --no-pager'
+ssh duck@oracle-eu-arm1 'hermes doctor'
 ```
 
 ### Security notes
@@ -416,9 +414,10 @@ Then build and deploy one host first. Do not update all machines at once.
 
 Suggested order:
 
-1. `oracle-eu-micro2`
-2. `oracle-eu-micro1`
-3. `oracle-eu-arm1`
+1. Tiny workers: `oracle-eu-micro2`, `oracle-eu-micro1`,
+   `oracle-in-micro2`, `oracle-in-micro1`
+2. Other agents: `hp348`, `rpi`, `oracle-eu-arm1`, `oracle-in-arm1`
+3. Control-plane: `s145`
 
 Keep the control-plane last unless the change is specifically for it.
 
@@ -452,21 +451,21 @@ This keeps enough rollback history for normal mistakes, while preventing the tin
 Check disk usage:
 
 ```bash
-ssh ubuntu@oracle-eu-micro1 'df -h / /nix; sudo nix path-info -Sh /run/current-system'
-ssh ubuntu@oracle-eu-micro2 'df -h / /nix; sudo nix path-info -Sh /run/current-system'
-ssh ubuntu@oracle-eu-arm1 'df -h / /nix; sudo nix path-info -Sh /run/current-system'
+ssh duck@oracle-eu-micro1 'df -h / /nix; sudo nix path-info -Sh /run/current-system'
+ssh duck@oracle-eu-micro2 'df -h / /nix; sudo nix path-info -Sh /run/current-system'
+ssh duck@oracle-eu-arm1 'df -h / /nix; sudo nix path-info -Sh /run/current-system'
 ```
 
 Run cleanup manually on one host:
 
 ```bash
-ssh ubuntu@oracle-eu-micro1 'sudo nix-collect-garbage --delete-older-than 7d; sudo nix store optimise'
+ssh duck@oracle-eu-micro1 'sudo nix-collect-garbage --delete-older-than 7d; sudo nix store optimise'
 ```
 
 More aggressive cleanup, only when you are sure you do not need rollback generations:
 
 ```bash
-ssh ubuntu@oracle-eu-micro1 'sudo nix-collect-garbage -d; sudo nix store optimise'
+ssh duck@oracle-eu-micro1 'sudo nix-collect-garbage -d; sudo nix store optimise'
 ```
 
 Avoid running aggressive cleanup immediately after a risky deploy. Keep at least one known-good generation until the cluster has been stable for a while.
@@ -477,23 +476,31 @@ Use `nixos-anywhere` only when installing/reinstalling a machine.
 
 Important: the normal `nixos-anywhere` flow with `disko` reformats the target disk. It is not the day-to-day update command.
 
-For normal maintenance, use `nixos-rebuild switch`.
+For normal maintenance, use deploy-rs (`nix develop -c deploy .#<host>`) or `nixos-rebuild switch`.
 
-If you ever need to reinstall a micro node:
+### Reinstalling a 1 GB Oracle micro
+
+Run from an **x86_64 host with enough RAM** (prefer `s145`), not from the Mac and
+not from another micro. On the Ubuntu target, add a **2G swap file** and stop
+heavy services before kexec — otherwise `kexec` is OOM-killed.
 
 ```bash
-cd ~/oracle-cloud-free-tier/anywhere
+# On s145, after syncing the flake and staging age key under /tmp/<host>-extra
+cd ~/reborn-anywhere   # or your checkout
 
-nix run github:nix-community/nixos-anywhere -- \
+nix develop --command nixos-anywhere \
   --debug \
-  --flake .#oracle-eu-micro2 \
-  --target-host ubuntu@89.168.126.35 \
+  --flake .#oracle-in-micro2 \
+  --target-host ubuntu@<public-ip> \
   --copy-host-keys \
-  --extra-files /tmp/oracle-eu-micro2-extra \
+  --extra-files /tmp/oracle-in-micro2-extra \
   --build-on local \
   --no-disko-deps \
   --kexec-extra-flags "--kexec-syscall"
 ```
+
+Full India procedure (SSH bootstrap, tar sync, swap prep, post-install):
+[docs/ORACLE-IN-MICRO-NIXOS.md](./docs/ORACLE-IN-MICRO-NIXOS.md).
 
 Only run this when you are prepared to destroy and recreate that machine's OS disk.
 
@@ -502,16 +509,21 @@ Only run this when you are prepared to destroy and recreate that machine's OS di
 From the repo root:
 
 ```bash
-tofu fmt -check
-tofu plan -out=tfplan
-tofu apply tfplan
+tofu -chdir=IaC fmt -check -recursive
+tofu -chdir=IaC validate
+
+# Preferred SOPS-integrated environment workflow
+make -C IaC ENV=beijns check-auth
+make -C IaC ENV=beijns plan
 ```
 
 Use Terraform/OpenTofu for OCI infrastructure changes such as security list rules, instance creation, public IPs, and networking.
 
 Use Nix for OS/service changes such as Tailscale, k3s, users, SSH keys, packages, and systemd services.
 
-For the planned public HTTP/HTTPS path using OCI Network Load Balancer and Kubernetes Gateway API, see [GATEWAY-NLB-PLAN.md](./GATEWAY-NLB-PLAN.md).
+For the planned public HTTP/HTTPS path using OCI Network Load Balancer and
+Kubernetes Gateway API, see
+[GATEWAY-NLB-PLAN.md](./docs/GATEWAY-NLB-PLAN.md).
 
 ## Tiny worker notes
 
@@ -520,7 +532,7 @@ The 1 vCPU / 1 GB RAM workers should stay protected from accidental heavy worklo
 Check taints:
 
 ```bash
-ssh ubuntu@129.159.222.42 'sudo k3s kubectl describe nodes | grep -E "Name:|Taints:"'
+ssh duck@s145 'sudo k3s kubectl describe nodes | grep -E "Name:|Taints:"'
 ```
 
 If a workload should run on the tiny nodes, give it an explicit toleration for:
