@@ -1,43 +1,38 @@
-# Managing the OCI NixOS Host
+# Managing the NixOS fleet
 
-This folder contains the flake used to manage the OCI ARM NixOS host.
+This directory is the standalone Nix flake for all NixOS hosts and Kubernetes
+workloads in this repository. Routine host updates use deploy-rs; destructive
+first installs and reinstalls use `nixos-anywhere`.
 
-For day-to-day maintenance, update, rollback, SOPS, and k3s cluster commands, see [MAINTENANCE.md](./MAINTENANCE.md).
-
-Current host:
-
-```text
-oracle-eu-arm1 -> ubuntu@129.159.222.42
-```
-
-The flake output is:
-
-```text
-.#oracle-eu-arm1
-```
+For daily health checks, deployment, rollback, SOPS, and cluster operations,
+see [MAINTENANCE.md](./MAINTENANCE.md). The current host inventory is maintained
+in the repository [AGENTS.md](../AGENTS.md#hosts-current-state).
 
 ## What this folder is for
 
-Use this folder for normal NixOS management with `nixos-rebuild`.
+Use this folder for evaluation, builds, deploy-rs deployments, and encrypted
+secret management.
 
 Do not use `nixos-anywhere` for routine updates on the existing host. `nixos-anywhere` is mainly for installation/reinstallation and can destroy/recreate disks when used with a disk layout.
 
 ## Enter the management shell
 
-From this folder:
+From the repository root:
 
 ```bash
 cd anywhere
 direnv allow
+nix develop
 ```
 
-If direnv is already allowed, entering the folder should make tools like `nixos-anywhere` available.
+`direnv` sets `KUBECONFIG` and `SOPS_AGE_KEY_FILE`; it does **not** load the dev
+shell. Use `nix develop`, or prefix commands with `nix develop -c`.
 
 Check:
 
 ```bash
-which nixos-anywhere
-nixos-anywhere --help
+nix develop -c nixos-anywhere --help
+nix develop -c deploy --help
 ```
 
 ## Inspect the flake
@@ -46,16 +41,16 @@ nixos-anywhere --help
 nix flake show
 ```
 
-Confirm the host platform:
+Confirm a host platform:
 
 ```bash
-nix eval --raw .#nixosConfigurations.oracle-eu-arm1.config.nixpkgs.hostPlatform.system
+nix eval --raw .#nixosConfigurations.oracle-in-micro1.config.nixpkgs.hostPlatform.system
 ```
 
 Expected:
 
 ```text
-aarch64-linux
+x86_64-linux
 ```
 
 ## Lock or update inputs
@@ -74,300 +69,95 @@ nix flake update
 
 These commands affect the local `flake.lock`. They do not activate or modify the OCI host.
 
-## Tailscale with SOPS
+## Tailscale and k3s secrets with SOPS
 
-Tailscale is configured declaratively in `hosts/oracle-eu-arm1/configuration.nix`.
+Each host decrypts secrets during activation with its age private key at
+`/var/lib/sops-nix/key.txt`. Public age recipients are declared in `.sops.yaml`;
+shared encrypted values live in `secrets/tailscale/secrets.yaml` and
+`secrets/k3s/secrets.yaml`.
 
-Secrets follow the same host-key pattern as `retire.nix`:
-
-- your Mac has a pro_darwin age key for editing secrets;
-- the OCI host has its own age key at `/var/lib/sops-nix/key.txt`;
-- shared Tailscale credentials live under `secrets/tailscale/`;
-- `sops-nix` decrypts them into `/run/secrets/` during activation.
-
-The service can start without a SOPS secret, but automatic login requires an encrypted SOPS file at:
-
-```text
-secrets/tailscale/secrets.yaml
-```
-
-### 1. Generate your pro_darwin age key on the Mac
+Before using `sops` from an operator machine:
 
 ```bash
-mkdir -p ~/.config/sops/age
-test -f ~/.config/sops/age/keys.txt || age-keygen -o ~/.config/sops/age/keys.txt
-age-keygen -y ~/.config/sops/age/keys.txt
+export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
+sops -d secrets/k3s/secrets.yaml >/dev/null
+sops -d secrets/tailscale/secrets.yaml >/dev/null
 ```
 
-Keep the private key in `~/.config/sops/age/keys.txt` private.
+The Tailscale auth key must be reusable so multiple hosts can enroll. Never
+commit an age private key or decrypted secret. Only `age1...` public recipients
+and SOPS-encrypted YAML belong in Git.
 
-### 2. Generate the host age key on oracle-eu-arm1
-
-This is the key that `sops-nix` will use on the host during activation.
-
-```bash
-ssh ubuntu@129.159.222.42 'sudo mkdir -p /var/lib/sops-nix && sudo age-keygen -o /var/lib/sops-nix/key.txt && sudo chmod 600 /var/lib/sops-nix/key.txt && sudo age-keygen -y /var/lib/sops-nix/key.txt'
-```
-
-Copy the printed public key.
-
-If `age-keygen` is missing on the host, deploy this config once without the
-secret first. The host config includes `age` in `environment.systemPackages`, so
-`age-keygen` will be available after that switch.
-
-### 3. Create `.sops.yaml`
-
-Copy the template and replace both public keys:
-
-```bash
-cp .sops.yaml.example .sops.yaml
-```
-
-The final file should look like:
-
-```yaml
-keys:
-  - &pro_darwin age1YOUR_PRO_DARWIN_PUBLIC_AGE_KEY
-  - &oci_nixos age1YOUR_OCI_NIXOS_PUBLIC_AGE_KEY
-
-creation_rules:
-  - path_regex: secrets/tailscale/.*
-    key_groups:
-      - age:
-          - *pro_darwin
-          - *oci_nixos
-```
-
-### 4. Create the encrypted Tailscale auth key secret
-
-```bash
-mkdir -p secrets/tailscale
-sops secrets/tailscale/secrets.yaml
-```
-
-Add this plaintext while inside the editor opened by `sops`:
-
-```yaml
-tailscale-auth-key: "tskey-auth-xxxxx"
-```
-
-Save and quit. The file written to disk should be encrypted.
-
-### 5. Deploy
-
-This repository is a Git flake. Nix only sees files that are tracked or staged,
-so add the new Nix/SOPS files before evaluating or deploying:
-
-```bash
-git add .sops.yaml hosts/oracle-eu-arm1/sops.nix secrets/tailscale/README.md
-```
-
-Also add the encrypted secret after creating it:
-
-```bash
-git add secrets/tailscale/secrets.yaml
-```
-
-Use the normal safe validation flow below: `dry-activate`, then `switch`.
-
-After switching, verify:
-
-```bash
-ssh ubuntu@129.159.222.42 'sudo tailscale status; sudo tailscale ip -4'
-```
+When adding a host, generate its age key into a protected operator-only path,
+add only the printed public recipient to `.sops.yaml`, re-key the shared SOPS
+files, and provision the private key with `--extra-files` during installation.
 
 ## Installing the tiny Oracle nodes with nixos-anywhere
 
-The two Ubuntu micro VMs are configured as future NixOS k3s agent nodes:
+All four E2.1.Micro workers use the same NixOS profile stack
+(`k3s-agent-tiny` + Disko `/dev/sda`) and the same install constraints:
+**1 GB RAM**, so kexec needs a swap file on the Ubuntu target, and the system
+closure must be built on a roomier x86 host (prefer **s145**), not on the micro
+and not on Apple Silicon.
 
-```text
-oracle-eu-micro1 -> oracle-eu-micro1-instance.panther-company.ts.net -> 100.107.80.116
-oracle-eu-micro2 -> oracle-eu-micro2-instance.panther-company.ts.net -> 100.67.95.26
-```
+| Host | Role | Tailscale IP |
+|------|------|--------------|
+| `oracle-eu-micro1` | k3s agent (`tiny`) | `100.96.237.114` |
+| `oracle-eu-micro2` | k3s agent (`tiny`) | `100.67.95.26` |
+| `oracle-in-micro1` | k3s agent (`tiny`) | `100.79.237.15` |
+| `oracle-in-micro2` | k3s agent (`tiny`) | `100.91.37.26` |
 
-Their flake outputs are:
+Flake outputs: `.#oracle-eu-micro1`, `.#oracle-eu-micro2`,
+`.#oracle-in-micro1`, `.#oracle-in-micro2`.
 
-```text
-.#oracle-eu-micro1
-.#oracle-eu-micro2
-```
+Warning: `nixos-anywhere` + Disko **wipes** the target disk. Install one node
+at a time. Prefer an OCI boot volume backup first.
 
-These configs use Disko and target `/dev/sda`.
-
-Warning: `nixos-anywhere` will wipe the Ubuntu installation on the selected micro VM.
-Take an OCI boot volume backup first, and install one node at a time.
-
-### 1. Create host age keys locally
-
-For a new nixos-anywhere install, create each host's age private key locally,
-then pass it into the installed NixOS system with `--extra-files`.
+### Required install flags (all micros)
 
 ```bash
-mkdir -p /tmp/oracle-eu-micro1-extra/var/lib/sops-nix
-age-keygen -o /tmp/oracle-eu-micro1-extra/var/lib/sops-nix/key.txt
-chmod 600 /tmp/oracle-eu-micro1-extra/var/lib/sops-nix/key.txt
-age-keygen -y /tmp/oracle-eu-micro1-extra/var/lib/sops-nix/key.txt
-```
-
-Repeat for micro2:
-
-```bash
-mkdir -p /tmp/oracle-eu-micro2-extra/var/lib/sops-nix
-age-keygen -o /tmp/oracle-eu-micro2-extra/var/lib/sops-nix/key.txt
-chmod 600 /tmp/oracle-eu-micro2-extra/var/lib/sops-nix/key.txt
-age-keygen -y /tmp/oracle-eu-micro2-extra/var/lib/sops-nix/key.txt
-```
-
-Copy the printed public keys.
-
-### 2. Add the micro public keys to `.sops.yaml`
-
-Add these keys:
-
-```yaml
-  - &oracle_eu_micro1 age1MICRO1_PUBLIC_KEY
-  - &oracle_eu_micro2 age1MICRO2_PUBLIC_KEY
-```
-
-Add rules for the host secrets:
-
-```yaml
-  - path_regex: secrets/oracle-eu-micro1/.*
-    key_groups:
-      - age:
-          - *pro_darwin
-          - *oracle_eu_micro1
-
-  - path_regex: secrets/oracle-eu-micro2/.*
-    key_groups:
-      - age:
-          - *pro_darwin
-          - *oracle_eu_micro2
-```
-
-Add the shared k3s secret rule:
-
-```yaml
-  - path_regex: secrets/k3s/.*
-    key_groups:
-      - age:
-          - *pro_darwin
-          - *oci_nixos
-          - *oracle_eu_micro1
-          - *oracle_eu_micro2
-```
-
-### 3. Create the shared Tailscale secret
-
-Use a reusable Tailscale auth key.
-
-```bash
-sops secrets/tailscale/secrets.yaml
-```
-
-Plaintext while editing:
-
-```yaml
-tailscale-auth-key: "tskey-auth-xxxxx"
-```
-
-### 4. Create the shared k3s token secret
-
-Generate a token:
-
-```bash
-openssl rand -base64 48
-```
-
-Create the encrypted secret:
-
-```bash
-sops secrets/k3s/secrets.yaml
-```
-
-Plaintext while editing:
-
-```yaml
-k3s-token: "paste-the-generated-token"
-```
-
-### 5. Stage files before evaluating
-
-This repository is a Git flake. Nix only sees tracked/staged files.
-
-From `anywhere/`:
-
-```bash
-git add flake.nix flake.lock .sops.yaml .sops.yaml.example README.md
-git add hosts/oracle-eu-arm1/configuration.nix hosts/oracle-eu-arm1/sops.nix
-git add hosts/oracle-eu-micro1 hosts/oracle-eu-micro2
-git add secrets/k3s secrets/oracle-eu-micro1 secrets/oracle-eu-micro2
-```
-
-### 6. Validate evaluation
-
-```bash
-nix eval --raw .#nixosConfigurations.oracle-eu-micro1.config.nixpkgs.hostPlatform.system
-nix eval --raw .#nixosConfigurations.oracle-eu-micro2.config.nixpkgs.hostPlatform.system
-```
-
-Expected:
-
-```text
-x86_64-linux
-```
-
-### 7. Install micro1
-
-After taking an OCI boot volume backup for micro1:
-
-```bash
-nixos-anywhere \
-  --flake .#oracle-eu-micro1 \
-  --target-host ubuntu@oracle-eu-micro1-instance.panther-company.ts.net \
+nix develop --command nixos-anywhere \
+  --debug \
+  --flake .#oracle-in-micro2 \
+  --target-host ubuntu@<public-or-tailscale-ip> \
   --copy-host-keys \
-  --extra-files /tmp/oracle-eu-micro1-extra
+  --extra-files /tmp/<host>-extra \
+  --build-on local \
+  --no-disko-deps \
+  --kexec-extra-flags "--kexec-syscall"
 ```
 
-After reboot:
+- `--build-on local` — build on the runner (s145), not the 1 GB target
+- `--no-disko-deps` — keep kexec RAM pressure down
+- `--kexec-extra-flags "--kexec-syscall"` — required on these OCI kernels
+
+### India (`ap-mumbai-1`) full runbook
+
+Age keys, SOPS recipients, SSH bootstrap from s145, Ubuntu swap prep, and
+post-install (`nodeIP`, `tiny` taint, deploy-rs) are documented in:
+
+**[docs/ORACLE-IN-MICRO-NIXOS.md](./docs/ORACLE-IN-MICRO-NIXOS.md)**
+
+### Shared secrets (first-time / new host)
+
+Use a **reusable** Tailscale auth key (`sops secrets/tailscale/secrets.yaml`).
+Single-use keys fail on the second micro.
+
+Host age private keys go in `--extra-files` as
+`/var/lib/sops-nix/key.txt` (see the India runbook). Public keys belong in
+`.sops.yaml` and must be recipients of `secrets/k3s/` and `secrets/tailscale/`.
+
+### After install
 
 ```bash
-ssh ubuntu@oracle-eu-micro1.panther-company.ts.net 'hostname; systemctl is-system-running; systemctl --failed; sudo tailscale status'
+ssh duck@oracle-in-micro2 'hostname; systemctl is-system-running; sudo tailscale ip -4'
+ssh duck@s145 'sudo k3s kubectl get nodes -o wide'
+ssh duck@s145 'sudo k3s kubectl taint node oracle-in-micro2 tiny=true:NoSchedule --overwrite'
 ```
 
-### 8. Install micro2
-
-Only after micro1 is healthy, take an OCI boot volume backup for micro2 and run:
-
-```bash
-nixos-anywhere \
-  --flake .#oracle-eu-micro2 \
-  --target-host ubuntu@oracle-eu-micro2-instance.panther-company.ts.net \
-  --copy-host-keys \
-  --extra-files /tmp/oracle-eu-micro2-extra
-```
-
-After reboot:
-
-```bash
-ssh ubuntu@oracle-eu-micro2.panther-company.ts.net 'hostname; systemctl is-system-running; systemctl --failed; sudo tailscale status'
-```
-
-### 9. Verify k3s
-
-After the server and agents are installed:
-
-```bash
-ssh ubuntu@129.159.222.42 'sudo k3s kubectl get nodes -o wide'
-```
-
-The micro nodes are tainted:
-
-```text
-tiny=true:NoSchedule
-```
-
-Only workloads with the matching toleration should run there.
+Set `services.k3s.nodeIP` to the Tailscale IPv4 in the host `configuration.nix`,
+then `nix develop -c deploy .#oracle-in-micro2`. SSH user after install is
+`duck`, not `ubuntu`.
 
 ## Safe validation flow
 
@@ -381,7 +171,7 @@ Build the system configuration on the remote host without activating it:
 nix run nixpkgs#nixos-rebuild -- \
   build \
   --flake .#oracle-eu-arm1 \
-  --build-host ubuntu@129.159.222.42 \
+  --build-host duck@oracle-eu-arm1 \
   --no-reexec \
   --use-substitutes
 ```
@@ -396,8 +186,8 @@ Preview what activation would do:
 nix run nixpkgs#nixos-rebuild -- \
   dry-activate \
   --flake .#oracle-eu-arm1 \
-  --target-host ubuntu@129.159.222.42 \
-  --build-host ubuntu@129.159.222.42 \
+  --target-host duck@oracle-eu-arm1 \
+  --build-host duck@oracle-eu-arm1 \
   --elevate=sudo \
   --no-reexec \
   --use-substitutes
@@ -413,8 +203,8 @@ Activate the configuration temporarily:
 nix run nixpkgs#nixos-rebuild -- \
   test \
   --flake .#oracle-eu-arm1 \
-  --target-host ubuntu@129.159.222.42 \
-  --build-host ubuntu@129.159.222.42 \
+  --target-host duck@oracle-eu-arm1 \
+  --build-host duck@oracle-eu-arm1 \
   --elevate=sudo \
   --no-reexec \
   --use-substitutes
@@ -427,7 +217,7 @@ Before running `test`, it is wise to have OCI console access available in case S
 ### 4. Verify the host after test
 
 ```bash
-ssh ubuntu@129.159.222.42 'hostname; systemctl is-system-running; systemctl --failed'
+ssh duck@oracle-eu-arm1 'hostname; systemctl is-system-running; systemctl --failed'
 ```
 
 Healthy output should look like:
@@ -446,8 +236,8 @@ After `dry-activate`, `test`, and verification pass, make the configuration pers
 nix run nixpkgs#nixos-rebuild -- \
   switch \
   --flake .#oracle-eu-arm1 \
-  --target-host ubuntu@129.159.222.42 \
-  --build-host ubuntu@129.159.222.42 \
+  --target-host duck@oracle-eu-arm1 \
+  --build-host duck@oracle-eu-arm1 \
   --elevate=sudo \
   --no-reexec \
   --use-substitutes
@@ -460,7 +250,7 @@ It normally does not reboot the machine.
 ## Verify the current generation
 
 ```bash
-ssh ubuntu@129.159.222.42 'readlink -f /run/current-system; sudo nixos-rebuild list-generations | tail; systemctl is-system-running; systemctl --failed'
+ssh duck@oracle-eu-arm1 'readlink -f /run/current-system; sudo nixos-rebuild list-generations | tail; systemctl is-system-running; systemctl --failed'
 ```
 
 The current generation should be marked `True`, and failed units should be `0`.
@@ -470,13 +260,13 @@ The current generation should be marked `True`, and failed units should be `0`.
 If the current running config is bad but SSH still works, roll back to the previous generation:
 
 ```bash
-ssh ubuntu@129.159.222.42 'sudo nixos-rebuild switch --rollback'
+ssh duck@oracle-eu-arm1 'sudo nixos-rebuild switch --rollback'
 ```
 
 Then verify:
 
 ```bash
-ssh ubuntu@129.159.222.42 'readlink -f /run/current-system; sudo nixos-rebuild list-generations | tail; systemctl is-system-running; systemctl --failed'
+ssh duck@oracle-eu-arm1 'readlink -f /run/current-system; sudo nixos-rebuild list-generations | tail; systemctl is-system-running; systemctl --failed'
 ```
 
 If the host cannot boot or SSH is unavailable, use the OCI console/serial console and boot an older NixOS generation from the GRUB menu.
@@ -491,7 +281,8 @@ If activation fails with an access denied error from `systemd-run`, make sure th
 --elevate=sudo
 ```
 
-Older examples may use `--use-remote-sudo`, but that option is deprecated.
+Do not use `--use-remote-sudo`; it is not supported by the `nixos-rebuild`
+version used here.
 
 ### Signature error when copying from the remote builder
 
@@ -506,8 +297,8 @@ the remote build probably succeeded, but macOS refused to import unsigned paths 
 The safer path is to continue with `dry-activate`, `test`, or `switch` using both:
 
 ```text
---target-host ubuntu@129.159.222.42
---build-host ubuntu@129.159.222.42
+--target-host duck@oracle-eu-arm1
+--build-host duck@oracle-eu-arm1
 ```
 
 This avoids relying on importing the final remote-built closure into the local Mac store.
@@ -522,10 +313,5 @@ warning: Git tree '...' is dirty
 
 This means the flake is being built from local uncommitted changes. After a successful switch, commit the known-good config and lock file so the host state is reproducible.
 
-Suggested commit:
-
-```bash
-git status
-git add anywhere/flake.nix anywhere/flake.lock anywhere/.sops.yaml anywhere/.sops.yaml.example anywhere/hosts/oracle-eu-arm1/configuration.nix anywhere/hosts/oracle-eu-arm1/hardware-configuration.nix anywhere/hosts/oracle-eu-arm1/sops.nix anywhere/secrets/tailscale/README.md anywhere/secrets/tailscale/secrets.yaml anywhere/README.md
-git commit -m "Manage OCI NixOS host with flake"
-```
+Review and stage only the intended files after validation. Commit and push only
+after explicit operator confirmation.
