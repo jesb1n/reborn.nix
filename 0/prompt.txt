@@ -1,0 +1,15 @@
+Stage the changes you worked on, commit, and push for this branch.
+- Current branch: main.
+- Base branch: main.
+- Stage the changes you worked on.
+- If there are unrelated files or changes, exclude them.
+- Write a concise commit message.
+- Push after creating the commit.
+- Do not include unrelated files in the commit.
+<timestamp>Thursday, Aug 6, 2026, 2:25 PM (UTC+5:30)</timestamp>
+
+Execute the selected diff-tab commit-and-push action.
+
+---
+
+Add lens k8s viewer to pro-darwin
