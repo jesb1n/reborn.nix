@@ -1,0 +1,55 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01KZBCBPB1TH012JHH1PZVHX7J",
+  "session_id": "17d3ef07-9888-49ea-ae63-15a215fb23dc",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-06T11:11:58.63697Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 2,
+  "files_touched": [
+    "IaC/beijns.tfvars"
+  ],
+  "agent": "Cursor",
+  "model": "cursor-grok-4.5-medium",
+  "turn_id": "55cc65facaa4",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 4396,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 165888,
+    "output_tokens": 394,
+    "api_call_count": 1
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-06T11:11:58.60507Z",
+    "agent_lines": 4,
+    "agent_removed": 4,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 4,
+    "total_lines_changed": 8,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4,
+      "agent_lines_removed": 4
+    }
+  ]
+}
