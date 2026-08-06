@@ -1,0 +1,11 @@
+<timestamp>Wednesday, Aug 5, 2026, 7:04 PM (UTC+5:30)</timestamp>
+
+Commit only the relevant cyhanges .
+
+---
+
+Execute the selected diff-tab push action.
+
+---
+
+Install copilot desktop on pro darwin

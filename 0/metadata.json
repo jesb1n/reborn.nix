@@ -1,0 +1,56 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01KZB4HR3258R9HBZ5RZZFNPAH",
+  "session_id": "f573cc9c-8b0d-4681-a0ca-8f19aeb79467",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-06T08:55:28.386391Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "anywhere/hosts/pro-darwin/AGENTS.md",
+    "anywhere/hosts/pro-darwin/darwin-configuration.nix"
+  ],
+  "agent": "Cursor",
+  "model": "cursor-grok-4.5-medium",
+  "turn_id": "3813b714ed86",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 99040,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 60416,
+    "output_tokens": 956,
+    "api_call_count": 1
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-06T08:55:28.379819Z",
+    "agent_lines": 3,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3,
+    "total_lines_changed": 4,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 3,
+      "agent_lines_removed": 1
+    }
+  ]
+}
