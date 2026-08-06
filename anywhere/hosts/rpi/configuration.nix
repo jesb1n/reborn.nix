@@ -21,6 +21,14 @@ in
 
   nixpkgs.hostPlatform = lib.mkDefault "aarch64-linux";
 
+  # Pi-only binary cache (keep out of shared profiles/base.nix)
+  nix.settings = {
+    substituters = lib.mkAfter [ "https://nixos-raspberrypi.cachix.org" ];
+    trusted-public-keys = lib.mkAfter [
+      "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
+    ];
+  };
+
   boot.loader.raspberry-pi = {
     enable = true;
     bootloader = "kernel";

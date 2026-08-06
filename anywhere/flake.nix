@@ -233,9 +233,9 @@
         };
 
         oracle-in-micro1 = {
-          hostname = "129.154.240.246";
-          sshUser = "ubuntu";
-          remoteBuild = false;
+          hostname = "oracle-in-micro1";
+          sshUser = "duck";
+          remoteBuild = true;
           fastConnection = true;
           activationTimeout = 600;
           confirmTimeout = 60;

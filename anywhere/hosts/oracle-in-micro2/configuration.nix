@@ -23,7 +23,7 @@ in
   ];
 
   services.k3s.nodeName = "oracle-in-micro2";
-  services.k3s.nodeIP = "0.0.0.0"; # placeholder, update after Tailscale assigns IP
+  services.k3s.nodeIP = "100.91.37.26";
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
   system.stateVersion = "26.05";
