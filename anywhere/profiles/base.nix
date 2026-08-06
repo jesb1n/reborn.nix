@@ -10,6 +10,13 @@
       "root"
       "duck"
     ];
+    # Nix 2.34+ ignores flake nixConfig substituters unless this is set
+    # (otherwise builds fall back to compiling from source).
+    accept-flake-config = true;
+    extra-experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
     substituters = [
       "https://cache.nixos.org"
       "https://nix-community.cachix.org"
