@@ -56,6 +56,7 @@
       "chatgpt"
       "cloudflare-warp"
       "docker-desktop"
+      "github-copilot-app"
       "handy"
       "loom"
       "maccy"
