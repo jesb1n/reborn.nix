@@ -991,3 +991,7 @@ Do you want to perform these actions?
 
 
 Can you modify the terraofrm to aavoid force replacement due to ssh key change?
+
+---
+
+Execute the selected diff-tab commit-and-push action.
