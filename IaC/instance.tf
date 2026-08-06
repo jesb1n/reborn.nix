@@ -124,6 +124,9 @@ EOF
 
   lifecycle {
     ignore_changes = [
+      # Ignore ssh key metadata — whitespace/newline drift in the tfvars value
+      # would otherwise force instance replacement (OCI metadata is immutable)
+      metadata["ssh_authorized_keys"],
       metadata["user_data"],
       # Ignore image drift — the data source always resolves the latest Ubuntu image,
       # and in-place source_id changes do not change the running OS
