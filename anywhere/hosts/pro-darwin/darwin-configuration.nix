@@ -58,6 +58,7 @@
       "docker-desktop"
       "github-copilot-app"
       "handy"
+      "lens"
       "loom"
       "maccy"
       "tailscale-app"
