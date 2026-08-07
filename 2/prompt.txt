@@ -1,0 +1,3 @@
+/v1/chat/completions with stream: false fails (Unknown items in responses API response: []). Many apps default to non-stream. Mitigation: use stream: true or /v1/responses. Not ours to fix; upstream PR #31332 not in a stable tag. 
+
+Can you try this?
