@@ -15,7 +15,7 @@ OpenAI-compatible API. Authenticates to ChatGPT's Codex backend via OAuth
 | `sitecustomize.py` | runtime monkeypatch for the ChatGPT SSE output bug (mounted via `litellm-patch` ConfigMap, `PYTHONPATH=/patch`) |
 | `service.yaml` | NodePort `31400` → `4000`, `externalTrafficPolicy: Local` (no public ingress) |
 | `pvc.yaml` | `local-path` `1Gi` on the pinned node (holds `auth.json` + SQLite) |
-| `login-job.yaml` | **NOT in kustomization** — one-time/on-demand device login, manual `kubectl` |
+| `login-job.yaml` | **NOT in kustomization** — one-time/on-demand device login, manual `kubectl` (see "First-time / renewed login") |
 | `kustomization.yaml` | resources + `configMapGenerator` |
 
 `clusters/s145/litellm.yaml` is the Flux `Kustomization` (SOPS decrypt via
@@ -61,14 +61,38 @@ kubectl -n litellm exec deploy/litellm -- python3 -c \
   "import importlib; s=importlib.import_module('litellm.responses.streaming_iterator'); print(getattr(s,'_litellm_chatgpt_backfill_installed',False))"
 ```
 
-If a future LiteLLM release merges #31332, delete `sitecustomize.py` (and its
-kustomization entry + deployment mounts).
+### Upstream-fix removal tracker
+
+This monkeypatch is a **stopgap only** — remove it once the upstream fix lands.
+
+- **Tracked issue:** BerriAI/litellm #26309 / #25429 / #29396.
+- **Tracked fix PR:** #31332 (accumulate `output_item.done` → backfill
+  `response.completed.output`) — **not merged into any stable tag as of v1.95.0**.
+- **To check before removal:** the fixed release must be newer than v1.95.0 and
+  its changelog/PR #31332 must reference the empty-output recovery in
+  `litellm/responses/*streaming_iterator*.py`. Test
+  `/v1/chat/completions` with `stream: false` first — if it returns content
+  without the patch, the fix is upstream.
+
+**Removal checklist (all in one commit):**
+1. Delete `anywhere/k8s/litellm/sitecustomize.py`.
+2. Remove the `litellm-patch` entry from `kustomization.yaml`'s
+   `configMapGenerator`.
+3. Remove the `patch` volume, its mount, and the `PYTHONPATH=/patch` env from
+   `deployment.yaml`.
+4. Bump `image.tag` (e.g. to the release containing the fix).
+5. Delete this "Upstream-fix tracking" section and restore the flat
+   "endpoints reliable" wording.
+6. Regenerate + apply, then `kubectl -n litellm delete cm litellm-patch`.
 
 ## First-time / renewed ChatGPT login
 
 The login Job is deliberately **excluded from the Flux kustomization** so Flux
 (`prune: true`) never manages or deletes it. Run it manually whenever you
-need to (re)authenticate the ChatGPT Plus account:
+need to (re)authenticate the ChatGPT Plus account — e.g. **first install**, a
+session **expiry/revocation** (calls start failing with auth errors), or a
+manual account **re-auth**. The full procedure and how-it-works are documented
+in the Job's own header comment (`login-job.yaml`); abbreviated:
 
 ```bash
 kubectl -n litellm apply -f anywhere/k8s/litellm/login-job.yaml
