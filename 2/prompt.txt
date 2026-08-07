@@ -1,3 +1,11 @@
-/v1/chat/completions with stream: false fails (Unknown items in responses API response: []). Many apps default to non-stream. Mitigation: use stream: true or /v1/responses. Not ours to fix; upstream PR #31332 not in a stable tag. 
+1. you can look into the clsuter to confirm that the secret is already there.
 
-Can you try this?
+2. as for the login job, document it to for further user in future.
+
+3. i am okay with sqlite, since i will be the only one using it.
+
+4. document hte changes for future, once the issue is fixed upstream, will remove once its fixed there.
+
+5. tihs is whats intended.
+
+6. the node has lot of free memory.
