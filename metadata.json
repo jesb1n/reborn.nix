@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01KZDDH46PFFGRN8ZJBRZ8KDEN",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "anywhere/.sops.yaml",
+    "anywhere/clusters/s145/litellm.yaml",
+    "anywhere/k8s/README.md",
+    "anywhere/k8s/litellm/README.md",
+    "anywhere/k8s/litellm/config.yaml",
+    "anywhere/k8s/litellm/deployment.yaml",
+    "anywhere/k8s/litellm/kustomization.yaml",
+    "anywhere/k8s/litellm/login-job.yaml",
+    "anywhere/k8s/litellm/namespace.yaml",
+    "anywhere/k8s/litellm/pvc.yaml",
+    "anywhere/k8s/litellm/secret.yaml",
+    "anywhere/k8s/litellm/service.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ]
+}
