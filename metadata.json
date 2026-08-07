@@ -1,0 +1,22 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01KZDPWQNR4Q91YWD5XZJ2X678",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "anywhere/k8s/litellm/README.md",
+    "anywhere/k8s/litellm/deployment.yaml",
+    "anywhere/k8s/litellm/kustomization.yaml",
+    "anywhere/k8s/litellm/sitecustomize.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ]
+}
