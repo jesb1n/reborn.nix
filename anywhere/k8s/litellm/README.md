@@ -12,6 +12,7 @@ OpenAI-compatible API. Authenticates to ChatGPT's Codex backend via OAuth
 | `secret.yaml` | SOPS-encrypted Secret: `LITELLM_MASTER_KEY`, `LITELLM_SALT_KEY` (recipients: `pro_darwin`, `mark`, `s145_cluster`) |
 | `config.yaml` | proxy config → ConfigMap via `configMapGenerator` (no secrets) |
 | `deployment.yaml` | pinned `ghcr.io/berriai/litellm:v1.95.0`, 1 replica, `nodeSelector: oracle-eu-arm1`, `/health/*` probes |
+| `sitecustomize.py` | runtime monkeypatch for the ChatGPT SSE output bug (mounted via `litellm-patch` ConfigMap, `PYTHONPATH=/patch`) |
 | `service.yaml` | NodePort `31400` → `4000`, `externalTrafficPolicy: Local` (no public ingress) |
 | `pvc.yaml` | `local-path` `1Gi` on the pinned node (holds `auth.json` + SQLite) |
 | `login-job.yaml` | **NOT in kustomization** — one-time/on-demand device login, manual `kubectl` |
@@ -32,15 +33,36 @@ auth file to disable interactive login and avoid the device-code restart loop.
 > returns 400 (`not supported when using Codex with a ChatGPT account`).
 > `chatgpt-codex` now routes to `gpt-5.4` instead.
 
-### Endpoint behavior (upstream limitation)
+### Endpoint behavior
 
-- `/v1/responses` → reliable, both models.
-- `/v1/chat/completions` with `stream: true` → reliable, both models.
-- `/v1/chat/completions` with `stream: false` → **breaks upstream**:
-  `ChatgptException - Unknown items in responses API response: []`. This is the
-  open ChatGPT-provider SSE bug (BerriAI/litellm #26309 / #25429 /
-  #26394); the `output_item.done` accumulator fix (PR #31332) is **not yet in any
-  stable tag**, including v1.95.0. Prefer `stream: true` (or `/v1/responses`).
+All endpoints are reliable, both models:
+
+- `/v1/responses` → OK (streamed and non-stream).
+- `/v1/chat/completions` → OK with `stream: true` **and** `stream: false`.
+
+Upstream LiteLLM shipped the ChatGPT SSE output bug (`ChatgptException - Unknown
+items in responses API response: []`, BerriAI/litellm #26309 / #25429 /
+#29396): the Codex backend streams content via `response.output_item.done` /
+`output_text.done` events but sends a terminal `response.completed` carrying
+`output: []`, and LiteLLM's *streaming* iterator only reads
+`response.completed.output`. This breaks any `/v1/chat/completions` call
+(`stream: false` in particular), since the ChatGPT provider forces `stream=true`
+upstream. The fix (upstream PR #31332) is **not in any stable tag**, including
+v1.95.0.
+
+We apply it ourselves as a runtime monkeypatch (`sitecustomize.py`, mounted via
+the `litellm-patch` ConfigMap, `PYTHONPATH=/patch`): it accumulates
+`output_item.done`/`output_text.done` items while streaming and backfills
+`response.completed.output` when it arrives empty — only for the `chatgpt`
+provider, leaving the standard OpenAI path untouched. Verify it is active with:
+
+```bash
+kubectl -n litellm exec deploy/litellm -- python3 -c \
+  "import importlib; s=importlib.import_module('litellm.responses.streaming_iterator'); print(getattr(s,'_litellm_chatgpt_backfill_installed',False))"
+```
+
+If a future LiteLLM release merges #31332, delete `sitecustomize.py` (and its
+kustomization entry + deployment mounts).
 
 ## First-time / renewed ChatGPT login
 
