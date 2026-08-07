@@ -40,6 +40,8 @@ spec:
               value: /data/chatgpt
             - name: CHATGPT_AUTH_FILE
               value: auth.json
+            - name: PYTHONPATH
+              value: /patch
           envFrom:
             - secretRef:
                 name: litellm-secret
@@ -73,6 +75,10 @@ spec:
               readOnly: true
             - name: tokens
               mountPath: /data/chatgpt
+            - name: patch
+              mountPath: /patch/sitecustomize.py
+              subPath: sitecustomize.py
+              readOnly: true
       volumes:
         - name: config
           configMap:
@@ -80,3 +86,6 @@ spec:
         - name: tokens
           persistentVolumeClaim:
             claimName: litellm-token
+        - name: patch
+          configMap:
+            name: litellm-patch

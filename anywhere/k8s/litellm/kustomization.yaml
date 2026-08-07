@@ -13,3 +13,9 @@ configMapGenerator:
       - config.yaml
     options:
       disableNameSuffixHash: true
+  - name: litellm-patch
+    namespace: litellm
+    files:
+      - sitecustomize.py
+    options:
+      disableNameSuffixHash: true
