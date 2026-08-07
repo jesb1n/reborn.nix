@@ -1,0 +1,56 @@
+# litellm-login — one-time / on-demand ChatGPT Plus OAuth device login.
+#
+# NOT part of the Flux-managed kustomization (kustomization.yaml does NOT list it),
+# so Flux (prune: true) will never manage or delete it. Apply manually with kubectl.
+#
+# How it works:
+#   1. kubectl -n litellm apply -f anywhere/k8s/litellm/login-job.yaml
+#   2. kubectl -n litellm logs -f job/litellm-login
+#      -> prints a device code + verification URL
+#   3. Sign in with the ChatGPT Plus account in a browser, enter the code
+#   4. CLI writes auth.json into the shared litellm-token PVC (/data/chatgpt)
+#   5. kubectl -n litellm delete job litellm-login     (token persists on the PVC)
+#   6. kubectl -n litellm rollout restart deploy/litellm
+#      -> deployment reloads the token; no further login required until
+#         the upstream ChatGPT session expires or is revoked.
+#
+# Reuse steps 1-6 whenever the session needs renewal.
+#
+# NOTE: keep nodeSelector in sync with deployment.yaml. Default pins to
+# oracle-eu-arm1; to run on hp348 change the value to "hp348".
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: litellm-login
+  namespace: litellm
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: oracle-eu-arm1
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: login
+          image: ghcr.io/berriai/litellm:v1.94.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - litellm-chatgpt-login
+          env:
+            - name: CHATGPT_TOKEN_DIR
+              value: /data/chatgpt
+            - name: CHATGPT_AUTH_FILE
+              value: auth.json
+          volumeMounts:
+            - name: tokens
+              mountPath: /data/chatgpt
+      volumes:
+        - name: tokens
+          persistentVolumeClaim:
+            claimName: litellm-token

@@ -13,6 +13,7 @@ k8s/
 ├── vaultwarden/   Full reference deployment (deployment + svc + pvc + route)
 ├── immich/        Flux-managed Immich stack (HelmRelease + db + redis + route)
 ├── garage/        Flux-managed Garage (HelmRelease)
+├── litellm/       Flux-managed LiteLLM proxy (ChatGPT Plus OAuth, pinned to oracle-eu-arm1, NodePort only)
 ├── cloudflared/   Cloudflare Tunnel DaemonSet
 └── monitoring/    Flux-managed kube-prometheus-stack (pinned to oracle-in-arm1)
 ```
