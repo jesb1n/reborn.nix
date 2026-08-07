@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  namespace: litellm
+  labels:
+    app: litellm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: litellm
+  template:
+    metadata:
+      labels:
+        app: litellm
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: oracle-eu-arm1
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: litellm
+          image: ghcr.io/berriai/litellm:v1.95.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+              name: http
+          args:
+            - --config
+            - /app/proxy_server_config.yaml
+          env:
+            - name: CHATGPT_TOKEN_DIR
+              value: /data/chatgpt
+            - name: CHATGPT_AUTH_FILE
+              value: auth.json
+          envFrom:
+            - secretRef:
+                name: litellm-secret
+          readinessProbe:
+            httpGet:
+              path: /health/readiness
+              port: http
+            initialDelaySeconds: 120
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health/liveliness
+              port: http
+            initialDelaySeconds: 120
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 4Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: config
+              mountPath: /app/proxy_server_config.yaml
+              subPath: config.yaml
+              readOnly: true
+            - name: tokens
+              mountPath: /data/chatgpt
+      volumes:
+        - name: config
+          configMap:
+            name: litellm-config
+        - name: tokens
+          persistentVolumeClaim:
+            claimName: litellm-token

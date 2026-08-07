@@ -1,0 +1,26 @@
+# litellm proxy config.yaml — mounted as a ConfigMap via configMapGenerator.
+# Contains NO secrets; credentials come from the litellm-secret (SOPS) via envFrom.
+model_list:
+  - model_name: chatgpt-sol
+    model_info:
+      mode: responses
+      max_input_tokens: 1050000
+      max_output_tokens: 128000
+    litellm_params:
+      model: chatgpt/gpt-5.6-sol
+      chatgpt_auth_file_path: /data/chatgpt/auth.json
+  - model_name: chatgpt-codex
+    model_info:
+      mode: responses
+      max_input_tokens: 400000
+      max_output_tokens: 64000
+    litellm_params:
+      model: chatgpt/gpt-5.4
+      chatgpt_auth_file_path: /data/chatgpt/auth.json
+
+litellm_settings:
+  drop_params: true
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  salt_key: os.environ/LITELLM_SALT_KEY
