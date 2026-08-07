@@ -1,0 +1,15 @@
+I'm planning to deploy a new application (LiteLLM Proxy) into the k3s cluster managed by this repo. I need to understand the EXACT deployment conventions so the plan matches how this repo already does things.
+
+This repo is at /Users/jesbin/Documents/oracle-cloud-free-tier. The k3s cluster runs on host s145. There is a Flux GitOps setup and a set of hand-applied manifests.
+
+Please investigate and report back with precise detail:
+
+1. Read anywhere/clusters/s145/ — list the Kustomization YAML files, what they do, how Flux syncs them, and the exact reconcile command pattern used.
+2. Read anywhere/operator/ (FluxInstance CR) and anywhere/k8s/README.md and anywhere/k8s/ — how the admin decides whether an app is Flux-managed vs manually `kubectl apply -f`. Show the exact directory layout for an existing Flux-managed app (e.g. immich or garage) AND for a manually-applied app (e.g. vaultwarden).
+3. How is TLS/ingress handled? Confirm Traefik is the only Ingress controller, and find an example IngressRoute manifest with its coupled certificate resolver (Cloudflare DNS-01), middleware references (security-headers), and how HTTP→HTTPS redirect is handled.
+4. How are secrets handled for k8s apps? Look at how immich-secret.yaml / garage-secret.yaml are SOPS-encrypted and referenced (which SOPS file, age recipients, decryption mechanism — does Flux have a SOPS integration configured? or is decryption done differently?). Exactly how do secrets get from encrypted yaml into the cluster — is there a sops provider or is `kubectl apply` done with pre-decrypted content, or Flux-flux sops?
+5. How do apps proxy/port services? Show an example Service + IngressRoute app exposing an HTTP service externally.
+6. What ingress/external hostnames are used (e.g. i1.beijns.eu.org), and what DNS provider? Any existing authMiddleware or basicauth or oauth patterns?
+7. Does the cluster have any persistent storage conventions for stateful workloads (nodeSelector pinning to s145, local-path PVC, storage class name)?
+
+Report exact file paths and code snippets so I can mirror these conventions in the plan. Be concise but include the concrete YAML/Nix snippets.
