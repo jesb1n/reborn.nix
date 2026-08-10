@@ -1,5 +1,4 @@
 commonLabels:
-  app.kubernetes.io/part-of: storage
   garage.cluster: migration
   garage.generation: old
 
