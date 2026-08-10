@@ -1,0 +1,25 @@
+{
+  "servers": {
+    "terraform": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "hashicorp/terraform-mcp-server:1.2.0"
+      ]
+    },
+    "kubernetes": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "kubernetes-mcp-server@0.0.66",
+        "--kubeconfig",
+        "${env:HOME}/.kube/s145.yaml",
+        "--read-only",
+        "--disable-multi-cluster"
+      ]
+    }
+  }
+}
