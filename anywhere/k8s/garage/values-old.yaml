@@ -1,23 +1,14 @@
 commonLabels:
   app.kubernetes.io/part-of: storage
+  garage.cluster: migration
+  garage.generation: old
 
 garage:
+  existingRpcSecret: garage-rpc-secret
   replicationFactor: "3"
   consistencyMode: consistent
   compressionLevel: "1"
   metadataAutoSnapshotInterval: "6h"
-  existingRpcSecret: garage-rpc-secret
-  s3:
-    api:
-      bindAddr: "[::]:3900"
-      region: garage
-      rootDomain: ".s3.beijns.eu.org"
-    web:
-      bindAddr: "[::]:3902"
-      rootDomain: ".web.garage.tld"
-      index: index.html
-  admin:
-    apiBindAddr: "[::]:3903"
 
 deployment:
   kind: StatefulSet
@@ -34,6 +25,14 @@ persistence:
     size: 1Gi
   data:
     size: 30Gi
+
+resources:
+  requests:
+    memory: 64Mi
+    cpu: 50m
+  limits:
+    memory: 256Mi
+    cpu: 500m
 
 affinity:
   nodeAffinity:
@@ -52,14 +51,6 @@ affinity:
             matchLabels:
               app.kubernetes.io/name: garage
           topologyKey: kubernetes.io/hostname
-
-resources:
-  requests:
-    memory: 64Mi
-    cpu: 50m
-  limits:
-    memory: 256Mi
-    cpu: 500m
 
 service:
   type: ClusterIP

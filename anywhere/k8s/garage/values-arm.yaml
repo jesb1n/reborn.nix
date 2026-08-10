@@ -1,0 +1,31 @@
+commonLabels:
+  app.kubernetes.io/name: garage
+  app.kubernetes.io/part-of: storage
+  garage.cluster: primary
+  garage.node-class: arm
+
+fullnameOverride: garage-arm
+
+deployment:
+  replicaCount: 2
+
+persistence:
+  data:
+    size: 50Gi
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - oracle-eu-arm1
+                - oracle-in-arm1
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            garage.node-class: arm
+        topologyKey: kubernetes.io/hostname
