@@ -1,0 +1,66 @@
+Can you analyse the garriage setup in my k3s cluster, from the live clsuter
+
+---
+
+I already have it working using anywhere/.envrc there is a shortcut i usewe, can you check that.
+
+---
+
+Is it possible to scale my garrage instnaces to other nodes on my lcuster?
+
+---
+
+If i add new nodes, how does the storage increases, if we keep the exisitng as well
+
+---
+
+Can I have group of grarriage instances in inside garrrage,
+
+This is the problem i  am trying to solve,
+
+I have three trype of nodes,
+
+oracle in 
+
+oracle eu
+
+on prem - hp348  and s145.
+
+How can i say to garrage that i need the data to be replicated across these type of nodes, but eahc group have different number of nodes.
+
+---
+
+Add the micro instances to the plan
+
+I am trying to bring two more micro instances in "in" region
+
+---
+
+If onprem is a bottleneck, Is it best to avoid this? how is this running currently?
+
+---
+
+If I want to remove the bottle neck from onprem , what is the solution?
+
+---
+
+Increasing the pvc like feasible solution, update the plan with required size. So in and eu has 30gb eatch , so total is 90, we will do 50 on onprem, so it will be aorund 100, hich will be more than in and eu,
+
+how can oyu migrate the exisitng data as well?
+'
+
+---
+
+This looks good, cna you make enrich the plan with maximum ocntext
+
+---
+
+Is there any k8s operator to handle all these or is it best to do tihs manually?
+
+---
+
+hey
+
+---
+
+hey
