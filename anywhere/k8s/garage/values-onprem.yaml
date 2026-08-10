@@ -1,0 +1,31 @@
+commonLabels:
+  app.kubernetes.io/name: garage
+  app.kubernetes.io/part-of: storage
+  garage.cluster: primary
+  garage.node-class: onprem
+
+fullnameOverride: garage-onprem
+
+deployment:
+  replicaCount: 2
+
+persistence:
+  data:
+    size: 50Gi
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - s145
+                - hp348
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            garage.node-class: onprem
+        topologyKey: kubernetes.io/hostname

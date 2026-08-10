@@ -1,0 +1,62 @@
+garage:
+  existingConfigMap: garage-cluster-config
+  existingRpcSecret: garage-rpc-secret
+  replicationFactor: "3"
+  consistencyMode: consistent
+  compressionLevel: "1"
+  metadataAutoSnapshotInterval: "6h"
+
+deployment:
+  kind: StatefulSet
+  podManagementPolicy: Parallel
+
+image:
+  repository: dxflrs/garage
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+
+persistence:
+  enabled: true
+  meta:
+    size: 1Gi
+
+resources:
+  requests:
+    memory: 64Mi
+    cpu: 50m
+  limits:
+    memory: 256Mi
+    cpu: 500m
+
+service:
+  type: ClusterIP
+  s3:
+    api:
+      port: 3900
+    web:
+      port: 3902
+
+podAnnotations:
+  kustomize.toolkit.fluxcd.io/prune: disabled
+
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
+  runAsNonRoot: true
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+ingress:
+  s3:
+    api:
+      enabled: false
+    web:
+      enabled: false
