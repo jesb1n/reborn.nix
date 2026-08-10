@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garage-cluster-config
+  namespace: garage
+data:
+  garage.toml: |-
+    metadata_dir = "/mnt/meta"
+    data_dir = "/mnt/data"
+
+    db_engine = "lmdb"
+    block_size = "1048576"
+
+    replication_factor = 3
+    consistency_mode = "consistent"
+    compression_level = 1
+    metadata_auto_snapshot_interval = "6h"
+
+    rpc_bind_addr = "[::]:3901"
+    rpc_secret = "__RPC_SECRET_REPLACE__"
+    bootstrap_peers = []
+
+    [kubernetes_discovery]
+    namespace = "garage"
+    service_name = "garage"
+    skip_crd = false
+
+    [s3_api]
+    s3_region = "garage"
+    api_bind_addr = "[::]:3900"
+    root_domain = ".s3.beijns.eu.org"
+
+    [s3_web]
+    bind_addr = "[::]:3902"
+    root_domain = ".s3-web.beijns.eu.org"
+    index = "index.html"
+
+    [admin]
+    api_bind_addr = "[::]:3903"

@@ -4,16 +4,45 @@ resources:
   - namespace.yaml
   - garage-secret.yaml
   - helmrepository.yaml
+  - garage-cluster-config.yaml
+  - garage-services.yaml
   - poddisruptionbudget.yaml
   - security-headers.yaml
   - ingressroute.yaml
   - nodeport.yaml
   - garage-helm.yaml
+  - garage-arm-helm.yaml
+  - garage-micro-helm.yaml
+  - garage-onprem-helm.yaml
   - podmonitor.yaml
 configMapGenerator:
   - name: garage-values
     namespace: garage
     files:
-      - values.yaml
+      - values.yaml=values-old.yaml
+    options:
+      disableNameSuffixHash: true
+  - name: garage-base-values
+    namespace: garage
+    files:
+      - values.yaml=values-base.yaml
+    options:
+      disableNameSuffixHash: true
+  - name: garage-arm-values
+    namespace: garage
+    files:
+      - values.yaml=values-arm.yaml
+    options:
+      disableNameSuffixHash: true
+  - name: garage-micro-values
+    namespace: garage
+    files:
+      - values.yaml=values-micro.yaml
+    options:
+      disableNameSuffixHash: true
+  - name: garage-onprem-values
+    namespace: garage
+    files:
+      - values.yaml=values-onprem.yaml
     options:
       disableNameSuffixHash: true
