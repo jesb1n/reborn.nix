@@ -66,6 +66,7 @@
               pkgs.age
               deploy-rs.packages.${system}.default
               disko.packages.${system}.default
+              pkgs.fluxcd
               nixos-anywhere.packages.${system}.default
               pkgs.sops
               pkgs.ssh-to-age
