@@ -1,68 +1,42 @@
 # Disko configuration for hp348.
-# WARNING: nixos-anywhere will wipe both disks and apply this layout.
-# /dev/sda is the 500GB external USB drive.
-# The Intel Optane NVMe is a dedicated local data disk.
+# WARNING: applying this layout destroys all data on the GIGABYTE NVMe.
+# The external USB HDD is intentionally absent and remains the rollback disk.
 {
-  disko.devices = {
-    disk.main = {
-      device = "/dev/sda";
-      type = "disk";
+  disko.devices.disk.nvme = {
+    device = "/dev/disk/by-id/nvme-GIGABYTE_GP-GSM2NE3256GNTD_SN210408933996";
+    type = "disk";
 
-      content = {
-        type = "gpt";
+    content = {
+      type = "gpt";
 
-        partitions = {
-          ESP = {
-            size = "512M";
-            type = "EF00";
-            content = {
-              type = "filesystem";
-              format = "vfat";
-              mountpoint = "/boot";
-              mountOptions = [
-                "umask=0077"
-              ];
-            };
-          };
-
-          swap = {
-            size = "8G";
-            content = {
-              type = "swap";
-              resumeDevice = true;
-            };
-          };
-
-          root = {
-            size = "100%";
-            content = {
-              type = "filesystem";
-              format = "ext4";
-              mountpoint = "/";
-            };
+      partitions = {
+        ESP = {
+          size = "512M";
+          type = "EF00";
+          content = {
+            type = "filesystem";
+            format = "vfat";
+            mountpoint = "/boot";
+            mountOptions = [
+              "umask=0077"
+            ];
           };
         };
-      };
-    };
 
-    disk.nvme = {
-      device = "/dev/disk/by-id/nvme-INTEL_MEMPEK1J016GA_BTBT83041CQ0016N";
-      type = "disk";
+        swap = {
+          size = "8G";
+          content = {
+            type = "swap";
+            resumeDevice = true;
+          };
+        };
 
-      content = {
-        type = "gpt";
-        partitions.data = {
+        root = {
           size = "100%";
           content = {
             type = "filesystem";
             format = "ext4";
-            mountpoint = "/home/duck/nvme";
-            mountOptions = [
-              "defaults"
-              "nofail"
-              "x-systemd.automount"
-              "x-systemd.device-timeout=5s"
-            ];
+            mountpoint = "/";
           };
         };
       };
