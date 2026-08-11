@@ -1,0 +1,22 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: garage-micro
+  namespace: garage
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: ./script/helm/garage
+      sourceRef:
+        kind: GitRepository
+        name: garage
+        namespace: flux-system
+      interval: 1h
+  valuesFrom:
+    - kind: ConfigMap
+      name: garage-base-values
+      valuesKey: values.yaml
+    - kind: ConfigMap
+      name: garage-micro-values
+      valuesKey: values.yaml

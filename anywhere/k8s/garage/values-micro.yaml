@@ -1,0 +1,37 @@
+commonLabels:
+  garage.cluster: primary
+  garage.node-class: micro
+
+fullnameOverride: garage-micro
+
+deployment:
+  replicaCount: 4
+
+persistence:
+  data:
+    size: 30Gi
+
+tolerations:
+  - key: tiny
+    operator: Equal
+    value: "true"
+    effect: NoSchedule
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - oracle-eu-micro1
+                - oracle-eu-micro2
+                - oracle-in-micro1
+                - oracle-in-micro2
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            garage.node-class: micro
+        topologyKey: kubernetes.io/hostname

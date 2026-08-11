@@ -119,6 +119,8 @@
     yq-go
     tree
     gh
+    tmux
+    nodejs
     kubectl
     kubectx
     kubernetes-helm
@@ -131,6 +133,7 @@
     google-cloud-sdk
     opentofu
     awscli2
+    ssm-session-manager-plugin
     oci-cli
     sops
     iterm2
