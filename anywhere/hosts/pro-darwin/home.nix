@@ -120,6 +120,7 @@
     tree
     gh
     tmux
+    nodejs
     kubectl
     kubectx
     kubernetes-helm
