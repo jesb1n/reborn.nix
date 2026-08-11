@@ -1,6 +1,4 @@
 commonLabels:
-  app.kubernetes.io/name: garage
-  app.kubernetes.io/part-of: storage
   garage.cluster: primary
   garage.node-class: micro
 
