@@ -61,6 +61,9 @@ const PACKAGE_ALIASES = new Map([
     ["node", { packageName: "nodejs", reason: "`node` is provided by the `nodejs` package in nixpkgs." }],
     ["nodejs", { packageName: "nodejs", reason: "Use the canonical nixpkgs package name." }],
     ["npm", { packageName: "nodejs", reason: "`npm` ships with `nodejs` in nixpkgs, so install `nodejs` instead of a standalone `npm` package." }],
+    ["session-manager-plugin", { packageName: "ssm-session-manager-plugin", reason: "nixpkgs exposes the AWS Session Manager plugin as `ssm-session-manager-plugin`." }],
+    ["sessionmanagerplugin", { packageName: "ssm-session-manager-plugin", reason: "nixpkgs exposes the AWS Session Manager plugin as `ssm-session-manager-plugin`." }],
+    ["aws-session-manager-plugin", { packageName: "ssm-session-manager-plugin", reason: "nixpkgs exposes the AWS Session Manager plugin as `ssm-session-manager-plugin`." }],
 ]);
 
 function normalizeAppName(name) {
