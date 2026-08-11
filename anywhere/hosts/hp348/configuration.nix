@@ -1,4 +1,4 @@
-# hosts/hp348/configuration.nix — standalone server (x86_64, USB-booted laptop)
+# hosts/hp348/configuration.nix — standalone server (x86_64 laptop)
 #
 # Host-specific settings only. Shared config comes from profiles.
 { lib, ... }:
@@ -24,8 +24,11 @@ in
   boot.loader.grub.enable = lib.mkForce false;
   boot.loader.systemd-boot.enable = lib.mkForce true;
   boot.loader.efi.canTouchEfiVariables = lib.mkForce true;
+  boot.kernelParams = lib.mkForce [ "console=tty1" ];
 
-  # Root disk is on USB — include USB storage drivers in initrd
+  hardware.enableRedistributableFirmware = true;
+
+  # Keep USB storage available in initrd for rollback and recovery.
   boot.initrd.availableKernelModules = [
     "xhci_pci"
     "ehci_pci"
@@ -56,10 +59,6 @@ in
     AllowHybridSleep = "no";
     AllowSuspendThenHibernate = "no";
   };
-
-  systemd.tmpfiles.rules = [
-    "d /home/duck/nvme 0755 duck users -"
-  ];
 
   zramSwap = {
     enable = true;
