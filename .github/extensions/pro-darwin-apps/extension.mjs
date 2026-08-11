@@ -65,16 +65,43 @@ const PACKAGE_ALIASES = new Map([
     ["session-manager-plugin", { packageName: "ssm-session-manager-plugin", reason: "nixpkgs exposes the AWS Session Manager plugin as `ssm-session-manager-plugin`." }],
     ["sessionmanagerplugin", { packageName: "ssm-session-manager-plugin", reason: "nixpkgs exposes the AWS Session Manager plugin as `ssm-session-manager-plugin`." }],
     ["aws-session-manager-plugin", { packageName: "ssm-session-manager-plugin", reason: "nixpkgs exposes the AWS Session Manager plugin as `ssm-session-manager-plugin`." }],
+    ["aws-session-manager", { packageName: "ssm-session-manager-plugin", reason: "nixpkgs exposes the AWS Session Manager plugin as `ssm-session-manager-plugin`." }],
+    ["docker", { packageName: "docker-desktop", reason: "On pro-darwin, Docker is managed via the `docker-desktop` Homebrew cask." }],
+    ["docker-desktop", { packageName: "docker-desktop", reason: "On pro-darwin, Docker is managed via the `docker-desktop` Homebrew cask." }],
+    ["vscode", { packageName: "visual-studio-code", reason: "This repo uses the `visual-studio-code` Homebrew cask instead of nixpkgs `vscode`." }],
+    ["visual-studio-code", { packageName: "visual-studio-code", reason: "This repo uses the `visual-studio-code` Homebrew cask instead of nixpkgs `vscode`." }],
+    ["copilot", { packageName: "github-copilot-app", reason: "The GitHub Copilot desktop app is managed via the `github-copilot-app` Homebrew cask in this repo." }],
+    ["copilot-app", { packageName: "github-copilot-app", reason: "The GitHub Copilot desktop app is managed via the `github-copilot-app` Homebrew cask in this repo." }],
     ["claude-desktop", { packageName: "claude", reason: "Claude Desktop is distributed via the Homebrew `claude` cask in this repo." }],
     ["claude-app", { packageName: "claude", reason: "Claude Desktop is distributed via the Homebrew `claude` cask in this repo." }],
 ]);
+
+const VALIDATION_BY_METHOD = {
+    "homebrew-cask": "Validation: `cd anywhere && nix flake check && sudo darwin-rebuild build --flake .#pro-darwin`",
+    mas: "Validation: `cd anywhere && nix flake check && sudo darwin-rebuild build --flake .#pro-darwin`",
+    "nix-system-package": "Validation: `cd anywhere && nix flake check && sudo darwin-rebuild build --flake .#pro-darwin`",
+    "nix-home-package": "Validation: `cd anywhere && nix flake check && sudo darwin-rebuild build --flake .#pro-darwin`",
+    manual: "Validation: no declarative validation; verify the vendor installer manually.",
+    "needs-verification": "Validation: verify the package or cask exists first, then run `cd anywhere && nix flake check && sudo darwin-rebuild build --flake .#pro-darwin`.",
+};
+
+const AMBIGUOUS_APP_PATTERNS = [
+    { pattern: /^gcloud-(component|plugin)|^gke-gcloud-auth-plugin$|^cloud-run-proxy$/, reason: "Blocked gcloud components are handled via `system.activationScripts.postActivation.text`, not `home.packages` or Homebrew." },
+];
 
 function normalizeAppName(name) {
     return String(name || "")
         .trim()
         .toLowerCase()
         .replace(/\.app$/, "")
+        .replace(/[()]/g, "")
         .replace(/\s+/g, "-");
+}
+
+function resolveAlias(normalized) {
+    return PACKAGE_ALIASES.get(normalized)
+        || PACKAGE_ALIASES.get(normalized.replace(/-desktop$/, ""))
+        || PACKAGE_ALIASES.get(normalized.replace(/-app$/, ""));
 }
 
 function renderNixSnippet(appName, target) {
@@ -87,7 +114,7 @@ function renderNixSnippet(appName, target) {
 function classifyInstall(appName, preferredSource) {
     const normalized = normalizeAppName(appName);
     const source = normalizeAppName(preferredSource || "");
-    const alias = PACKAGE_ALIASES.get(normalized);
+    const alias = resolveAlias(normalized);
     const effectiveName = alias?.packageName || appName;
     const effectiveNormalized = normalizeAppName(effectiveName);
 
@@ -98,6 +125,17 @@ function classifyInstall(appName, preferredSource) {
                 reason: entry.reason,
                 files: [],
                 change: "Do not encode this in nix-darwin yet; use the vendor installer manually and revisit once a stable cask or nixpkgs package exists.",
+            };
+        }
+    }
+
+    for (const entry of AMBIGUOUS_APP_PATTERNS) {
+        if (entry.pattern.test(normalized)) {
+            return {
+                method: "needs-verification",
+                reason: entry.reason,
+                files: ["anywhere/hosts/pro-darwin/darwin-configuration.nix"],
+                change: "Extend `system.activationScripts.postActivation.text` instead of adding a package entry; follow the existing `install_gcloud_component` pattern in `anywhere/hosts/pro-darwin/darwin-configuration.nix`.",
             };
         }
     }
@@ -153,13 +191,15 @@ function buildResponse(args) {
     const classification = classifyInstall(appName, args.preferredSource);
     const fileList = classification.files.length ? classification.files.map((file) => `- \`${file}\``).join("\n") : "- None";
 
+    const validation = VALIDATION_BY_METHOD[classification.method] || "Validation: `cd anywhere && nix flake check && sudo darwin-rebuild build --flake .#pro-darwin`";
+
     const notes = [
         `Install method: ${classification.method}`,
         `Why: ${classification.reason}`,
         "Target files:",
         fileList,
         `Suggested change: ${classification.change}`,
-        "Validation: `cd anywhere && nix flake check`",
+        validation,
         "Safety: planning/code changes only — do not install the app or run `darwin-rebuild` automatically.",
     ];
 
