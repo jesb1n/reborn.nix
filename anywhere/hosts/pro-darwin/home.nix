@@ -133,6 +133,7 @@
     google-cloud-sdk
     opentofu
     awscli2
+    session-manager-plugin
     oci-cli
     sops
     iterm2
