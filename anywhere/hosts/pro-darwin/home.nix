@@ -119,6 +119,7 @@
     yq-go
     tree
     gh
+    tmux
     kubectl
     kubectx
     kubernetes-helm
