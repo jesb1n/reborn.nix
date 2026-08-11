@@ -10,6 +10,7 @@ const MANUAL_ONLY_PATTERNS = [
 const HOMEBREW_CASKS = new Map([
     ["arc", "Removed from nixpkgs (unmaintained)."],
     ["chatgpt", "Official desktop app is not supported in nixpkgs."],
+    ["claude", "Official Claude desktop app is managed as a Homebrew cask in this repo."],
     ["cloudflare-warp", "Needs macOS Network Extension entitlements."],
     ["docker-desktop", "Requires macOS system extensions and is not available in nixpkgs."],
     ["github-copilot-app", "GitHub Copilot desktop app is not in nixpkgs."],
@@ -64,6 +65,8 @@ const PACKAGE_ALIASES = new Map([
     ["session-manager-plugin", { packageName: "ssm-session-manager-plugin", reason: "nixpkgs exposes the AWS Session Manager plugin as `ssm-session-manager-plugin`." }],
     ["sessionmanagerplugin", { packageName: "ssm-session-manager-plugin", reason: "nixpkgs exposes the AWS Session Manager plugin as `ssm-session-manager-plugin`." }],
     ["aws-session-manager-plugin", { packageName: "ssm-session-manager-plugin", reason: "nixpkgs exposes the AWS Session Manager plugin as `ssm-session-manager-plugin`." }],
+    ["claude-desktop", { packageName: "claude", reason: "Claude Desktop is distributed via the Homebrew `claude` cask in this repo." }],
+    ["claude-app", { packageName: "claude", reason: "Claude Desktop is distributed via the Homebrew `claude` cask in this repo." }],
 ]);
 
 function normalizeAppName(name) {
