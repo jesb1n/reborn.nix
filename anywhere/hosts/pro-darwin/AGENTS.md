@@ -108,6 +108,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | `loom` | Not in nixpkgs. Proprietary screen-recording app; needs macOS Screen Recording, Microphone, and Camera entitlements (granted manually in System Settings after first launch). |
 | `visual-studio-code` | nixpkgs `vscode` has recurring build failures (broken ripgrep path inside the upstream zip). Moved to Homebrew cask as a reliable fallback. |
 | `chatgpt` | Official ChatGPT desktop app is not available as a supported nixpkgs package. |
+| `claude` | Official Claude desktop app is distributed as a Homebrew cask and is not packaged as a supported nixpkgs macOS app here. |
 | `github-copilot-app` | GitHub Copilot desktop app is not in nixpkgs. |
 | `lens` | Lens Kubernetes IDE is proprietary; not packaged usefully in nixpkgs for macOS. |
 

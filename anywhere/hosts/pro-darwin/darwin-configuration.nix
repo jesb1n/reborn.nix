@@ -54,6 +54,7 @@
     casks = [
       "arc"
       "chatgpt"
+      "claude"
       "cloudflare-warp"
       "docker-desktop"
       "github-copilot-app"

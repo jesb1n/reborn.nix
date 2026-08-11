@@ -21,9 +21,19 @@ spec:
       services:
         - name: garage
           port: 3900
+    - match: HostRegexp(`{bucket:[a-z0-9-]+}.s3-web.beijns.eu.org`)
+      kind: Rule
+      middlewares:
+        - name: security-headers
+      services:
+        - name: garage
+          port: 3902
   tls:
     certResolver: cloudflare
     domains:
       - main: s3.beijns.eu.org
         sans:
           - "*.s3.beijns.eu.org"
+      - main: s3-web.beijns.eu.org
+        sans:
+          - "*.s3-web.beijns.eu.org"
