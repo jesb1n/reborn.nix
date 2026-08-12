@@ -194,7 +194,7 @@
         oracle-eu-micro1 = {
           hostname = "oracle-eu-micro1";
           sshUser = "duck";
-          remoteBuild = true;
+          remoteBuild = false;
           fastConnection = true;
           activationTimeout = 600;
           confirmTimeout = 60;
@@ -208,7 +208,7 @@
         oracle-eu-micro2 = {
           hostname = "oracle-eu-micro2";
           sshUser = "duck";
-          remoteBuild = true;
+          remoteBuild = false;
           fastConnection = true;
           activationTimeout = 600;
           confirmTimeout = 60;
@@ -235,7 +235,7 @@
         oracle-in-micro1 = {
           hostname = "oracle-in-micro1";
           sshUser = "duck";
-          remoteBuild = true;
+          remoteBuild = false;
           fastConnection = true;
           activationTimeout = 600;
           confirmTimeout = 60;
@@ -249,7 +249,7 @@
         oracle-in-micro2 = {
           hostname = "oracle-in-micro2";
           sshUser = "duck";
-          remoteBuild = true;
+          remoteBuild = false;
           fastConnection = true;
           activationTimeout = 600;
           confirmTimeout = 60;
