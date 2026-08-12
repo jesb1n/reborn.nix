@@ -167,15 +167,20 @@ nix develop -c deploy .#oracle-eu-micro1
 nix develop -c deploy .#oracle-eu-micro2
 ```
 
-### Deploy multiple workers together
+### Deploy all micro workers together
 
 ```bash
 cd ~/oracle-cloud-free-tier/anywhere
 
-nix develop -c deploy --targets .#oracle-in-micro1 .#oracle-in-micro2
+nix develop -c deploy --targets \
+  .#oracle-eu-micro1 .#oracle-eu-micro2 \
+  .#oracle-in-micro1 .#oracle-in-micro2
 ```
 
-Each target builds its own system, activates it, and confirms the deployment.
+The Mac evaluates the local flake and hp348 builds reusable `x86_64-linux`
+paths. deploy-rs copies each completed host closure to its target, activates it,
+and confirms the deployment. Nix reuses common paths across all four systems;
+the micro nodes perform activation only, not package builds.
 
 ### Deploy the control-plane
 

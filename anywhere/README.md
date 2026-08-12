@@ -35,6 +35,41 @@ nix develop -c nixos-anywhere --help
 nix develop -c deploy --help
 ```
 
+## Routine micro-node builds from pro-darwin
+
+The four Oracle E2.1.Micro nodes do not build their deploy-rs closures. When a
+micro deployment is started on `pro-darwin`, Nix evaluates the current local
+flake, sends missing inputs to the `x86_64-linux` builder on `hp348`, and copies
+the completed closure through the Mac to the target. deploy-rs then activates
+and confirms it with magic rollback.
+
+This applies to `oracle-eu-micro1`, `oracle-eu-micro2`, `oracle-in-micro1`, and
+`oracle-in-micro2`, whose deploy entries use `remoteBuild = false`. Other hosts
+use `remoteBuild = true` and continue building on themselves. A direct
+`x86_64-linux` `nix build` from the Mac may also use hp348 automatically.
+
+The repository does not need to be checked out on hp348. Modified tracked files
+are included from the Mac; stage newly created files before evaluation because
+Git flakes ignore untracked files.
+
+Verify the builder before deployment:
+
+```bash
+nix store info --store 'ssh-ng://duck@hp348'
+nix config show | grep '^builders ='
+```
+
+Deploy all four micros together from `anywhere/`:
+
+```bash
+nix develop -c deploy --targets \
+  .#oracle-eu-micro1 .#oracle-eu-micro2 \
+  .#oracle-in-micro1 .#oracle-in-micro2
+```
+
+See [MAINTENANCE.md](./MAINTENANCE.md) for builder diagnostics, topology checks,
+post-deployment verification, and rollback.
+
 ## Inspect the flake
 
 ```bash
