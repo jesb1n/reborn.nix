@@ -14,10 +14,12 @@ This flake manages nine NixOS machines:
 | `oracle-in-micro2` | k3s agent (`tiny`) | `x86_64-linux` | `duck@oracle-in-micro2` |
 | `rpi` | k3s agent | `aarch64-linux` | `duck@rpi` |
 
-Routine deploy-rs updates use `remoteBuild = true` for every current node, so
-the target builds its own closure. For a destructive first install of a 1 GB
-Oracle micro, run `nixos-anywhere` from s145 with `--build-on local`; in that
-specific flow, s145 builds the initial closure.
+Routine deploy-rs updates build the four 1 GB Oracle micro closures on the
+`hp348` distributed Nix builder configured on `pro-darwin`; deploy-rs then
+copies and activates them because those nodes use `remoteBuild = false`.
+Other nodes retain `remoteBuild = true`. For a destructive first micro install,
+run `nixos-anywhere` from s145 with `--build-on local`; in that specific flow,
+s145 builds the initial closure.
 
 ## Configuration architecture
 
@@ -64,9 +66,26 @@ For normal updates, use deploy-rs from an operator machine with the dev shell:
 - it gives shorter commands than `nixos-rebuild`;
 - it supports deploying multiple workers together;
 - it confirms activation with magic rollback;
-- current nodes build on themselves because `remoteBuild = true`.
+- the four micros build through hp348 and all other nodes build on themselves.
 
-Keep `nixos-rebuild` around as the transparent fallback when debugging.
+From `pro-darwin`, confirm the builder is reachable before a micro deployment:
+
+```bash
+nix store info --store 'ssh-ng://duck@hp348'
+nix config show | grep '^builders ='
+```
+
+The second command should show `builders = @/etc/nix/machines`. During a fresh
+build, `nix build -L` reports `building ... on 'ssh-ng://duck@hp348'`. To force
+a harmless proof independent of existing store paths:
+
+```bash
+nix build -L --no-link --rebuild \
+  --expr 'let f = builtins.getFlake (toString ./.); pkgs = f.inputs.nixpkgs.legacyPackages.x86_64-linux; in pkgs.runCommand "hp348-builder-check" {} "echo hp348 > $out"'
+```
+
+On hp348, `journalctl -f -u nix-daemon` provides server-side confirmation.
+Keep `nixos-rebuild` as the transparent fallback when debugging.
 
 ## Daily health checks
 
@@ -204,10 +223,13 @@ nix eval .#deploy.nodes.oracle-eu-arm1.remoteBuild
 Expected:
 
 ```text
-true
-true
+false
+false
 true
 ```
+
+Both India micro nodes must also evaluate to `false`; all non-micro nodes stay
+`true`.
 
 ### deploy-rs warnings that are usually okay
 
