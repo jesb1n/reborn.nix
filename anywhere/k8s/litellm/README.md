@@ -10,7 +10,7 @@ OAuth device flow; Gemini uses a Google AI Studio API key.
 |------|---------|
 | `namespace.yaml` | `litellm` namespace |
 | `secret.yaml` | SOPS-encrypted Secret: `LITELLM_MASTER_KEY`, `LITELLM_SALT_KEY`, `GEMINI_API_KEY` (recipients: `pro_darwin`, `mark`, `s145_cluster`) |
-| `config.yaml` | proxy config → ConfigMap via `configMapGenerator` (no secrets) |
+| `config.yaml` | proxy config → hash-suffixed ConfigMap via `configMapGenerator` (no secrets) |
 | `deployment.yaml` | pinned `ghcr.io/berriai/litellm:v1.95.0`, 1 replica, `nodeSelector: oracle-eu-arm1`, `/health/*` probes |
 | `sitecustomize.py` | runtime monkeypatch for the ChatGPT SSE output bug (mounted via `litellm-patch` ConfigMap, `PYTHONPATH=/patch`) |
 | `service.yaml` | NodePort `31400` → `4000`, `externalTrafficPolicy: Local` (no public ingress) |
