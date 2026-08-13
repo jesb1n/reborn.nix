@@ -19,6 +19,7 @@ in
     ./samba.nix
     ./sops.nix
     ./traefik.nix
+    ./wifi-watchdog.nix
   ];
 
   networking.hostName = "s145";
