@@ -11,3 +11,4 @@ spec:
       nodePort: 31900
   selector:
     app.kubernetes.io/name: garage
+    garage.cluster: primary

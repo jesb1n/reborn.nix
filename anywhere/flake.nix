@@ -14,11 +14,9 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/e73de5b";
-    # Fresh nixpkgs for macOS-only builds (nix-darwin). Decoupled from the
-    # pinned nixpkgs-unstable because that pin predates nixos-render-docs'
-    # --sidebar-depth support, and the Linux PAM regression in newer nixpkgs
-    # does not affect darwin.
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # Keep macOS-only builds independent from the Linux rolling channel so a
+    # Linux upgrade cannot also change nix-darwin's package set.
     nixpkgs-latest.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixos-anywhere.url = "github:nix-community/nixos-anywhere";
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
@@ -66,6 +64,7 @@
               pkgs.age
               deploy-rs.packages.${system}.default
               disko.packages.${system}.default
+              pkgs.fluxcd
               nixos-anywhere.packages.${system}.default
               pkgs.sops
               pkgs.ssh-to-age
