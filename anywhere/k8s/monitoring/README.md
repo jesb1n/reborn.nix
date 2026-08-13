@@ -40,17 +40,17 @@ DNS: create Cloudflare A/CNAME for `g1.beijns.eu.org` pointing at the same Traef
 
 ### SMART on bare-metal (NixOS, not this chart)
 
-Disk SMART is host-level `services.smartd` via [`profiles/smartd.nix`](../../profiles/smartd.nix). Only physical hosts — skip OCI VMs.
+Disk SMART is host-level `services.smartd` via [`profiles/smartd.nix`](../../profiles/smartd.nix). Enable it only on hosts whose disks expose SMART.
 
 | Host | Status |
 |------|--------|
 | `s145` | Enabled (profile) |
 | `hp348` | Enabled (profile) |
-| `rpi` | Enabled (profile; `autodetect` skips media without SMART) |
+| `rpi` | Skip (SD card exposes no SMART devices) |
 | `oracle-*` | Skip |
 | `pro-darwin` | Skip (nix-darwin) |
 
-Prefer a shared profile (`profiles/smartd.nix`) imported only by bare-metal hosts.
+Prefer a shared profile (`profiles/smartd.nix`) imported only by hosts with SMART-capable disks.
 
 ### App metrics endpoints (native only)
 
