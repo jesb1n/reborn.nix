@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01KZX5X74A1TSHS8JCYDVG5H73",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 13,
+  "files_touched": [
+    "anywhere/profiles/k3s-agent.nix",
+    "anywhere/profiles/k3s-cni.nix",
+    "anywhere/profiles/k3s-server.nix"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 9442418,
+    "cache_creation_tokens": 496716,
+    "cache_read_tokens": 8778941,
+    "output_tokens": 39136,
+    "api_call_count": 82
+  }
+}

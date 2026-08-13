@@ -1,0 +1,620 @@
+Name: litellm-59985cd4cc-g6gvq
+Namespace: litellm
+Priority: 0
+Service Account: default
+Node: oracle-eu-arm1/100.84.230.4
+Start Time: Thu, 13 Aug 2026 00:05:06 +0530
+Labels: app=litellm
+ pod-template-hash=59985cd4cc
+Annotations: <none>
+Status: Pending
+IP: 
+IPs: <none>
+Controlled By: ReplicaSet/litellm-59985cd4cc
+Containers:
+ litellm:
+ Container ID: 
+ Image: ghcr.io/berriai/litellm:v1.95.0
+ Image ID: 
+ Port: 4000/TCP (http)
+ Host Port: 0/TCP (http)
+ Args:
+ --config
+ /app/proxy_server_config.yaml
+ State: Waiting
+ Reason: ContainerCreating
+ Ready: False
+ Restart Count: 0
+ Limits:
+ memory: 4Gi
+ Requests:
+ cpu: 250m
+ memory: 512Mi
+ Liveness: http-get http://:http/health/liveliness delay=120s timeout=1s period=15s #success=1 #failure=3
+ Readiness: http-get http://:http/health/readiness delay=120s timeout=1s period=15s #success=1 #failure=3
+ Environment Variables from:
+ litellm-secret Secret Optional: false
+ Environment:
+ CHATGPT_TOKEN_DIR: /data/chatgpt
+ CHATGPT_AUTH_FILE: auth.json
+ PYTHONPATH: /patch
+ Mounts:
+ /app/proxy_server_config.yaml from config (ro,path="config.yaml")
+ /data/chatgpt from tokens (rw)
+ /patch/sitecustomize.py from patch (ro,path="sitecustomize.py")
+ /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-7mjcm (ro)
+Conditions:
+ Type Status
+ PodReadyToStartContainers False 
+ Initialized True 
+ Ready False 
+ ContainersReady False 
+ PodScheduled True 
+Volumes:
+ config:
+ Type: ConfigMap (a volume populated by a ConfigMap)
+ Name: litellm-config
+ Optional: false
+ tokens:
+ Type: PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
+ ClaimName: litellm-token
+ ReadOnly: false
+ patch:
+ Type: ConfigMap (a volume populated by a ConfigMap)
+ Name: litellm-patch
+ Optional: false
+ kube-api-access-7mjcm:
+ Type: Projected (a volume that contains injected data from multiple sources)
+ TokenExpirationSeconds: 3607
+ ConfigMapName: kube-root-ca.crt
+ Optional: false
+ DownwardAPI: true
+QoS Class: Burstable
+Node-Selectors: kubernetes.io/hostname=oracle-eu-arm1
+Tolerations: node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+ node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+ Type Reason Age From Message
+ ---- ------ ---- ---- -------
+ Normal Scheduled 4s default-scheduler Successfully assigned litellm/litellm-59985cd4cc-g6gvq to oracle-eu-arm1
+ Warning FailedCreatePodSandBox 3s kubelet Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "dba8ec4700d415f4c21d76ec34793f442203b6779caa6a19b84b3148156feced": plugin type="flannel" failed (add): failed to find plugin "flannel" in path [/var/lib/rancher/k3s/data/cni]
+
+
+I am having issues with new pods in my k3s cluster can oyu investigate why tihs is happening? is this a node issue? or is this happening. at a cluster level?
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+Name: litellm-59985cd4cc-g6gvq
+Namespace: litellm
+Priority: 0
+Service Account: default
+Node: oracle-eu-arm1/100.84.230.4
+Start Time: Thu, 13 Aug 2026 00:05:06 +0530
+Labels: app=litellm
+ pod-template-hash=59985cd4cc
+Annotations: <none>
+Status: Pending
+IP: 
+IPs: <none>
+Controlled By: ReplicaSet/litellm-59985cd4cc
+Containers:
+ litellm:
+ Container ID: 
+ Image: ghcr.io/berriai/litellm:v1.95.0
+ Image ID: 
+ Port: 4000/TCP (http)
+ Host Port: 0/TCP (http)
+ Args:
+ --config
+ /app/proxy_server_config.yaml
+ State: Waiting
+ Reason: ContainerCreating
+ Ready: False
+ Restart Count: 0
+ Limits:
+ memory: 4Gi
+ Requests:
+ cpu: 250m
+ memory: 512Mi
+ Liveness: http-get http://:http/health/liveliness delay=120s timeout=1s period=15s #success=1 #failure=3
+ Readiness: http-get http://:http/health/readiness delay=120s timeout=1s period=15s #success=1 #failure=3
+ Environment Variables from:
+ litellm-secret Secret Optional: false
+ Environment:
+ CHATGPT_TOKEN_DIR: /data/chatgpt
+ CHATGPT_AUTH_FILE: auth.json
+ PYTHONPATH: /patch
+ Mounts:
+ /app/proxy_server_config.yaml from config (ro,path="config.yaml")
+ /data/chatgpt from tokens (rw)
+ /patch/sitecustomize.py from patch (ro,path="sitecustomize.py")
+ /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-7mjcm (ro)
+Conditions:
+ Type Status
+ PodReadyToStartContainers False 
+ Initialized True 
+ Ready False 
+ ContainersReady False 
+ PodScheduled True 
+Volumes:
+ config:
+ Type: ConfigMap (a volume populated by a ConfigMap)
+ Name: litellm-config
+ Optional: false
+ tokens:
+ Type: PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
+ ClaimName: litellm-token
+ ReadOnly: false
+ patch:
+ Type: ConfigMap (a volume populated by a ConfigMap)
+ Name: litellm-patch
+ Optional: false
+ kube-api-access-7mjcm:
+ Type: Projected (a volume that contains injected data from multiple sources)
+ TokenExpirationSeconds: 3607
+ ConfigMapName: kube-root-ca.crt
+ Optional: false
+ DownwardAPI: true
+QoS Class: Burstable
+Node-Selectors: kubernetes.io/hostname=oracle-eu-arm1
+Tolerations: node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+ node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+ Type Reason Age From Message
+ ---- ------ ---- ---- -------
+ Normal Scheduled 4s default-scheduler Successfully assigned litellm/litellm-59985cd4cc-g6gvq to oracle-eu-arm1
+ Warning FailedCreatePodSandBox 3s kubelet Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "dba8ec4700d415f4c21d76ec34793f442203b6779caa6a19b84b3148156feced": plugin type="flannel" failed (add): failed to find plugin "flannel" in path [/var/lib/rancher/k3s/data/cni]
+
+
+I am having issues with new pods in my k3s cluster can oyu investigate why tihs is happening? is this a node issue? or is this happening. at a cluster level?
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+can you find the root cause for this?
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+we have garbage collection enabled on all of ht enix nodes, does this mean similar issues can happen on any of them? can you find the exact root cause so we can avoid this happening in the fututre?
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+other people have faced similar issues, so what is the best fix?
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+do you think there will be any side effects for this? is this the best way to manage when moving forward?
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+make the change.
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+deploy the host with issue first to see wether it was fixed
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+is this still running?
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+can you confirm the process is running on the machine as well.
+
+
+ps -aux | grep nix
+root 434 0.0 3.2 534328 398604 ? Ss Aug05 1:13 /nix/store/k2s978i7i26km4cr56fvm64p2q6mpl02-systemd-260.2/lib/systemd/systemd-journald
+systemd+ 436 0.0 0.0 16140 7208 ? Ss Aug05 0:19 /nix/store/k2s978i7i26km4cr56fvm64p2q6mpl02-systemd-260.2/lib/systemd/systemd-oomd
+systemd+ 457 0.0 0.0 96708 9404 ? Ssl Aug05 0:01 /nix/store/k2s978i7i26km4cr56fvm64p2q6mpl02-systemd-260.2/lib/systemd/systemd-timesyncd
+root 467 0.0 0.1 46692 15896 ? Ss Aug05 0:01 /nix/store/k2s978i7i26km4cr56fvm64p2q6mpl02-systemd-260.2/lib/systemd/systemd-udevd
+message+ 663 0.0 0.0 9236 4392 ? Ss Aug05 0:00 /nix/store/mrim0kpp2cmpq1zi5i26pr59g99srzc6-dbus-broker-37/bin/dbus-broker-launch --scope system --audit
+root 694 0.0 0.0 19604 8704 ? Ss Aug05 0:03 /nix/store/k2s978i7i26km4cr56fvm64p2q6mpl02-systemd-260.2/lib/systemd/systemd-logind
+root 776 0.0 0.1 344368 24024 ? Ssl Aug05 0:06 /nix/store/REDACTED.56.0/sbin/NetworkManager --no-daemon
+root 833 0.0 0.0 12516 7824 ? Ss Aug05 0:00 sshd: /nix/store/REDACTED.3p1/bin/sshd -D -f /etc/ssh/sshd_config [listener] 0 of 10-100 startups
+root 838 0.0 0.0 8488 2552 tty1 Ss+ Aug05 0:00 /nix/store/REDACTED.42-bin/bin/agetty --login-program /nix/store/k48khiisqml8j3hipnpmjdn2skqniydj-shadow-4.19.4/bin/login --issue-file /etc/issue:/etc/issue.d:/run/issue:/run/issue.d --noclear --keep-baud tty1 115200,38400,9600 linux
+root 840 0.0 0.0 8488 2680 ? Ss+ Aug05 0:00 /nix/store/REDACTED.42-bin/bin/agetty --login-program /nix/store/k48khiisqml8j3hipnpmjdn2skqniydj-shadow-4.19.4/bin/login --issue-file /etc/issue:/etc/issue.d:/run/issue:/run/issue.d ttyAMA0 --keep-baud vt220
+hermes 910 0.1 2.9 1384184 355920 ? Ssl Aug05 18:47 /nix/store/s1ad8d8ncjnxvhv3s0yyf7vnwqhzsxmn-hermes-agent-env/bin/python3.12 /nix/store/s1ad8d8ncjnxvhv3s0yyf7vnwqhzsxmn-hermes-agent-env/bin/hermes gateway
+root 911 0.6 0.5 1432136 63524 ? Ssl Aug05 76:13 /nix/store/d4ljn6zs22d4gl99rcwzvd159wq6rqfw-tailscale-1.98.5/bin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port=41641 --tun tailscale0
+root 949 1.2 1.9 2069348 232328 ? Ssl Aug05 137:45 /nix/store/cxda8h8a9ds67d0b9j8idkwn4lr1rcpf-k3s-1.35.5+k3s1/bin/k3s agent
+nscd 1071 0.0 0.0 694764 9020 ? Ssl Aug05 0:03 /nix/store/zwlhig0ps29jsvn2yv3npjl14gmdz5dk-nsncd-1.5.2/bin/nsncd
+root 1346 0.0 0.1 1703040 19360 ? Sl Aug05 2:19 /nix/store/REDACTED.2.3-k3s1/bin/containerd-shim-runc-v2 -namespace k8s.io -id a7747d64985b4278f10c9b0e5d11e42661365d5daafa85723c11d0a1a5471ead -address /run/k3s/containerd/containerd.sock
+root 3004 0.0 0.1 1637760 19908 ? Sl Aug05 4:35 /nix/store/REDACTED.2.3-k3s1/bin/containerd-shim-runc-v2 -namespace k8s.io -id b47ecf0a861c163d96dbb24e9e7346ee47dc332397754ec6bc7774747c632b8e -address /run/k3s/containerd/containerd.sock
+root 4966 0.0 0.1 1768320 19368 ? Sl Aug05 2:16 /nix/store/REDACTED.2.3-k3s1/bin/containerd-shim-runc-v2 -namespace k8s.io -id ac9ca4ad865550f43e0badbee6b5895ddc907eb1f375c62b9bc131c921e91fc8 -address /run/k3s/containerd/containerd.sock
+duck 544922 0.0 0.1 23016 12948 ? Ss 12:22 0:00 /nix/store/k2s978i7i26km4cr56fvm64p2q6mpl02-systemd-260.2/lib/systemd/systemd --user
+duck 544938 0.0 0.2 533092 29980 ? Ssl 12:22 0:00 nix-daemon --stdio
+root 544942 0.0 0.2 524688 29616 ? Ssl 12:22 0:00 nix-daemon --daemon
+root 544945 0.0 0.0 525020 11564 ? Ssl 12:22 0:00 nix-daemon 544938
+duck 546472 0.0 0.0 6660 2508 pts/0 S+ 12:35 0:00 grep nix
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+can we kill and try again manually?
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+is this issue due to worker changes i did, i added remote builder for micro nodes
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+how to find the root cause for this?
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+but hp348 is x86 and `oracle-eu-arm1` is arm
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+does thi involfr any changes to the configs.
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+what are the current changes done here
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+nix develop -c deploy .#oracle-eu-arm1 -d
+🚀 ❓ [deploy] [DEBUG] Checking for flake support
+🚀 ℹ️ [deploy] [INFO] Running checks for flake in .
+warning: Git tree '/Users/jesbin/Documents/oracle-cloud-free-tier' has uncommitted changes
+✅ devShells.aarch64-darwin.default (build skipped)
+✅ darwinConfigurations.pro-darwin (build skipped)
+warning: The following flake outputs are unchecked: deploy.
+warning: The check omitted these incompatible systems: aarch64-linux, x86_64-linux
+Use '--all-systems' to check all.
+🚀 ℹ️ [deploy] [INFO] Evaluating flake in .
+warning: Git tree '/Users/jesbin/Documents/oracle-cloud-free-tier' has uncommitted changes
+🚀 ℹ️ [deploy] [INFO] The following profiles are going to be deployed:
+[oracle-eu-arm1.system]
+user = “root”
+ssh_user = “duck”
+path = "/nix/store/REDACTED.11.20260626.e73de5b”
+hostname = "oracle-eu-arm1”
+ssh_opts = []
+
+🚀 ℹ️ [deploy] [INFO] starting build of profile system on node oracle-eu-arm1
+🚀 ❓ [deploy] [DEBUG] Finding the deriver of store path for /nix/store/REDACTED.11.20260626.e73de5b
+🚀 ℹ️ [deploy] [INFO] Building profile `system` for node `oracle-eu-arm1` on remote host
+🚀 ❓ [deploy] [DEBUG] copy command: Command { std: NIX_SSHOPTS="" "nix" "copy" "-s" "--to" "ssh-ng://duck@oracle-eu-arm1" "--derivation" "/nix/store/REDACTED.11.20260626.e73de5b.drv^out" "--log-format" "internal-json", kill_on_drop: false }
+ ⡱ Building profile 'system' on host 'oracle-eu-arm1' │ ... 
+
+
+its been runnign for more than 20 minutes
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+added now
+
+Networking
+Overview
+Virtual cloud networks
+Web Application Acceleration
+Load balancers
+DNS management
+Customer connectivity
+Cluster Placement Groups
+IP management
+Network Command Center
+
+
+oracle-eu-vcn
+oracle-eu-public-security-list
+Available
+Security List
+
+Actions
+Instance traffic is controlled by firewall rules on each Instance in addition to this Security List
+Ingress Rules
+Search and Filter
+Search
+Add Ingress Rules
+
+Actions
+
+Stateless
+Source
+IP Protocol
+Source Port Range
+Destination Port Range
+Type and Code
+Allows
+Description
+No
+10.0.0.0/16
+All Protocols
+All traffic for all ports
+Allow all traffic within VCN
+
+No
+89.168.126.35/32
+TCP
+All
+22
+TCP traffic for ports: 22 SSH Remote Login Protocol
+SSH access from peer/admin IP
+
+No
+202.83.56.181/32
+TCP
+All
+22
+TCP traffic for ports: 22 SSH Remote Login Protocol
+SSH access from peer/admin IP
+
+No
+129.159.222.42/32
+TCP
+All
+22
+TCP traffic for ports: 22 SSH Remote Login Protocol
+SSH access from peer/admin IP
+
+No
+92.5.98.162/32
+TCP
+All
+22
+TCP traffic for ports: 22 SSH Remote Login Protocol
+SSH access from peer/admin IP
+
+No
+157.51.211.174/32
+TCP
+All
+22
+TCP traffic for ports: 22 SSH Remote Login Protocol
+SSH access from whitelisted IP
+
+No
+0.0.0.0/0
+UDP
+All
+41641
+UDP traffic for ports: 41641
+Tailsclae
+
+
+
+Page 1 of 1 (1 - 7 of 7 total items)
+Items per page
+25
+Egress Rules
+Search and Filter
+Search
+Add Egress Rules
+
+Actions
+
+Stateless
+Destination
+IP Protocol
+Source Port Range
+Destination Port Range
+Type and Code
+Allows
+Description
+No
+0.0.0.0/0
+All Protocols
+All traffic for all ports
+Allow all outbound traffic
+
+
+
+Page 1 of 1 (1 - 1 of 1 total items)
+Items per page
+25
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+restart it now, there is no point in waitng
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+nix develop -c deploy .#oracle-eu-arm1 -d
+🚀 ❓ [deploy] [DEBUG] Checking for flake support
+🚀 ℹ️ [deploy] [INFO] Running checks for flake in .
+warning: Git tree '/Users/jesbin/Documents/oracle-cloud-free-tier' has uncommitted changes
+✅ devShells.aarch64-darwin.default (build skipped)
+✅ darwinConfigurations.pro-darwin (build skipped)
+warning: The following flake outputs are unchecked: deploy.
+warning: The check omitted these incompatible systems: aarch64-linux, x86_64-linux
+Use '--all-systems' to check all.
+🚀 ℹ️ [deploy] [INFO] Evaluating flake in .
+warning: Git tree '/Users/jesbin/Documents/oracle-cloud-free-tier' has uncommitted changes
+🚀 ℹ️ [deploy] [INFO] The following profiles are going to be deployed:
+[oracle-eu-arm1.system]
+user = "root"
+ssh_user = "duck"
+path = "/nix/store/REDACTED.11.20260626.e73de5b"
+hostname = "oracle-eu-arm1"
+ssh_opts = []
+
+🚀 ℹ️ [deploy] [INFO] starting build of profile system on node oracle-eu-arm1
+🚀 ❓ [deploy] [DEBUG] Finding the deriver of store path for /nix/store/REDACTED.11.20260626.e73de5b
+🚀 ℹ️ [deploy] [INFO] Building profile `system` for node `oracle-eu-arm1` on remote host
+🚀 ❓ [deploy] [DEBUG] copy command: Command { std: NIX_SSHOPTS="" "nix" "copy" "-s" "--to" "ssh-ng://duck@oracle-eu-arm1" "--derivation" "/nix/store/REDACTED.11.20260626.e73de5b.drv^out" "--log-format" "internal-json", kill_on_drop: false }
+🚀 ❓ [deploy] [DEBUG] build command: Command { std: NIX_SSHOPTS="" "nix" "build" "/nix/store/REDACTED.11.20260626.e73de5b.drv^out" "--eval-store" "auto" "--store" "ssh-ng://duck@oracle-eu-arm1" "--log-format" "internal-json", kill_on_drop: false }
+🚀 ℹ️ [deploy] [INFO] Activating profile `system` for node `oracle-eu-arm1`
+🚀 ❓ [deploy] [DEBUG] Constructed activation command: sudo -u root /nix/store/REDACTED.11.20260626.e73de5b/activate-rs --debug-logs activate '/nix/store/REDACTED.11.20260626.e73de5b' --profile-user root --profile-name system --temp-path '/tmp' --confirm-timeout 60 --magic-rollback --auto-rollback
+🚀 ❓ [deploy] [DEBUG] Constructed wait command: sudo -u root /nix/store/REDACTED.11.20260626.e73de5b/activate-rs --debug-logs wait '/nix/store/REDACTED.11.20260626.e73de5b' --temp-path '/tmp' --activation-timeout 600
+🚀 ℹ️ [deploy] [INFO] Creating activation waiter
+👀 ℹ️ [wait] [INFO] Waiting for confirmation event...
+⭐ ℹ️ [activate] [INFO] Activating profile
+⭐ ❓ [activate] [DEBUG] Running activation script
+Checking switch inhibitors... done
+updating GRUB 2 menu...
+removing obsolete file /boot/kernels/7x6syswkww6dx57qyc79ra8n1a3g8jws-initrd-linux-6.18.39-initrd
+removing obsolete file /boot/kernels/bwl08vzcjblgbl2fd63b3n2s09ba6rlg-linux-6.18.39-Image
+stopping the following units: k3s.service
+activating the configuration...
+setting up /etc...
+sops-install-secrets: Imported /etc/ssh/ssh_host_rsa_key as GPG key with fingerprint 7b6ba24c2297ad72ee1e36cb3a9c6edeffc23caf
+reloading user units for duck...
+restarting the following user units: nixos-activation.service
+restarting sysinit-reactivation.target
+restarting the following units: nix-daemon.service
+starting the following units: k3s.service
+👀 ℹ️ [wait] [INFO] Found canary file, done waiting!
+the following new units were started: NetworkManager-dispatcher.service, sysinit-reactivation.target, systemd-tmpfiles-resetup.service
+⭐ ℹ️ [activate] [INFO] Activation succeeded!
+⭐ ℹ️ [activate] [INFO] Magic rollback is enabled, setting up confirmation hook...
+⭐ ❓ [activate] [DEBUG] Ensuring parent directory exists for canary file
+⭐ ❓ [activate] [DEBUG] Creating canary file
+⭐ ❓ [activate] [DEBUG] Creating notify watcher
+⭐ ℹ️ [activate] [INFO] Waiting for confirmation event...
+🚀 ❓ [deploy] [DEBUG] Wait command ended
+🚀 ℹ️ [deploy] [INFO] Success activating, attempting to confirm activation
+🚀 ❓ [deploy] [DEBUG] Attempting to run command to confirm deployment: sudo -u root rm /tmp/REDACTED
+⭐ ❓ [activate] [DEBUG] Got worthy removal event, sending on channel
+🚀 ℹ️ [deploy] [INFO] Deployment confirmed.
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
