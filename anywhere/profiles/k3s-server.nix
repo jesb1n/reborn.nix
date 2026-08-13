@@ -11,6 +11,8 @@ let
   hasClusterSecretsFile = builtins.pathExists clusterSecretsFile;
 in
 {
+  imports = [ ./k3s-cni.nix ];
+
   services.k3s = lib.mkIf hasClusterSecretsFile {
     enable = true;
     role = "server";
