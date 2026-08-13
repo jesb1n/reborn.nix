@@ -26,9 +26,10 @@ Each host has: `configuration.nix` (main config), `disko-config.nix` (disk layou
 
 ## Build Constraints
 
-- `oci-nixos` (aarch64): `remoteBuild = true` — builds on the host itself
-- `oracle-eu-micro1/2` (x86_64): built locally on operator machine
-- `rpi` (aarch64): `remoteBuild = true`
+- All four Oracle micro nodes use deploy-rs `remoteBuild = false`; Mac-initiated deployments build their `x86_64-linux` closures through the hp348 distributed builder.
+- `oracle-eu-arm1` and `oracle-in-arm1` (aarch64): `remoteBuild = true` — build on the hosts themselves.
+- `s145`, `hp348`, and `rpi`: `remoteBuild = true`.
+- The hp348 builder receives the Mac's local flake inputs through Nix; no repository checkout or synchronization is required on hp348.
 
 ## k3s Cluster
 
