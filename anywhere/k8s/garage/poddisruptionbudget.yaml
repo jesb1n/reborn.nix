@@ -8,3 +8,4 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: garage
+      garage.cluster: primary
