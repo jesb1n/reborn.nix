@@ -10,18 +10,11 @@ resources:
   - security-headers.yaml
   - ingressroute.yaml
   - nodeport.yaml
-  - garage-helm.yaml
   - garage-arm-helm.yaml
   - garage-micro-helm.yaml
   - garage-onprem-helm.yaml
   - podmonitor.yaml
 configMapGenerator:
-  - name: garage-values
-    namespace: garage
-    files:
-      - values.yaml=values-old.yaml
-    options:
-      disableNameSuffixHash: true
   - name: garage-base-values
     namespace: garage
     files:
