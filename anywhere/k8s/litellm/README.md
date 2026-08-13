@@ -41,6 +41,10 @@ Google endpoint changes. Leave Gemini 3 `temperature` unset (the recommended
 provider default is `1.0`); clients may select `reasoning_effort` per request.
 The API key currently has no available `gemini-3.1-pro-preview` quota, so the
 proxy deliberately exposes only the two Flash models verified on its free tier.
+Both Gemini routes drop the OpenAI `tool_choice` parameter because Copilot sends
+its nonstandard `validated` value, while Gemini accepts only `auto`, `required`,
+or a function object. Tool definitions are preserved, so Gemini can still select
+tools automatically; ChatGPT routes are unaffected.
 
 ### Gemini API access
 
