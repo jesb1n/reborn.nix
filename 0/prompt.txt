@@ -1,0 +1,237 @@
+Name: litellm-59985cd4cc-g6gvq
+Namespace: litellm
+Priority: 0
+Service Account: default
+Node: oracle-eu-arm1/100.84.230.4
+Start Time: Thu, 13 Aug 2026 00:05:06 +0530
+Labels: app=litellm
+ pod-template-hash=59985cd4cc
+Annotations: <none>
+Status: Pending
+IP: 
+IPs: <none>
+Controlled By: ReplicaSet/litellm-59985cd4cc
+Containers:
+ litellm:
+ Container ID: 
+ Image: ghcr.io/berriai/litellm:v1.95.0
+ Image ID: 
+ Port: 4000/TCP (http)
+ Host Port: 0/TCP (http)
+ Args:
+ --config
+ /app/proxy_server_config.yaml
+ State: Waiting
+ Reason: ContainerCreating
+ Ready: False
+ Restart Count: 0
+ Limits:
+ memory: 4Gi
+ Requests:
+ cpu: 250m
+ memory: 512Mi
+ Liveness: http-get http://:http/health/liveliness delay=120s timeout=1s period=15s #success=1 #failure=3
+ Readiness: http-get http://:http/health/readiness delay=120s timeout=1s period=15s #success=1 #failure=3
+ Environment Variables from:
+ litellm-secret Secret Optional: false
+ Environment:
+ CHATGPT_TOKEN_DIR: /data/chatgpt
+ CHATGPT_AUTH_FILE: auth.json
+ PYTHONPATH: /patch
+ Mounts:
+ /app/proxy_server_config.yaml from config (ro,path="config.yaml")
+ /data/chatgpt from tokens (rw)
+ /patch/sitecustomize.py from patch (ro,path="sitecustomize.py")
+ /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-7mjcm (ro)
+Conditions:
+ Type Status
+ PodReadyToStartContainers False 
+ Initialized True 
+ Ready False 
+ ContainersReady False 
+ PodScheduled True 
+Volumes:
+ config:
+ Type: ConfigMap (a volume populated by a ConfigMap)
+ Name: litellm-config
+ Optional: false
+ tokens:
+ Type: PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
+ ClaimName: litellm-token
+ ReadOnly: false
+ patch:
+ Type: ConfigMap (a volume populated by a ConfigMap)
+ Name: litellm-patch
+ Optional: false
+ kube-api-access-7mjcm:
+ Type: Projected (a volume that contains injected data from multiple sources)
+ TokenExpirationSeconds: 3607
+ ConfigMapName: kube-root-ca.crt
+ Optional: false
+ DownwardAPI: true
+QoS Class: Burstable
+Node-Selectors: kubernetes.io/hostname=oracle-eu-arm1
+Tolerations: node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+ node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+ Type Reason Age From Message
+ ---- ------ ---- ---- -------
+ Normal Scheduled 4s default-scheduler Successfully assigned litellm/litellm-59985cd4cc-g6gvq to oracle-eu-arm1
+ Warning FailedCreatePodSandBox 3s kubelet Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "dba8ec4700d415f4c21d76ec34793f442203b6779caa6a19b84b3148156feced": plugin type="flannel" failed (add): failed to find plugin "flannel" in path [/var/lib/rancher/k3s/data/cni]
+
+
+I am having issues with new pods in my k3s cluster can oyu investigate why tihs is happening? is this a node issue? or is this happening. at a cluster level?
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+Name: litellm-59985cd4cc-g6gvq
+Namespace: litellm
+Priority: 0
+Service Account: default
+Node: oracle-eu-arm1/100.84.230.4
+Start Time: Thu, 13 Aug 2026 00:05:06 +0530
+Labels: app=litellm
+ pod-template-hash=59985cd4cc
+Annotations: <none>
+Status: Pending
+IP: 
+IPs: <none>
+Controlled By: ReplicaSet/litellm-59985cd4cc
+Containers:
+ litellm:
+ Container ID: 
+ Image: ghcr.io/berriai/litellm:v1.95.0
+ Image ID: 
+ Port: 4000/TCP (http)
+ Host Port: 0/TCP (http)
+ Args:
+ --config
+ /app/proxy_server_config.yaml
+ State: Waiting
+ Reason: ContainerCreating
+ Ready: False
+ Restart Count: 0
+ Limits:
+ memory: 4Gi
+ Requests:
+ cpu: 250m
+ memory: 512Mi
+ Liveness: http-get http://:http/health/liveliness delay=120s timeout=1s period=15s #success=1 #failure=3
+ Readiness: http-get http://:http/health/readiness delay=120s timeout=1s period=15s #success=1 #failure=3
+ Environment Variables from:
+ litellm-secret Secret Optional: false
+ Environment:
+ CHATGPT_TOKEN_DIR: /data/chatgpt
+ CHATGPT_AUTH_FILE: auth.json
+ PYTHONPATH: /patch
+ Mounts:
+ /app/proxy_server_config.yaml from config (ro,path="config.yaml")
+ /data/chatgpt from tokens (rw)
+ /patch/sitecustomize.py from patch (ro,path="sitecustomize.py")
+ /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-7mjcm (ro)
+Conditions:
+ Type Status
+ PodReadyToStartContainers False 
+ Initialized True 
+ Ready False 
+ ContainersReady False 
+ PodScheduled True 
+Volumes:
+ config:
+ Type: ConfigMap (a volume populated by a ConfigMap)
+ Name: litellm-config
+ Optional: false
+ tokens:
+ Type: PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
+ ClaimName: litellm-token
+ ReadOnly: false
+ patch:
+ Type: ConfigMap (a volume populated by a ConfigMap)
+ Name: litellm-patch
+ Optional: false
+ kube-api-access-7mjcm:
+ Type: Projected (a volume that contains injected data from multiple sources)
+ TokenExpirationSeconds: 3607
+ ConfigMapName: kube-root-ca.crt
+ Optional: false
+ DownwardAPI: true
+QoS Class: Burstable
+Node-Selectors: kubernetes.io/hostname=oracle-eu-arm1
+Tolerations: node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+ node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+ Type Reason Age From Message
+ ---- ------ ---- ---- -------
+ Normal Scheduled 4s default-scheduler Successfully assigned litellm/litellm-59985cd4cc-g6gvq to oracle-eu-arm1
+ Warning FailedCreatePodSandBox 3s kubelet Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "dba8ec4700d415f4c21d76ec34793f442203b6779caa6a19b84b3148156feced": plugin type="flannel" failed (add): failed to find plugin "flannel" in path [/var/lib/rancher/k3s/data/cni]
+
+
+I am having issues with new pods in my k3s cluster can oyu investigate why tihs is happening? is this a node issue? or is this happening. at a cluster level?
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+can you find the root cause for this?
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+we have garbage collection enabled on all of ht enix nodes, does this mean similar issues can happen on any of them? can you find the exact root cause so we can avoid this happening in the fututre?
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+other people have faced similar issues, so what is the best fix?
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+do you think there will be any side effects for this? is this the best way to manage when moving forward?
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
+
+---
+
+make the change.
+
+<canvas-context>
+- name="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1" type="terminal" title="Terminal" panel="open" instance="userterm-right-terminal-a17fe4a4-94b6-40bd-9d34-5cf8a194b90c-1"
+</canvas-context>
+
+<system_notification>
+Reminder: This session currently has an auto-generated or placeholder name. Before replying to the user, call the `rename_session` tool to give it a short, descriptive title based on the user's intent.
+</system_notification>
