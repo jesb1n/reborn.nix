@@ -1,15 +1,15 @@
-# litellm — LiteLLM Proxy (ChatGPT Plus OAuth)
+# litellm — LiteLLM Proxy
 
-Private AI gateway exposing the user's **ChatGPT Plus** subscription as an
-OpenAI-compatible API. Authenticates to ChatGPT's Codex backend via OAuth
-**device flow** (no OpenAI API billing). Flux-managed.
+Private, Flux-managed AI gateway exposing ChatGPT and Google Gemini models as
+an OpenAI-compatible API. ChatGPT authenticates to the Codex backend through
+OAuth device flow; Gemini uses a Google AI Studio API key.
 
 ## Layout
 
 | File | Purpose |
 |------|---------|
 | `namespace.yaml` | `litellm` namespace |
-| `secret.yaml` | SOPS-encrypted Secret: `LITELLM_MASTER_KEY`, `LITELLM_SALT_KEY` (recipients: `pro_darwin`, `mark`, `s145_cluster`) |
+| `secret.yaml` | SOPS-encrypted Secret: `LITELLM_MASTER_KEY`, `LITELLM_SALT_KEY`, `GEMINI_API_KEY` (recipients: `pro_darwin`, `mark`, `s145_cluster`) |
 | `config.yaml` | proxy config → ConfigMap via `configMapGenerator` (no secrets) |
 | `deployment.yaml` | pinned `ghcr.io/berriai/litellm:v1.95.0`, 1 replica, `nodeSelector: oracle-eu-arm1`, `/health/*` probes |
 | `sitecustomize.py` | runtime monkeypatch for the ChatGPT SSE output bug (mounted via `litellm-patch` ConfigMap, `PYTHONPATH=/patch`) |
@@ -23,15 +23,42 @@ OpenAI-compatible API. Authenticates to ChatGPT's Codex backend via OAuth
 
 ## Models
 
-- `chatgpt-sol`  → `chatgpt/gpt-5.6-sol` (responses)
-- `chatgpt-codex` → `chatgpt/gpt-5.4` (responses)
+| Proxy alias | Provider model | Use |
+|-------------|----------------|-----|
+| `chatgpt-sol` | `chatgpt/gpt-5.6-sol` | Long-context, high-capability responses |
+| `chatgpt-codex` | `chatgpt/gpt-5.4` | Coding through ChatGPT OAuth |
+| `gemini-flash` | `gemini/gemini-3.7-flash` | Default balance of quality, latency, and cost |
+| `gemini-flash-lite` | `gemini/gemini-3.5-flash-lite` | Low-cost, high-throughput tasks |
 
-Both `mode: responses`. `chatgpt_auth_file_path` points at the PVC-mounted
-auth file to disable interactive login and avoid the device-code restart loop.
+The ChatGPT models use `mode: responses`. `chatgpt_auth_file_path` points at the
+PVC-mounted auth file to disable interactive login and avoid the device-code
+restart loop. `gpt-5.3-codex` is deprecated on the Codex-with-ChatGPT backend;
+`chatgpt-codex` therefore routes to `gpt-5.4`.
 
-> Note: `gpt-5.3-codex` is **deprecated** on the Codex-with-ChatGPT backend and
-> returns 400 (`not supported when using Codex with a ChatGPT account`).
-> `chatgpt-codex` now routes to `gpt-5.4` instead.
+Gemini uses LiteLLM's native `gemini/` provider and reads `GEMINI_API_KEY` from
+the SOPS-encrypted Secret. The friendly proxy aliases isolate clients from
+Google endpoint changes. Leave Gemini 3 `temperature` unset (the recommended
+provider default is `1.0`); clients may select `reasoning_effort` per request.
+The API key currently has no available `gemini-3.1-pro-preview` quota, so the
+proxy deliberately exposes only the two Flash models verified on its free tier.
+
+### Gemini API access
+
+The Google AI Pro consumer benefit supplied through Jio does **not** provide
+Gemini API credits or a supported subscription-OAuth credential for LiteLLM.
+Create a separate key in Google AI Studio; usage is governed by the Gemini API
+free tier or by separately enabled API billing. Free-tier prompts may be used
+to improve Google's products, while paid-tier data handling differs.
+
+Edit the encrypted Secret without putting the key in shell history:
+
+```bash
+export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
+sops anywhere/k8s/litellm/secret.yaml
+```
+
+Add `GEMINI_API_KEY` under `stringData`, save, and let SOPS re-encrypt the file.
+Never commit a plaintext key or paste it into logs, commands, or documentation.
 
 ### Endpoint behavior
 
@@ -123,8 +150,27 @@ calls require a bearer key (currently the master key from the SOPS secret).
 ## Apply / sync
 
 ```bash
-# from anywhere/
-git push && flux reconcile kustomization litellm -n flux-system --with-source
+# Validate from the repository root without changing the cluster.
+kubectl kustomize anywhere/k8s/litellm >/dev/null
+
+# After commit and push, reconcile the Flux-managed workload.
+flux reconcile kustomization litellm -n flux-system --with-source
+```
+
+Smoke-test each Gemini alias over the Tailnet after reconciliation (set the
+master key interactively so it is not stored in shell history):
+
+```bash
+read -rs LITELLM_KEY; export LITELLM_KEY; echo
+for model in gemini-flash gemini-flash-lite; do
+  curl --fail-with-body --silent --show-error \
+    http://100.84.230.4:31400/v1/chat/completions \
+    -H "Authorization: Bearer $LITELLM_KEY" \
+    -H 'Content-Type: application/json' \
+    -d "{\"model\":\"$model\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with OK\"}]}"
+  echo
+done
+unset LITELLM_KEY
 ```
 
 ## Update notes
@@ -134,6 +180,8 @@ git push && flux reconcile kustomization litellm -n flux-system --with-source
 - This uses SQLite (master-key auth) — no Postgres, no Kafka, and thus no
   virtual keys / spend logs. 1 replica (single writable ChatGPT token → no
   refresh races). Deviations from the official production docs are deliberate.
+- Review Google's model lifecycle before each LiteLLM image upgrade and update
+  preview provider IDs behind the existing proxy aliases when required.
 
 ## Rollback / revoke
 
