@@ -1,187 +1,141 @@
 # Architecture
 
-This document explains the infrastructure created by this project and how all the pieces fit together.
+This repository manages a hybrid personal infrastructure platform. OCI supplies disposable compute in two regions, on-premises machines supply the control plane and durable storage, and Tailscale joins every node into one private network.
 
-## Overview
+## Layers
 
-This project provisions a complete cloud infrastructure on **Oracle Cloud Infrastructure (OCI)** using Terraform/OpenTofu. Everything runs within OCI's **Always Free Tier** — meaning the entire setup costs **$0/month**, forever, with no credit card charges.
-
-## What Gets Created
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    OCI Tenancy                          │
-│                                                         │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │              VCN (10.0.0.0/16)                    │  │
-│  │                                                   │  │
-│  │  ┌─────────────────────────────────────────────┐  │  │
-│  │  │       Public Subnet (10.0.0.0/24)           │  │  │
-│  │  │                                             │  │  │
-│  │  │  ┌───────────────┐  ┌──────────────────┐   │  │  │
-│  │  │  │ ARM Instance  │  │ Micro Instance 1 │   │  │  │
-│  │  │  │ (A1.Flex)     │  │ (E2.1.Micro)     │   │  │  │
-│  │  │  │               │  │                  │   │  │  │
-│  │  │  │ 4 OCPU        │  │ 1 OCPU           │   │  │  │
-│  │  │  │ 24 GB RAM     │  │ 1 GB RAM         │   │  │  │
-│  │  │  │ 50 GB Disk    │  │ 50 GB Disk       │   │  │  │
-│  │  │  │ Ubuntu 24.04  │  │ Ubuntu 24.04     │   │  │  │
-│  │  │  │ (aarch64)     │  │ (amd64)          │   │  │  │
-│  │  │  │ Public IP     │  │ Public IP        │   │  │  │
-│  │  │  └───────────────┘  │ Tailscale        │   │  │  │
-│  │  │                     └──────────────────┘   │  │  │
-│  │  │                     ┌──────────────────┐   │  │  │
-│  │  │                     │ Micro Instance 2 │   │  │  │
-│  │  │                     │ (E2.1.Micro)     │   │  │  │
-│  │  │                     │                  │   │  │  │
-│  │  │                     │ 1 OCPU           │   │  │  │
-│  │  │                     │ 1 GB RAM         │   │  │  │
-│  │  │                     │ 50 GB Disk       │   │  │  │
-│  │  │                     │ Ubuntu 24.04     │   │  │  │
-│  │  │                     │ (amd64)          │   │  │  │
-│  │  │                     │ Public IP        │   │  │  │
-│  │  │                     │ Tailscale        │   │  │  │
-│  │  │                     └──────────────────┘   │  │  │
-│  │  └─────────────────────────────────────────────┘  │  │
-│  │                                                   │  │
-│  │  ┌──────────────┐  ┌──────────────────────────┐   │  │
-│  │  │   Internet   │  │     Route Table          │   │  │
-│  │  │   Gateway    │◄─┤  0.0.0.0/0 → IGW        │   │  │
-│  │  └──────┬───────┘  └──────────────────────────┘   │  │
-│  │         │                                         │  │
-│  │  ┌──────┴───────────────────────────────────────┐ │  │
-│  │  │           Security List                      │ │  │
-│  │  │  IN:  SSH (22) from your IP only             │ │  │
-│  │  │  IN:  All traffic within VCN                 │ │  │
-│  │  │  OUT: All traffic to internet                │ │  │
-│  │  └──────────────────────────────────────────────┘ │  │
-│  └───────────────────────────────────────────────────┘  │
-│                                                         │
- │  ┌───────────────────────────────────────────────────┐  │
- │  │  Local state (IaC/terraform.tfstate)              │  │
- │  └───────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Operator: pro-darwin                                        │
+│ OpenTofu · Nix · deploy-rs · SOPS · kubectl · Flux          │
+└───────────────┬─────────────────────────────────────────────┘
+                │ Git, OCI API, SSH, Tailscale, Kubernetes API
+┌───────────────▼─────────────────────────────────────────────┐
+│ Provisioning: IaC/                                          │
+│ OCI VCNs, subnets, gateways, security lists, public IPs, VMs│
+└───────────────┬─────────────────────────────────────────────┘
+                │ Ubuntu bootstrap followed by NixOS install
+┌───────────────▼─────────────────────────────────────────────┐
+│ Machine configuration: anywhere/                            │
+│ NixOS profiles · host modules · SOPS · deploy-rs            │
+└───────────────┬─────────────────────────────────────────────┘
+                │ k3s over tailscale0
+┌───────────────▼─────────────────────────────────────────────┐
+│ Cluster: s145 control plane                                 │
+│ Flux Operator · Traefik · Cloudflare Tunnel · applications  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Components Explained
+## Host Inventory
 
-### Virtual Cloud Network (VCN)
+| Host | Platform | Architecture | Cluster role | Operational role |
+| --- | --- | --- | --- | --- |
+| `s145` | Home server | x86_64 | k3s server | Control plane, primary local-path storage, Traefik, Garage endpoint |
+| `hp348` | HP laptop | x86_64 | agent | On-prem worker and distributed x86_64 builder for Mac-initiated micro deployments |
+| `oracle-eu-arm1` | OCI A1.Flex | aarch64 | agent | General worker and Hermes Agent |
+| `oracle-eu-micro1` | OCI E2.1.Micro | x86_64 | tiny agent | Low-memory Europe worker |
+| `oracle-eu-micro2` | OCI E2.1.Micro | x86_64 | tiny agent | Low-memory Europe worker |
+| `oracle-in-arm1` | OCI A1.Flex | aarch64 | agent | General worker and monitoring host |
+| `oracle-in-micro1` | OCI E2.1.Micro | x86_64 | tiny agent | Low-memory India worker |
+| `oracle-in-micro2` | OCI E2.1.Micro | x86_64 | tiny agent | Low-memory India worker |
+| `rpi` | Raspberry Pi 4 | aarch64 | agent | On-prem ARM worker |
+| `pro-darwin` | Apple Silicon Mac | aarch64-darwin | none | Operator workstation managed by nix-darwin/home-manager |
 
-The VCN is a software-defined private network inside OCI. Think of it as your own isolated section of the Oracle cloud. It uses CIDR block `10.0.0.0/16`, giving you 65,536 possible IP addresses.
+`anywhere/flake.nix` is authoritative for systems, deploy targets, and build placement. The four micro deploy targets use `remoteBuild = false`; their x86_64 closures are delegated from `pro-darwin` through the configured `hp348` builder. Other NixOS targets build remotely.
 
-**Created in:** `IaC/vcn.tf`
+## OCI Provisioning
 
-### Public Subnet
+`IaC/` supports two encrypted environments:
 
-A subdivision of the VCN (`10.0.0.0/24` — 256 addresses). All instances live here and get public IP addresses for direct internet access.
+| Environment | Region intent | State key |
+| --- | --- | --- |
+| `beijns` | India | `beijns.tfstate` |
+| `beijnseu` | Europe | `beijnseu.tfstate` |
 
-**Created in:** `IaC/vcn.tf`
+Each environment supplies its own project, region, compartment, CIDRs, SSH allowlist, and instance inputs through a SOPS-encrypted tfvars file. OpenTofu creates the OCI VCN, public subnet, internet gateway, route and security resources, ARM instance, micro instances, and outputs.
 
-### Internet Gateway
+The OCI provider reads an OCI CLI SecurityToken profile selected by `config_file_profile`. The Makefile checks or refreshes that session before init, plan, or apply.
 
-The gateway that connects your VCN to the public internet. Without it, nothing inside the VCN can reach the outside world (or be reached from it).
+## State and Secrets
 
-**Created in:** `IaC/vcn.tf`
+### OpenTofu state
 
-### Route Table
+`IaC/backend.tf` uses the S3 backend with bucket `tofu-backend` and the Garage endpoint at `http://100.69.231.117:31900`. The Makefile selects one key per environment during `init`. Reaching the endpoint requires Tailscale and valid S3 credentials from the encrypted `IaC/secrets/<environment>.env` file.
 
-Tells traffic where to go. The single rule says: "anything destined for `0.0.0.0/0` (i.e., the internet) should go through the Internet Gateway."
+This creates an important dependency: Garage and `s145` must be reachable before normal state operations. Keep independent state backups before Garage layout changes.
 
-**Created in:** `IaC/vcn.tf`
+### SOPS
 
-### Security List (Firewall)
+- IaC tfvars and backend environment files are encrypted and decrypted in memory.
+- NixOS secrets are declared per host and materialized under `/run/secrets` during activation.
+- Shared k3s and Tailscale secrets include recipients for all consuming hosts.
+- Flux decrypts selected Kubernetes secrets with `Secret/flux-system/sops-age`.
+- Public `age1...` recipients may be committed; age private keys must not be committed or copied into general archives.
 
-Controls what traffic is allowed in and out:
+## NixOS Composition
 
-| Direction | Rule | Why |
-|-----------|------|-----|
-| **Inbound** | SSH (port 22) from your IP only | So only you can SSH into instances |
-| **Inbound** | All traffic within VCN (10.0.0.0/16) | So instances can talk to each other |
-| **Outbound** | All traffic to anywhere | So instances can reach the internet |
+Shared behavior lives in `anywhere/profiles/`:
 
-**Created in:** `IaC/vcn.tf`
+| Profile | Responsibility |
+| --- | --- |
+| `base.nix` | User, SSH keys, Nix settings, packages, and garbage collection |
+| `server.nix` | Boot defaults, SSH hardening, firewall, and server baseline |
+| `tailscale.nix` | Tailnet membership and firewall integration |
+| `k3s-server.nix` | `s145` server flags and control-plane configuration |
+| `k3s-agent.nix` | Agent connection to `https://100.69.231.117:6443` over Tailscale |
+| `k3s-agent-tiny.nix` | 1 GB tuning, zram, and `max-pods=10` |
+| `k3s-cni.nix` | Shared k3s network behavior |
+| `smartd.nix` | SMART monitoring for capable on-prem disks |
+| `hermes-agent.nix` | Hermes gateway on `oracle-eu-arm1` |
 
-### ARM Instance (VM.Standard.A1.Flex)
+Host modules contain identity, node addresses, disks, secret declarations, and genuine hardware overrides. `rpi` uses `nixos-raspberrypi`; `pro-darwin` is a separate `darwinConfigurations` output and is not a deploy-rs node.
 
-The most powerful free instance. Uses an Ampere A1 ARM processor (aarch64 architecture).
+## Cluster Design
 
-| Spec | Value |
-|------|-------|
-| CPU | 4 OCPUs (ARM) |
-| RAM | 24 GB |
-| Disk | 50 GB boot volume |
-| OS | Ubuntu 24.04 (aarch64) |
-| Network | Public IP, SSH access |
+`s145` runs the single k3s server. Agents join through its Tailscale IP, and Flannel uses `tailscale0`. A single control plane avoids depending on disposable OCI nodes for quorum, but makes the k3s SQLite database and `s145` availability critical.
 
-This is great for running Docker containers, web servers, databases, or anything that benefits from more resources. The ARM architecture means you need ARM-compatible software (most things work fine).
+Tiny nodes have 1 GB RAM, 50% zram, and a `tiny=true:NoSchedule` taint applied after registration. Only workloads with an explicit toleration should run there.
 
-**Created in:** `IaC/instance.tf`
+### GitOps
 
-### Micro Instances (VM.Standard.E2.1.Micro) × 2
+The Flux Operator instance in `anywhere/operator/` syncs the repository and reconciles Kustomizations in `anywhere/clusters/s145/`. Registered workloads are:
 
-Two small AMD instances, ideal for lightweight tasks.
+- `_infra`
+- `cloudflared`
+- `garage`
+- `immich`
+- `immich-public-proxy`
+- `litellm`
+- `monitoring`
+- `vaultwarden`
 
-| Spec | Value |
-|------|-------|
-| CPU | 1 OCPU (AMD x86_64) |
-| RAM | 1 GB |
-| Disk | 50 GB boot volume each |
-| OS | Ubuntu 24.04 (amd64) |
-| Network | Public IP, SSH access |
-| Extra | Tailscale auto-installed |
+The cluster Kustomizations encode dependencies and SOPS decryption. App resources remain in `anywhere/k8s/<app>/`.
 
-These instances automatically install Tailscale on first boot via cloud-init, joining your Tailnet for private mesh networking.
+### Ingress
 
-**Created in:** `IaC/instance.tf`
+Traefik is the only ingress controller. Its NixOS-managed HelmChartConfig:
 
-### Remote State Backend
+- obtains certificates through Cloudflare DNS-01;
+- redirects HTTP to HTTPS globally;
+- persists ACME data on `s145`;
+- exposes Prometheus metrics.
 
-> **Note:** The current setup uses a local backend. Remote state in OCI Object Storage (S3-compatible) is planned but not yet configured.
+Application `Middleware` resources are namespace-scoped. Each public `IngressRoute` references a middleware in its own namespace. Cloudflare Tunnel is a separate ingress path used by applications such as Immich Public Proxy.
 
-**Created in:** `IaC/backend.tf`
+## Storage and Failure Domains
 
-## How It All Connects
+- Primary stateful application PVCs use k3s `local-path` storage pinned to `s145` and its 1 TB disk.
+- Monitoring state is intentionally pinned to `oracle-in-arm1`.
+- Garage is a distributed S3 service spanning declared node classes; its manual layout migration has its own runbook.
+- OCI VMs are replaceable capacity. Loss of `s145` affects the API server, local-path application data, and the OpenTofu backend endpoint.
+- Back up application data, Garage state, and `/var/lib/rancher/k3s/server/db/state.db` off-host.
 
-1. **Terraform reads** `IaC/variables.tf` and `IaC/terraform.tfvars` to get your configuration.
-2. **Provider authenticates** with OCI using your API key (`IaC/provider.tf`).
-3. **VCN is created** as an isolated network, along with the subnet, gateway, route table, and firewall rules (`IaC/vcn.tf`).
-4. **Image IDs are looked up** dynamically — Terraform finds the latest Ubuntu 24.04 images for each shape (`IaC/instance.tf`).
-5. **Instances are launched** in the subnet with public IPs. Micro instances run a cloud-init script to install Tailscale (`IaC/instance.tf`).
-6. **State is saved** locally in `IaC/terraform.tfstate` (`IaC/backend.tf`).
-7. **Outputs** show you the public IPs of all instances (`IaC/output.tf`).
+## Sources of Truth
 
-## Data Flow
+When documentation and code disagree, use:
 
-```
-You (SSH) ──► Internet ──► Internet Gateway ──► Security List ──► Instance
-                                                    │
-                                                    ├── Port 22 allowed (your IP only)
-                                                    └── All other inbound blocked
-
-Instance ──► Security List ──► Internet Gateway ──► Internet (all outbound allowed)
-
-Instance ──► VCN internal ──► Instance (all VCN traffic allowed)
-```
-
-## Availability Domains
-
-OCI regions have one or more Availability Domains (ADs) — physically separate data centers. This project:
-
-- Queries all ADs in your region (`IaC/availability-domains.tf`)
-- Places the ARM instance in AD index 1 (falls back to 0 if only one exists)
-- Places micro instances in AD index 0
-
-This is configurable in `IaC/locals.tf`.
-
-## Tags
-
-All resources are tagged with:
-
-| Tag | Value |
-|-----|-------|
-| `Project` | Your project name |
-| `ManagedBy` | `Terraform` |
-| `Environment` | `production` |
-| `CreatedAt` | Timestamp of creation |
-
-These help you identify and filter resources in the OCI console.
+1. `anywhere/flake.nix` for hosts, systems, deploy nodes, and build placement.
+2. `IaC/backend.tf`, `IaC/provider.tf`, and `IaC/Makefile` for state, authentication, and environment flow.
+3. `anywhere/profiles/` and `anywhere/hosts/` for machine behavior.
+4. `anywhere/clusters/s145/` for Flux registration.
+5. `anywhere/k8s/` for application resources and scheduling.

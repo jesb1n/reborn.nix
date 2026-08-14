@@ -22,7 +22,7 @@ Each host has: `configuration.nix` (main config), `disko-config.nix` (disk layou
 - Encrypted with SOPS + age under `anywhere/secrets/`
 - Decrypted at activation into `/run/secrets/<name>`
 - Host age keys live at `/var/lib/sops-nix/key.txt`
-- Shared secrets: `tailscale/auth-key.yaml`, `k3s/token.yaml`
+- Shared secrets: `secrets/tailscale/secrets.yaml`, `secrets/k3s/secrets.yaml`
 
 ## Build Constraints
 

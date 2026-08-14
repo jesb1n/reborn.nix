@@ -1,8 +1,8 @@
 # oracle-eu-arm1 host secrets
 
-Host-specific SOPS secrets for the ARM control-plane. Encrypted with the
-host age key (see `.sops.yaml`) and decrypted at activation time into
-`/run/secrets/`.
+Host-specific SOPS secrets for this ARM k3s agent (Hermes Agent gateway).
+Encrypted with the host age key (see `.sops.yaml`) and decrypted at
+activation time into `/run/secrets/`.
 
 Shared Tailscale credentials live in `secrets/tailscale/secrets.yaml`.
 Shared k3s credentials live in `secrets/k3s/secrets.yaml`.

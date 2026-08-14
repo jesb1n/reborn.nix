@@ -1,5 +1,10 @@
 # hp348 USB HDD to NVMe migration
 
+> **Status: completed historical runbook.** Keep this as a record of the 2026
+> migration, not as a generic reinstall procedure. Device IDs and recorded
+> filesystem identifiers are specific to that event and must never be reused
+> without fresh physical verification.
+
 This runbook documents the completed 2026-08-11 migration of hp348's NixOS
 root from its external Toshiba USB HDD to the internal GIGABYTE NVMe. The HDD
 remains unchanged and bootable as offline rollback media.

@@ -1,17 +1,28 @@
 # Immich
 
-Flux-managed Immich deployment for the `s145` k3s cluster.
+Flux-managed Immich deployment for the `s145` k3s cluster. Registered as the
+`immich` Kustomization in
+[`../../clusters/s145/immich.yaml`](../../clusters/s145/immich.yaml)
+(`dependsOn: infra`, SOPS decryption, `prune: true`).
+[`immich-public-proxy`](../immich-public-proxy/) depends on this Kustomization.
 
 ## What This Creates
 
 - `Namespace`: `immich`
 - `Secret`: `immich-secret`, SOPS-encrypted database credentials
-- `HelmRelease`: upstream Immich chart
-- `Deployment` + `Service`: Postgres using the Immich-recommended image
+- `HelmRelease`: upstream `immich` chart (`immich-charts` OCI repo, `0.13.1`)
+- `Deployment` + `Service`: Postgres (`ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0`), pinned to `s145`
 - Helm-managed `Deployment` + `Service`: Valkey for Redis-compatible queues
-- `PersistentVolumeClaim`: `immich-library`, `immich-postgres-data`, and `immich-machine-learning-cache`
-- `Middleware`: security headers in the `immich` namespace
-- `IngressRoute`: public HTTPS route at `i1.beijns.eu.org`
+- Helm-managed server (`ghcr.io/immich-app/immich-server:v3.0.3`) and
+  machine-learning (`ghcr.io/immich-app/immich-machine-learning:v3.0.3`)
+  Deployments, both pinned to `s145` via `defaultPodOptions.nodeSelector`
+- `PersistentVolume` + `PersistentVolumeClaim`: `immich-library` (500Gi) and
+  `immich-postgres-data` (50Gi), both static `hostPath` PVs under
+  `/home/duck/sda/appdata/immich-app/` on `s145`
+- `PersistentVolumeClaim`: `immich-machine-learning-cache` (10Gi, `local-path`)
+- `Service`: `immich-server-nodeport` (NodePort `32283` → `2283`)
+- `Middleware`: `security-headers` in the `immich` namespace
+- `IngressRoute`: public HTTPS route at `i1.beijns.eu.org` → `immich-server:2283`
 
 ## Routing Notes
 
@@ -41,7 +52,10 @@ cluster age key as `age.agekey`.
 
 ## Storage
 
-The important PVCs are managed outside the Helm chart so uninstalling
-`HelmRelease/immich` does not delete photo, database, or ML cache data. Keep
-`pvc.yaml` in the Flux path; removing it while `prune: true` is enabled can
-still delete those PVC objects.
+The `immich-library` and `immich-postgres-data` PVCs are bound to static,
+pre-provisioned PVs (`pv.yaml`) rather than a dynamic StorageClass, and are
+managed outside the Helm chart so uninstalling `HelmRelease/immich` does not
+delete photo or database data. Keep `pv.yaml` and `pvc.yaml` in the Flux path;
+removing them while `prune: true` is enabled can still delete those PVC/PV
+objects — the `Retain` reclaim policy on the PVs protects the underlying
+`hostPath` data, but not the Kubernetes objects themselves.
