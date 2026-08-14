@@ -1,12 +1,16 @@
 # Immich Public Proxy
 
 Public share frontend for Immich. Exposed via the cluster Cloudflare Tunnel
-(`anywhere/k8s/cloudflared/`), not Traefik.
+(`anywhere/k8s/cloudflared/`), not Traefik. Flux-managed: registered as the
+`immich-public-proxy` Kustomization in
+[`../../clusters/s145/immich-public-proxy.yaml`](../../clusters/s145/immich-public-proxy.yaml),
+which declares `dependsOn: immich` so the Immich Service exists first.
 
 ## What This Creates
 
-- `Deployment` + `Service`: Immich Public Proxy (`immich-public-proxy:3000`) in
-  namespace `immich`
+- `Deployment` (`alangrainger/immich-public-proxy:3.2.0`, pinned to `s145`) +
+  `Service`: Immich Public Proxy (`immich-public-proxy:3000`) in namespace
+  `immich`
 
 `IMMICH_URL` points at the in-cluster Immich Service
 (`http://immich-server.immich.svc.cluster.local:2283`).

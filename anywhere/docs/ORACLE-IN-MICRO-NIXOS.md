@@ -4,7 +4,10 @@ Runbook for installing (or reinstalling) `oracle-in-micro1` / `oracle-in-micro2`
 from stock Ubuntu to NixOS with `nixos-anywhere` + Disko. Captures the August
 2026 migration in OCI region `ap-mumbai-1`.
 
-Status after that migration: both hosts are NixOS k3s agents, tainted `tiny`.
+Status after that migration: both hosts are NixOS k3s agents, tainted `tiny`,
+and running (`remoteBuild = false` in `deploy.nodes`, per the current build
+constraints). This procedure remains the active runbook for any future
+reinstall of these hosts.
 
 | Host | Tailscale IP | Public IP (install-time; may change) |
 |------|--------------|--------------------------------------|
@@ -30,7 +33,10 @@ Do not use `--build-on remote` (builds on the 1 GB target).
   from a protected operator-only location
 - Shared `secrets/k3s/secrets.yaml` and `secrets/tailscale/secrets.yaml` include
   the India micro recipients
-- `deploy.nodes` entries use `sshUser = "duck"`, MagicDNS hostname, `remoteBuild = true`
+- `deploy.nodes` entries use `sshUser = "duck"`, MagicDNS hostname,
+  `remoteBuild = false` (Mac-initiated deploys build the `x86_64-linux`
+  closure through the hp348 distributed builder; see
+  `.github/instructions/nixos.instructions.md`)
 
 Tailscale auth key in SOPS must be **reusable**. A single-use key is consumed by
 the first host that joins; the second host then fails with
@@ -194,7 +200,7 @@ Then on the Mac (source of truth):
 1. Set `services.k3s.nodeIP` to the Tailscale IPv4 in
    `hosts/oracle-in-microN/configuration.nix`
 2. Ensure `deploy.nodes.oracle-in-microN` uses `hostname = "oracle-in-microN"`,
-   `sshUser = "duck"`, `remoteBuild = true`
+   `sshUser = "duck"`, `remoteBuild = false`
 3. Apply the tiny taint (not in NixOS config):
 
 ```bash

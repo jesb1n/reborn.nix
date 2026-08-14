@@ -1,5 +1,10 @@
 # Backup Plan: Immich + Vaultwarden to Google Drive
 
+> **Status: unimplemented design draft.** No K8up resources exist in the
+> checked-in cluster configuration. Revalidate K8up/rclone versions, current
+> data size, Google Drive limits, consistency hooks, restore procedures, and
+> credentials before implementation. The commands below are design examples,
+> not approval to create credentials, reconcile Flux, commit, or push.
 ## Goal
 
 Off-site incremental backups of Immich (photos + database) and Vaultwarden (SQLite + attachments) to Google Drive, managed via K8up (K8s backup operator) running in the cluster.
@@ -472,12 +477,12 @@ Append after existing `k8s/garage/garage-secret.yaml` rule:
 5. Create all K8up manifests
 6. Create backup Schedule CRs + per-namespace `backup-repo` secrets
 7. Modify existing files (annotations, dependsOn, kustomization)
-8. Create vaultwarden `kustomization.yaml`
-9. `git add` all files
-10. Commit and push → Flux reconciles
-11. Verify: `kubectl -n k8up-system get pods`, check rclone + operator running
-12. Trigger manual backup test
-13. Monitor first full backup (317 GB, expected 1-2 days)
+8. Create Vaultwarden `kustomization.yaml`
+9. Validate all rendered resources and stage new files for flake-aware checks
+10. Pause for review and explicit approval before commit, push, or reconciliation
+11. After approval and reconciliation, verify the operator and rclone pods
+12. Trigger a bounded manual backup test
+13. Perform and document a restore test before treating backups as reliable
 
 ## Verification commands
 

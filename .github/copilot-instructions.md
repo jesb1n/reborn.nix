@@ -51,7 +51,7 @@ sudo darwin-rebuild switch --flake .#pro-darwin
 ```
 
 - Stage newly created Nix files before flake evaluation because flakes do not see untracked files.
-- All deploy-rs nodes currently use `remoteBuild = true`. `rpi` uses `nixos-raspberrypi.lib.nixosSystem`; other NixOS hosts use `nixpkgs-unstable`.
+- The four Oracle micro nodes use `remoteBuild = false`; Mac-initiated builds use the configured `hp348` distributed builder. Other deploy-rs nodes use `remoteBuild = true`. `rpi` uses `nixos-raspberrypi.lib.nixosSystem`; other NixOS hosts use `nixpkgs-unstable`.
 - Use deploy-rs for routine changes. `nixos-anywhere` is destructive installation/reinstallation tooling; its special 1 GB micro-node procedure is documented in `anywhere/docs/ORACLE-IN-MICRO-NIXOS.md`.
 - For input updates, deploy workers first, ARM agents next, and the `s145` control-plane last.
 

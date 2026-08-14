@@ -1,4 +1,10 @@
-# Prometheus → VictoriaMetrics + VictoriaLogs: migration plan
+# Prometheus → VictoriaMetrics + VictoriaLogs: historical proposal
+
+> **Status: superseded and not implemented.** The cluster still uses the
+> Flux-managed `kube-prometheus-stack` under `anywhere/k8s/monitoring/`; no
+> `anywhere/k8s/victoria/` resources were created. This document is retained as
+> design history only. Reassess chart versions, capacity, retention, and the
+> current monitoring manifests before reviving any part of it.
 
 Swap the metrics backend to VictoriaMetrics and add VictoriaLogs for logs. The old stack
 stays running the whole time — no downtime, easy rollback. About 1–2 weeks total, most of
