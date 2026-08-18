@@ -36,7 +36,7 @@ The iCloud path (`/Users/jesbin/Library/Mobile Documents/com~apple~CloudDocs/Doc
 ### Determinate Nix
 
 - **`nix.enable = false`** is REQUIRED in `darwin-configuration.nix`. Determinate manages nixd itself; letting nix-darwin manage it will conflict.
-- Custom Nix settings go in `/etc/nix/nix.custom.conf`, NOT via `nix.settings` in the flake.
+- Custom Nix settings go in `/etc/nix/nix.custom.conf`, NOT via `nix.settings` in the flake. The standard `/etc/nix/machines` remote-builder file may be managed with `environment.etc`.
 
 ### Homebrew — DANGER
 

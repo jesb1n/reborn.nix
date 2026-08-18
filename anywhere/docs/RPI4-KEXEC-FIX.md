@@ -1,5 +1,11 @@
 # Fixing kexec on Raspberry Pi 4 (BCM2711)
 
+> **Status: completed historical runbook.** `rpi` has already been installed
+> and runs as a k3s agent (see `hosts/rpi/README.md` and the host table in the
+> repo root `README.md`). This document is preserved as a reference for the
+> kexec workaround, not an active procedure — do not run these commands
+> against the live host.
+
 > **Note:** The kexec packages (`packages/`) were removed. To restore them,
 > see commit `8839460` (`Add Wi-Fi Tailscale kexec image`).
 

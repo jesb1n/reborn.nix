@@ -10,15 +10,15 @@ The Raspberry Pi board support is provided by
 `github:nvmd/nixos-raspberrypi`, using the `raspberry-pi-4.base` module with
 the Raspberry Pi U-Boot + extlinux boot path.
 
-Current observed addresses before reinstall:
+**Status: installed.** This host is a running k3s agent (Tailscale IP
+`100.118.166.120`, Wi-Fi-only, `wlan0`) with a 900s deploy-rs activation
+timeout — see the host table in the repo root `README.md`. Routine updates
+use `nix develop -c deploy .#rpi`; the install steps below are historical,
+kept for reference if this Pi (or another one) needs reinstalling.
 
-```text
-LAN:       10.0.0.173
-Tailscale: 100.79.146.32
-Wi-Fi:     wlan0
-```
-
-The deploy target in `flake.nix` uses `ubuntu@100.79.146.32`.
+The addresses below (LAN `10.0.0.173`, Tailscale `100.79.146.32`) were the
+pre-install Ubuntu/Raspberry Pi OS addresses used for the original
+`nixos-anywhere` install and no longer apply.
 
 ## Before running nixos-anywhere
 
@@ -64,7 +64,11 @@ wifi-psk: "your-wifi-password"
 
 The shared Tailscale key lives in `secrets/tailscale/secrets.yaml`.
 
-## Install sketch
+## Install sketch (historical — completed)
+
+This section documents the original `nixos-anywhere` install and is kept for
+reference only; it does not describe routine operation of the now-running
+host. Do not run these commands against the live `rpi` host.
 
 > **Note:** The kexec packages (`packages/`) were removed from the flake.
 > To restore them, see commit `8839460` (`Add Wi-Fi Tailscale kexec image`).

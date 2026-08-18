@@ -1,86 +1,70 @@
-# CI/CD with GitHub Actions
+# CI/CD
 
-This project includes two GitHub Actions workflows that let you provision and tear down your infrastructure directly from GitHub — no local tooling required after initial setup.
+The repository currently has two manual GitHub Actions workflows for OpenTofu. NixOS deployments and Flux reconciliation are not performed by GitHub Actions.
 
-Both workflows are **manual trigger only** (`workflow_dispatch`), so nothing runs automatically on push or PR.
+## Current Workflows
 
-## Workflows
+| Workflow | Trigger | Behavior |
+| --- | --- | --- |
+| `.github/workflows/apply.yml` | `workflow_dispatch` | checkout, install OpenTofu 1.9.1, configure S3 credentials, init, validate, plan, apply |
+| `.github/workflows/destroy.yml` | `workflow_dispatch` | checkout, install OpenTofu 1.9.1, configure S3 credentials, init, destroy |
 
-### `apply.yml` — Provision Infrastructure
+The apply workflow attempts `tofu state push IaC/errored.tfstate` if an apply failure leaves that recovery file behind.
 
-**What it does:** Runs `tofu -chdir=IaC init` → `tofu -chdir=IaC validate` → `tofu -chdir=IaC plan` → `tofu -chdir=IaC apply`
+These workflows are state-changing and require deliberate manual invocation. The destroy workflow has no environment approval gate in the checked-in YAML.
 
-**When to use:** Whenever you want to create or update your infrastructure.
+## Required GitHub Configuration
 
-**Trigger:** Go to **Actions** → **Terraform Apply** → **Run workflow**
+The workflows directly reference only these repository secrets:
 
-If the apply fails mid-way, the workflow automatically attempts to push the partial state (`IaC/errored.tfstate`) to the remote backend so you don't lose track of what was created.
+| Secret | Purpose |
+| --- | --- |
+| `AWS_ACCESS_KEY_ID` | Garage S3 access key for the OpenTofu backend |
+| `AWS_SECRET_ACCESS_KEY` | Garage S3 secret key for the OpenTofu backend |
 
-### `destroy.yml` — Tear Down Infrastructure
+OpenTofu still requires all OCI variables and usable provider authentication at runtime. The current workflows do not decrypt `IaC/<environment>.tfvars`, do not select an OCI SecurityToken profile, and do not accept an environment input. They also use the static backend key from `IaC/backend.tf`.
 
-**What it does:** Runs `tofu -chdir=IaC init` → `tofu -chdir=IaC destroy`
+Consequently, the local multi-environment Makefile workflow is the authoritative and supported deployment path:
 
-**When to use:** When you want to delete all resources.
-
-**Trigger:** Go to **Actions** → **Terraform Destroy** → **Run workflow**
-
-## Required GitHub Secrets
-
-Go to your repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret** and add:
-
-| Secret | Value | Description |
-|--------|-------|-------------|
-| `TF_VAR_tenancy_ocid` | `ocid1.tenancy.oc1..aaaa...` | Your OCI tenancy OCID |
-| `TF_VAR_user_ocid` | `ocid1.user.oc1..aaaa...` | Your OCI user OCID |
-| `TF_VAR_fingerprint` | `aa:bb:cc:...` | API key fingerprint |
-| `TF_VAR_OCA_PRIVATE_KEY` | Base64-encoded private key | `base64 < ~/.oci/oci-api-key.pem` |
-| `TF_VAR_region` | `us-ashburn-1` | Your OCI region |
-| `TF_VAR_ssh_authorized_keys` | `ssh-ed25519 AAAA...` | Your SSH public key |
-| `TF_VAR_user_ip_address` | `203.0.113.10/32` | Your IP for SSH whitelist |
-| `TF_VAR_TAILSCALE_AUTH_KEY` | `tskey-auth-xxxxx` | Tailscale auth key (optional) |
-| `AWS_ACCESS_KEY_ID` | S3 access key | OCI Object Storage S3 credential |
-| `AWS_SECRET_ACCESS_KEY` | S3 secret key | OCI Object Storage S3 credential |
-
-> **Note:** Secrets prefixed with `TF_VAR_` are automatically picked up by OpenTofu/Terraform as variable values. This means you don't need an `IaC/terraform.tfvars` file in CI — the secrets replace it entirely.
-
-### Variables that can stay in `IaC/terraform.tfvars`
-
-These aren't sensitive and can be committed to the repo:
-
-```hcl
-vcn_cidr_block      = "10.0.0.0/16"
-public_subnet_cidr  = "10.0.0.0/24"
-private_subnet_cidr = "10.0.1.0/24"
-nat_subnet_cidr     = "10.0.2.0/24"
-vcn_dns_label       = "myvcn"
-project             = "myproject"
+```bash
+make -C IaC ENV=beijns check-auth
+make -C IaC ENV=beijns init
+make -C IaC ENV=beijns plan
+make -C IaC ENV=beijns deploy
 ```
 
-Or you can set these as `TF_VAR_*` secrets too — your choice.
+Do not assume the Actions workflows can deploy either environment without additional runner authentication and variable wiring.
 
-## How It Works
+## Backend Reachability
 
-```
-You click "Run workflow" in GitHub
-        │
-        ▼
-GitHub spins up an ubuntu-latest runner
-        │
-        ▼
-OpenTofu 1.9.1 is installed
-        │
-        ▼
-S3 backend credentials are written to ~/.aws/credentials
-(so tofu can read/write state from OCI Object Storage)
-        │
-        ▼
-tofu -chdir=IaC init (connects to backend)
-        │
-        ▼
-tofu -chdir=IaC plan → tofu -chdir=IaC apply  (or tofu -chdir=IaC destroy)
-        │
-        ▼
-Infrastructure is created/updated/destroyed
+The backend endpoint is Garage at `http://100.69.231.117:31900`, a Tailscale address. A standard `ubuntu-latest` runner cannot reach it unless the workflow first joins the authorized Tailnet. The checked-in workflows do not currently install or connect Tailscale.
+
+This means CI init is expected to fail unless external runner networking supplies that route. Do not change the backend to OCI Object Storage or local state merely to make CI pass; design and review an explicit migration instead.
+
+## Data Flow
+
+```text
+Manual workflow dispatch
+  → GitHub-hosted ubuntu-latest runner
+  → checkout
+  → OpenTofu 1.9.1
+  → write temporary ~/.aws/credentials
+  → connect to Garage backend (requires private route)
+  → init / validate / plan / apply or destroy
 ```
 
-The `TF_VAR_*` secrets are automatically available as environment variables in the runner, and OpenTofu reads them as input variable values.
+GitHub masks configured secrets, but OpenTofu plans and provider errors can still expose infrastructure metadata. Review Actions retention and access controls accordingly.
+
+## Safe Improvement Path
+
+Before treating CI as production-capable:
+
+1. Add an explicit environment selector and map it to a distinct state key.
+2. Establish short-lived OCI authentication suitable for CI; do not upload long-lived private keys casually.
+3. Join Tailscale with an ephemeral, tagged credential or use an authorized self-hosted runner.
+4. Provide SOPS decryption through a narrowly scoped CI age identity if encrypted tfvars remain the input source.
+5. Add protected GitHub Environments and required reviewers, especially for destroy.
+6. Run `tofu fmt -check` and validate before planning.
+7. Preserve the failed-state recovery behavior and test it without exposing state.
+
+Until those changes exist, use Actions as repository history, not as the primary operator runbook.

@@ -35,7 +35,7 @@ anywhere/
 ├── hosts/<hostname>/      # Per-host: configuration.nix, disko-config.nix, sops.nix
 ├── secrets/<hostname>/    # SOPS-encrypted host secrets (decrypted at activation)
 ├── clusters/s145/         # Flux Operator GitOps manifests (Kustomizations for apps)
-├── k8s/                   # Raw k8s manifests (manually applied, not Flux-managed)
+├── k8s/                   # Kubernetes resources (mostly reconciled by Flux)
 ├── operator/              # Flux Operator FluxInstance CR
 ├── docs/                  # Planning/runbooks (GATEWAY-NLB-PLAN, K3S-S145-MIGRATION, ORACLE-IN-MICRO-NIXOS, RPI4-KEXEC-FIX)
 ├── .sops.yaml             # SOPS creation rules — maps age keys to secret paths
@@ -65,22 +65,15 @@ Host configs import reusable profiles from `anywhere/profiles/`. Shared settings
 ### Commands
 
 ```bash
-# Format before every commit
-tofu -chdir=IaC fmt -recursive && tofu -chdir=IaC validate
+# Format only Terraform files; recursive fmt also reads encrypted *.tfvars
+make -C IaC fmt
+tofu -chdir=IaC validate
 
-# Standard flow
-tofu -chdir=IaC init
-tofu -chdir=IaC plan
-tofu -chdir=IaC apply
-
-# State recovery after failed apply
-tofu -chdir=IaC state push IaC/errored.tfstate
-
-# Local multi-env workflow (SOPS-integrated, preferred locally)
-make ENV=beijns check-auth   # Refresh OCI SecurityToken session first
-make ENV=beijns init
-make ENV=beijns plan
-make ENV=beijns deploy
+# Local multi-environment workflow (SOPS-integrated)
+make -C IaC ENV=beijns check-auth
+make -C IaC ENV=beijns init
+make -C IaC ENV=beijns plan
+make -C IaC ENV=beijns deploy  # state-changing
 ```
 
 ### Critical IaC quirks
@@ -125,10 +118,11 @@ Deploy from `anywhere/`. Prefer workers first, then control-plane.
 - `nix develop -c deploy --targets .#oracle-eu-micro1 .#oracle-eu-micro2`: deploy multiple hosts.
 - `nix develop -c deploy .`: deploy all hosts.
 
-All current deploy-rs nodes use `remoteBuild = true`, so routine deployments
-build on the target host. The separate `nixos-anywhere` installation flow for
-1 GB x86 micro nodes runs from s145 with `--build-on local` so s145 builds the
-initial closure.
+The four Oracle micro nodes use `remoteBuild = false`; Mac-initiated deployments
+build their `x86_64-linux` closures through the configured `hp348` distributed
+builder. Other deploy-rs nodes use `remoteBuild = true`. The separate
+`nixos-anywhere` installation flow for 1 GB x86 micro nodes runs from s145 with
+`--build-on local` so s145 builds the initial closure.
 
 ### Kubernetes (s145 cluster)
 
@@ -141,10 +135,9 @@ initial closure.
 
 - **All NixOS systems use `nixpkgs-unstable`**; the `nixpkgs` input (26.05 stable) is only for devShell/tooling (deploy-rs, disko, sops-nix follow it). Exception: `rpi` is built via `nixos-raspberrypi.lib.nixosSystem` (its own nixpkgs), not `nixpkgs-unstable.lib.nixosSystem`.
 - **New Nix files must be `git add`-ed before eval or deploy.** Flakes only see tracked/staged files; untracked files cause evaluation errors.
-- **All current hosts have `remoteBuild = true`** — each host builds its own
-  closure during routine deploy-rs updates. This is required for aarch64
-  (`oracle-eu-arm1`, `oracle-in-arm1`, `rpi`) when the operator is x86_64 and is
-  also the configured behavior for the micro nodes.
+- **Build placement follows `flake.nix`** — all four Oracle micro nodes use
+  `remoteBuild = false` and Mac-initiated builds use `hp348`; the remaining
+  deploy-rs nodes use `remoteBuild = true`.
 - **`pro-darwin`** is a `darwinConfigurations` entry, NOT in `deploy.nodes`. Deploy with `sudo darwin-rebuild switch --flake .#pro-darwin` from `anywhere/`.
 - **`nixos-anywhere` is destructive** — reformats the disk via disko. Never use for routine updates; use deploy-rs instead. For 1 GB Oracle micros, run it from **s145**, prep **2G swap** on the Ubuntu target, and use `--build-on local --no-disko-deps --kexec-extra-flags "--kexec-syscall"`. See [anywhere/docs/ORACLE-IN-MICRO-NIXOS.md](anywhere/docs/ORACLE-IN-MICRO-NIXOS.md).
 - **`--elevate=sudo`** (not `--use-remote-sudo`) is the correct flag for `nixos-rebuild` remote activation.
@@ -257,10 +250,10 @@ flux reconcile kustomization immich -n flux-system --with-source
 
 ## Validation Checklist (before proposing changes)
 
-- **Terraform**: `tofu -chdir=IaC fmt -recursive && tofu -chdir=IaC validate`
+- **Terraform**: `make -C IaC fmt && tofu -chdir=IaC validate`
 - **Nix**: `nix flake check` (from `anywhere/`)
 - **New Nix files**: `git add <file>` before any `nix eval` or deploy
-- **OCI session**: run `make check-auth` if session may have expired
+- **OCI session**: run `make -C IaC ENV=<env> check-auth` if the session may have expired
 
 ## CI (GitHub Actions)
 
