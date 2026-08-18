@@ -12,6 +12,7 @@
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "1password"
     "cursor"
+    "discord"
     "slack"
     "spotify"
   ];
@@ -47,6 +48,13 @@
     enable = true;
     onActivation.cleanup = "none";
     onActivation.autoUpdate = false;
+    taps = [
+      {
+        name = "netbirdio/tap";
+        trusted = true;
+      }
+    ];
+    brews = [ "netbirdio/tap/netbird" ];
     masApps = {
       "WireGuard" = 1451685025;
       "Bitwarden" = 1352778147;
@@ -62,6 +70,7 @@
       "lens"
       "loom"
       "maccy"
+      "netbirdio/tap/netbird-ui"
       "tailscale-app"
       "visual-studio-code"
       "warp"
