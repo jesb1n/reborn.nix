@@ -121,6 +121,7 @@
     gh
     tmux
     nodejs
+    pre-commit
     kubectl
     kubectx
     kubernetes-helm
@@ -128,6 +129,7 @@
     tailscale
     k9s
     code-cursor
+    discord
     firefox
     slack
     google-cloud-sdk
