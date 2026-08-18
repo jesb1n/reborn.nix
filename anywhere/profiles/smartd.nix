@@ -1,7 +1,7 @@
 # profiles/smartd.nix — SMART disk health monitoring for bare-metal hosts
 #
-# Import only on physical machines (s145, hp348, rpi). Do not import on OCI
-# VMs — cloud block devices usually lack useful SMART data.
+# Import only on hosts whose disks expose SMART (s145 and hp348). Do not import
+# on OCI VMs or SD-card-backed hosts such as rpi.
 {
   # Surface impending disk failure before data loss.
   services.smartd = {

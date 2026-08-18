@@ -4,7 +4,10 @@ Read-only Kubernetes MCP server for AI tooling (OpenCode, Claude Code, Cursor, V
 
 Give AI agents rich, safe context on the `s145` k3s cluster without any cluster-side footprint and without exposing Secrets.
 
-**Status:** planned, not executed. This is the source-of-truth to hand back to any agent to execute.
+> **Status: unimplemented design draft.** Revalidate the upstream release,
+> flags, RBAC API groups, and local client configuration before implementation.
+> This document is not approval to create cluster credentials, reconcile Flux,
+> switch nix-darwin, commit, or push.
 
 ## Goal
 
@@ -24,7 +27,7 @@ Enable any MCP-capable AI tool running on `pro-darwin` (or any other laptop that
 | Decision | Choice | Rationale |
 |---|---|---|
 | MCP implementation | [`containers/kubernetes-mcp-server`](https://github.com/containers/kubernetes-mcp-server) | Under Red Hat's `containers` org (Podman/Buildah umbrella). 1.8k stars, Apache-2.0, actively maintained. Native Go client — no `kubectl`/`helm` shell-outs → low latency, no Node/Python runtime required. Ships single binary + npm + PyPI + OCI + Helm chart. Has `--read-only`, `--disable-destructive`, `--toolsets`, TOML `denied_resources`, OIDC (HTTP mode). |
-| Authentication | Long-lived `kubernetes.io/service-account-token` Secret | Never expires; zero rotation burden for a solo homelab. Legacy but supported. TokenRequest (24h max) would need a launchd rotator — not worth the complexity here. |
+| Authentication | Short-lived TokenRequest credential | Prefer expiration and rotation over a persistent bearer token. Generate it at launch or through a local credential helper; do not commit it. |
 | Install method on `pro-darwin` | Nix derivation using `fetchurl` on upstream `darwin-arm64` release binary | Reproducible, offline after fetch, no Node runtime pollution. Matches the `gke-gcloud-auth-plugin` precedent in `darwin-configuration.nix`. Not in nixpkgs (checked). |
 | OpenCode config scope | Repo-scoped `oracle-cloud-free-tier/opencode.json` | Loads MCP only when opencode runs in this workspace. Avoids context bloat and unnecessary connections in unrelated projects. |
 | RBAC breadth | Custom `ClusterRole` — `get/list/watch` on all resources **except `secrets`** | Built-in `view` omits `nodes`, `persistentvolumes`, `storageclasses`, `customresourcedefinitions`, RBAC, metrics — all things we need for AI diagnostic quality. Excluding `secrets` gives defense in depth alongside client-side `denied_resources`. |
@@ -39,7 +42,7 @@ Enable any MCP-capable AI tool running on `pro-darwin` (or any other laptop that
 │   OpenCode (this repo workspace)                   │
 │      └── reads oracle-cloud-free-tier/opencode.json│
 │           └── spawns kubernetes-mcp-server (stdio) │
-│                └── --kubeconfig ~/.kube/mcp-viewer.kubeconfig
+│                └── --kubeconfig <ephemeral TokenRequest config>
 │                     └── --read-only                │
 │                     └── --disable-multi-cluster    │
 │                     └── --toolsets core,config,helm│
@@ -91,7 +94,6 @@ Files:
 - `serviceaccount.yaml` — `mcp-viewer` ServiceAccount in `mcp-system`
 - `clusterrole.yaml` — `mcp-viewer` ClusterRole (rules detailed below)
 - `clusterrolebinding.yaml` — binds ClusterRole → SA
-- `token-secret.yaml` — `type: kubernetes.io/service-account-token` with `annotations.kubernetes.io/service-account.name: mcp-viewer`. Kubernetes auto-populates `.data.token`.
 
 **ClusterRole rule outline** (final resource list to be confirmed against `kubectl api-resources` at execution time):
 
@@ -104,51 +106,31 @@ Files:
 
 If new CRD groups are added to the cluster later (e.g., prometheus-operator), append their group to Rule 3 and Flux will reconcile.
 
-### B. Local token extraction + kubeconfig (off-git, one-shot)
+### B. Local short-lived credential (off-git)
 
-Run once on `pro-darwin` after Flux reconciles the manifests:
+Create the ServiceAccount and RBAC through Flux, then use the Kubernetes
+TokenRequest API from a local launcher or credential helper. Do not create a
+long-lived service-account-token Secret. A manual verification credential can
+be requested with a bounded duration:
 
 ```bash
-# 1. Extract the auto-populated token
-TOKEN=$(kubectl -n mcp-system get secret mcp-viewer-token \
-  -o jsonpath='{.data.token}' | base64 -d)
-
-# 2. Extract the cluster CA (embed it for portability)
-CA=$(kubectl config view --raw --minify \
-  -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')
-
-# 3. Build the kubeconfig
-umask 077
-cat > ~/.kube/mcp-viewer.kubeconfig <<EOF
-apiVersion: v1
-kind: Config
-clusters:
-- name: s145
-  cluster:
-    server: https://100.69.231.117:6443
-    certificate-authority-data: ${CA}
-users:
-- name: mcp-viewer
-  user:
-    token: ${TOKEN}
-contexts:
-- name: mcp-viewer@s145
-  context:
-    cluster: s145
-    user: mcp-viewer
-    namespace: default
-current-context: mcp-viewer@s145
-EOF
-chmod 600 ~/.kube/mcp-viewer.kubeconfig
+TOKEN=$(kubectl -n mcp-system create token mcp-viewer --duration=1h)
 ```
 
-**Verify:**
+Write any temporary kubeconfig with `umask 077`, keep it outside the
+repository, and delete it after verification. The production launcher must
+refresh the credential before expiry rather than embedding a static token in
+`opencode.json`.
+
+Verify the identity before connecting AI tooling:
+
 ```bash
-kubectl --kubeconfig ~/.kube/mcp-viewer.kubeconfig auth can-i list pods -A            # → yes
-kubectl --kubeconfig ~/.kube/mcp-viewer.kubeconfig auth can-i get secrets -A          # → no
-kubectl --kubeconfig ~/.kube/mcp-viewer.kubeconfig auth can-i create pods -A          # → no
-kubectl --kubeconfig ~/.kube/mcp-viewer.kubeconfig get nodes,pods -A                  # → returns data
+kubectl auth can-i --as=system:serviceaccount:mcp-system:mcp-viewer list pods -A
+kubectl auth can-i --as=system:serviceaccount:mcp-system:mcp-viewer get secrets -A
+kubectl auth can-i --as=system:serviceaccount:mcp-system:mcp-viewer create pods -A
 ```
+
+Expected results are `yes`, `no`, and `no` respectively.
 
 ### C. Nix derivation on `pro-darwin`
 
@@ -235,7 +217,7 @@ Once approved to build:
 3. `git add` the new files (Flux requires tracked files; no local eval needed for k8s YAML).
 4. Push (after user confirmation per repo rules) → `flux reconcile source git flux-system && flux reconcile kustomization mcp-viewer -n flux-system --with-source`.
 5. Verify RBAC objects exist and `auth can-i` matrix matches expectations.
-6. Extract token, build `~/.kube/mcp-viewer.kubeconfig` (Section B).
+6. Implement the short-lived TokenRequest credential helper described in Section B.
 7. Fetch latest MCP release version + sha256; write `pkgs/kubernetes-mcp-server.nix`; edit `home.nix`; `git add` before `nix flake check`.
 8. `nix flake check` → `sudo darwin-rebuild build --flake .#pro-darwin` (dry) → `sudo darwin-rebuild switch --flake .#pro-darwin`.
 9. Sanity: `which kubernetes-mcp-server && kubernetes-mcp-server --help`.
@@ -259,7 +241,7 @@ Once approved to build:
 
 ## Risks / caveats
 
-- **Long-lived token on disk** at `~/.kube/mcp-viewer.kubeconfig`. Mitigated by `chmod 600` + macOS FileVault. To revoke: delete the Secret in-cluster (`kubectl -n mcp-system delete secret mcp-viewer-token`) — the token immediately stops working. Recreate via Flux to rotate.
+- **Bearer credential exposure** remains possible while a short-lived token is active. Keep temporary kubeconfigs mode `0600`, exclude them from Git, and prefer an on-demand launcher that refreshes TokenRequest credentials.
 - **CRD group drift** — new CRD groups added to the cluster later will be invisible to the AI until their group is added to the ClusterRole. Note this in AGENTS.md.
 - **Nix binary unsigned by upstream** — `fetchurl` sidesteps macOS quarantine, but if Gatekeeper ever intervenes: `xattr -d com.apple.quarantine`.
 - **Repo-scoped config** — MCP only loads inside `oracle-cloud-free-tier/`. To use in another workspace, either duplicate `opencode.json` there or promote to `~/.config/opencode/opencode.json`.

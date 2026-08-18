@@ -12,8 +12,9 @@
 ### OpenTofu (`IaC/`)
 
 ```bash
-# Format and validate all Terraform/OpenTofu files
-tofu -chdir=IaC fmt -recursive
+# Format only .tf files, then validate the initialized configuration
+# (recursive tofu fmt also reads SOPS-encrypted *.tfvars and fails)
+make -C IaC fmt
 tofu -chdir=IaC validate
 
 # Preferred local multi-environment flow; ENV defaults to beijns
@@ -50,15 +51,18 @@ sudo darwin-rebuild switch --flake .#pro-darwin
 ```
 
 - Stage newly created Nix files before flake evaluation because flakes do not see untracked files.
-- All deploy-rs nodes currently use `remoteBuild = true`. `rpi` uses `nixos-raspberrypi.lib.nixosSystem`; other NixOS hosts use `nixpkgs-unstable`.
+- The four Oracle micro nodes use `remoteBuild = false`; Mac-initiated builds use the configured `hp348` distributed builder. Other deploy-rs nodes use `remoteBuild = true`. `rpi` uses `nixos-raspberrypi.lib.nixosSystem`; other NixOS hosts use `nixpkgs-unstable`.
 - Use deploy-rs for routine changes. `nixos-anywhere` is destructive installation/reinstallation tooling; its special 1 GB micro-node procedure is documented in `anywhere/docs/ORACLE-IN-MICRO-NIXOS.md`.
 - For input updates, deploy workers first, ARM agents next, and the `s145` control-plane last.
 
 ### Kubernetes and Flux
 
 ```bash
-# Inspect generated resources for one app without applying them
+# Inspect one Flux-managed app that has kustomization.yaml (single-app check)
 kubectl kustomize anywhere/k8s/<app>
+
+# Check a manually managed app without changing the cluster
+kubectl apply --dry-run=client -f anywhere/k8s/<app>/
 
 # Manual manifests; state-changing
 kubectl apply -f anywhere/k8s/<app>/
@@ -68,7 +72,7 @@ flux reconcile kustomization <app> -n flux-system --with-source
 ```
 
 - `anywhere/clusters/s145/*.yaml` contains Flux Kustomization CRs that point into `anywhere/k8s/`; application resources live in the latter.
-- Do not assume everything under `anywhere/k8s/` is automatically applied. Follow the app README and its `clusters/s145` registration.
+- Not every app directory has a `kustomization.yaml`, and not everything under `anywhere/k8s/` is automatically applied. Follow the app README and its `clusters/s145` registration.
 
 ## Architecture
 

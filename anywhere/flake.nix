@@ -8,17 +8,15 @@
     ];
     extra-trusted-public-keys = [
       "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
-      "nix-community.cachix.org-1:b9F6KGrNS7LDfJs+c9UF4/tEaS7KE0mTChZdG4h6IVk="
+      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
     ];
   };
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/e73de5b";
-    # Fresh nixpkgs for macOS-only builds (nix-darwin). Decoupled from the
-    # pinned nixpkgs-unstable because that pin predates nixos-render-docs'
-    # --sidebar-depth support, and the Linux PAM regression in newer nixpkgs
-    # does not affect darwin.
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # Keep macOS-only builds independent from the Linux rolling channel so a
+    # Linux upgrade cannot also change nix-darwin's package set.
     nixpkgs-latest.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixos-anywhere.url = "github:nix-community/nixos-anywhere";
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
@@ -66,6 +64,7 @@
               pkgs.age
               deploy-rs.packages.${system}.default
               disko.packages.${system}.default
+              pkgs.fluxcd
               nixos-anywhere.packages.${system}.default
               pkgs.sops
               pkgs.ssh-to-age
@@ -194,7 +193,7 @@
         oracle-eu-micro1 = {
           hostname = "oracle-eu-micro1";
           sshUser = "duck";
-          remoteBuild = true;
+          remoteBuild = false;
           fastConnection = true;
           activationTimeout = 600;
           confirmTimeout = 60;
@@ -208,7 +207,7 @@
         oracle-eu-micro2 = {
           hostname = "oracle-eu-micro2";
           sshUser = "duck";
-          remoteBuild = true;
+          remoteBuild = false;
           fastConnection = true;
           activationTimeout = 600;
           confirmTimeout = 60;
@@ -235,7 +234,7 @@
         oracle-in-micro1 = {
           hostname = "oracle-in-micro1";
           sshUser = "duck";
-          remoteBuild = true;
+          remoteBuild = false;
           fastConnection = true;
           activationTimeout = 600;
           confirmTimeout = 60;
@@ -249,7 +248,7 @@
         oracle-in-micro2 = {
           hostname = "oracle-in-micro2";
           sshUser = "duck";
-          remoteBuild = true;
+          remoteBuild = false;
           fastConnection = true;
           activationTimeout = 600;
           confirmTimeout = 60;

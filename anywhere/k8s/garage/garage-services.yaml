@@ -20,3 +20,4 @@ spec:
       name: s3-web
   selector:
     app.kubernetes.io/name: garage
+    garage.cluster: primary

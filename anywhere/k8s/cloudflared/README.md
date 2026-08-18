@@ -7,7 +7,7 @@ pod per node); many Published application routes in the Cloudflare dashboard.
 
 - `Namespace`: `cloudflared`
 - `Secret`: `tunnel-token` (SOPS) — tunnel token from the Cloudflare dashboard
-- `DaemonSet`: `cloudflared` (HTTP/2 to edge; tolerates `tiny=true:NoSchedule`)
+- `DaemonSet`: `cloudflared` (`cloudflare/cloudflared:2026.7.3`, HTTP/2 to edge; tolerates `tiny=true:NoSchedule`)
 
 ### Why `--protocol http2`
 
@@ -27,7 +27,7 @@ Live cluster (verify with `kubectl get nodes -o custom-columns=NAME:.metadata.na
 | Node | Taint |
 |------|-------|
 | `s145`, `hp348`, `oracle-eu-arm1`, `oracle-in-arm1`, `rpi` | none |
-| `oracle-eu-micro1`, `oracle-eu-micro2` | `tiny=true:NoSchedule` |
+| `oracle-eu-micro1`, `oracle-eu-micro2`, `oracle-in-micro1`, `oracle-in-micro2` | `tiny=true:NoSchedule` |
 
 DaemonSet toleration (in `daemonset.yaml`):
 
@@ -44,9 +44,9 @@ Ready node (including 1 GB micros) runs a connector so the tunnel can survive
 loss of larger nodes.
 
 Note: the `tiny` taint is applied out-of-band after node join (not in NixOS);
-see `profiles/k3s-agent-tiny.nix` and `MAINTENANCE.md`. Re-check taints after
-cluster rebuilds. `oracle-in-micro*` are expected to get the same taint when
-they join.
+see `profiles/k3s-agent-tiny.nix` and `MAINTENANCE.md`. Re-check and reapply
+taints after cluster rebuilds or node re-registration, since the taint does
+not survive that process.
 
 Routing is **not** in these manifests. Add/remove hostnames under
 **Networking → Tunnels → \<tunnel\> → Routes → Published application**.

@@ -25,5 +25,9 @@ This directory holds SOPS-encrypted secrets for the `s145` host.
    ```
 
    Required keys:
-   - `wifi-ssid`: WiFi network name
-   - `wifi-psk`: WiFi password
+   - `wifi-ssid`: Wi-Fi network name
+   - `wifi-psk`: Wi-Fi password
+   - `cloudflare-dns-api-token`: scoped token used by Traefik for DNS-01 ACME
+
+   Restrict the Cloudflare token to Zone DNS edit and Zone read permissions for
+   the managed zone. Do not print or commit its plaintext value.

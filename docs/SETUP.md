@@ -1,203 +1,136 @@
-# Setup Guide
+# Setup
 
-A step-by-step walkthrough to go from zero to a fully running infrastructure.
+This guide prepares an authorized operator to work with the existing repository. Creating new OCI accounts, Tailnets, DNS zones, or replacement secrets is outside the normal setup path.
 
-> **Cost: $0.** Everything in this project runs on Oracle Cloud's Always Free Tier. See [PREREQUISITES.md](PREREQUISITES.md) for details.
-
-## Step 1: Clone and Prepare
+## 1. Clone and Enter the Repository
 
 ```bash
-git clone <this-repo>
-cd <this-repo>
+git clone git@github.com:jesb1n/reborn.nix.git
+cd reborn.nix
 ```
 
-## Step 2: Create Your `IaC/terraform.tfvars`
+Do not copy decrypted files or age private keys into the checkout.
 
-Copy the example file and fill in your real values:
+## 2. Configure the Operator Age Identity
 
 ```bash
-cp IaC/terraform.tfvars.example IaC/terraform.tfvars
+install -d -m 700 "$HOME/.config/sops/age"
+export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
 ```
 
-Edit `IaC/terraform.tfvars`:
-
-```hcl
-tenancy_ocid = "ocid1.tenancy.oc1..aaaaaaaayour-actual-tenancy-ocid"
-user_ocid    = "ocid1.user.oc1..aaaaaaaayour-actual-user-ocid"
-fingerprint  = "your:api:key:fingerprint"
-region       = "us-ashburn-1"  # your home region
-
-vcn_cidr_block      = "10.0.0.0/16"
-public_subnet_cidr  = "10.0.0.0/24"
-private_subnet_cidr = "10.0.1.0/24"
-nat_subnet_cidr     = "10.0.2.0/24"
-
-vcn_dns_label = "myvcn"
-project       = "myproject"
-
-ssh_authorized_keys = "ssh-ed25519 AAAA... your-email@example.com"
-user_ip_address     = "YOUR.PUBLIC.IP/32"
-```
-
-> **Where to find these values:** See the [Prerequisites](PREREQUISITES.md#2-upload-the-public-key-to-oci) doc.
-
-## Step 3: Set Sensitive Environment Variables
-
-These should **not** go in `IaC/terraform.tfvars` (they'd be committed to git):
+Provision the authorized identity through a secure out-of-band channel, then verify it without emitting plaintext:
 
 ```bash
-# Your OCI API private key (base64-encoded)
-# macOS:
-export TF_VAR_OCA_PRIVATE_KEY="$(base64 < ~/.oci/oci-api-key.pem)"
-# Linux:
-export TF_VAR_OCA_PRIVATE_KEY="$(base64 -w0 < ~/.oci/oci-api-key.pem)"
-
-# Tailscale auth key (optional — remove if not using Tailscale)
-export TF_VAR_TAILSCALE_AUTH_KEY="tskey-auth-xxxxx"
-
-# S3 backend credentials (for remote state)
-export AWS_ACCESS_KEY_ID="your-s3-access-key"
-export AWS_SECRET_ACCESS_KEY="your-s3-secret-key"
+sops -d IaC/beijns.tfvars >/dev/null
+sops -d IaC/secrets/beijns.env >/dev/null
 ```
 
-## Step 4: Configure the Backend
+## 3. Configure OCI CLI Sessions
 
-Edit `IaC/backend.tf` and replace the placeholder values:
-
-```hcl
-terraform {
-  backend "s3" {
-    bucket = "your-bucket-name"
-    region = "your-region"
-    key    = "IaC/tf.tfstate"
-    # ... keep the other settings as-is ...
-    endpoints = {
-      s3 = "https://your-namespace.compat.objectstorage.your-region.oraclecloud.com"
-    }
-  }
-}
-```
-
-> **Alternative: Local backend.** If you don't want remote state, replace the entire `IaC/backend.tf` with:
-> ```hcl
-> terraform {
->   backend "local" {}
-> }
-> ```
-> This stores state in a local `IaC/terraform.tfstate` file. Fine for personal use, but don't commit it to git.
-
-## Step 5: Initialize
+Create OCI CLI profiles named `beijns` and `beijnseu` using the authorized tenancy identities. The OpenTofu provider consumes OCI SecurityToken sessions, not an inline PEM variable.
 
 ```bash
-tofu -chdir=IaC init
+make -C IaC ENV=beijns check-auth
+make -C IaC ENV=beijnseu check-auth
 ```
 
-This downloads the OCI provider plugin and initializes the backend. You should see:
+Re-run `check-auth` whenever OCI reports an expired or invalid session.
 
-```
-Terraform has been successfully initialized!
-```
+## 4. Initialize an OpenTofu Environment
 
-## Step 6: Preview Changes
+Connect to Tailscale first because the Garage backend is private.
 
 ```bash
-tofu -chdir=IaC plan
+make -C IaC ENV=beijns init
+make -C IaC fmt
+tofu -chdir=IaC validate
+make -C IaC ENV=beijns plan
 ```
 
-This shows what Terraform will create without actually doing anything. Review the output carefully. You should see resources like:
+`init` decrypts the selected tfvars and backend credentials only for the command, sets the state key to `<environment>.tfstate`, and selects the matching OCI profile. Repeat with `ENV=beijnseu` for Europe.
 
-- `oci_core_vcn.vcn`
-- `oci_core_internet_gateway.igw`
-- `oci_core_subnet.public`
-- `oci_core_route_table.public_route_table`
-- `oci_core_security_list.public_security_list`
-- `oci_core_instance.arm_instance`
-- `oci_core_instance.micro_instances["micro1"]`
-- `oci_core_instance.micro_instances["micro2"]`
-
-## Step 7: Apply
+Review plans for replacements, public IP changes, boot-volume changes, and unexpected cross-environment resources. Apply only after review:
 
 ```bash
-tofu -chdir=IaC apply
+make -C IaC ENV=beijns deploy
 ```
 
-Type `yes` when prompted. Terraform will create all resources. This typically takes 2-5 minutes.
-
-When done, you'll see the outputs:
-
-```
-arm_instance_public_ip = "xxx.xxx.xxx.xxx"
-micro1_public_ip = "xxx.xxx.xxx.xxx"
-micro2_public_ip = "xxx.xxx.xxx.xxx"
-```
-
-## Step 8: Connect
-
-SSH into any instance:
+## 5. Prepare the Nix Workspace
 
 ```bash
-# ARM instance
-ssh ubuntu@<arm_instance_public_ip>
-
-# Micro instances
-ssh ubuntu@<micro1_public_ip>
-ssh ubuntu@<micro2_public_ip>
+cd anywhere
+direnv allow                 # optional: exports KUBECONFIG and SOPS_AGE_KEY_FILE
+nix develop                  # supplies deploy-rs, SOPS, age, Disko, and install tools
+nix flake check
 ```
 
-> The default username for Ubuntu images on OCI is `ubuntu`.
+New Nix files must be staged before flake evaluation because flakes ignore untracked files.
 
-## Managing the Infrastructure
-
-### See current state
+Evaluate one host before activation:
 
 ```bash
-tofu -chdir=IaC show
+nix eval --raw .#nixosConfigurations.s145.config.networking.hostName
+nix build -L .#nixosConfigurations.s145.config.system.build.toplevel
 ```
 
-### Update after changing variables
+## 6. Routine NixOS Deployment
+
+Use deploy-rs from `anywhere/`:
 
 ```bash
-tofu -chdir=IaC plan    # preview
-tofu -chdir=IaC apply   # apply
+nix develop -c deploy .#oracle-eu-arm1
+nix develop -c deploy .#s145
 ```
 
-### Tear everything down
+For shared input updates, deploy workers first and `s145` last. The four micro targets build through the configured `hp348` builder when deployed from the Apple Silicon workstation; other nodes use remote builds.
+
+Do not use `nixos-anywhere` for routine updates. It runs Disko and can erase the target disk. Follow a host-specific reinstall runbook only when a destructive reinstall is intended.
+
+## 7. Configure Cluster Access
+
+Place the authorized kubeconfig at `~/.kube/s145.yaml` with restrictive permissions:
 
 ```bash
-tofu -chdir=IaC destroy
+chmod 600 "$HOME/.kube/s145.yaml"
+export KUBECONFIG="$HOME/.kube/s145.yaml"
+kubectl get nodes -o wide
+flux get kustomizations -n flux-system
 ```
 
-Type `yes` to confirm. This deletes all resources.
+The repository's `anywhere/.envrc` exports this path automatically after `direnv allow`.
+
+## 8. GitOps Changes
+
+1. Edit resources in `anywhere/k8s/<app>/`.
+2. Validate with `kubectl kustomize anywhere/k8s/<app>` when a kustomization exists, or use client-side dry-run for plain manifests.
+3. Commit and push the change to the branch watched by Flux.
+4. Observe reconciliation or explicitly reconcile the app.
+
+```bash
+flux reconcile kustomization immich -n flux-system --with-source
+flux get kustomizations -n flux-system
+```
+
+Flux reconciliation changes the live cluster. Do not reconcile unreviewed source changes.
 
 ## Troubleshooting
 
-### "Out of capacity" error for ARM instance
+### OCI authentication fails
 
-The A1.Flex shape is popular and OCI may not have capacity in your availability domain. Try:
-
-1. Change the availability domain index in `IaC/instance.tf` (switch between 0 and 1).
-2. Try at a different time (early morning tends to have more capacity).
-3. Reduce the shape config (e.g., 2 OCPUs, 12 GB RAM) and try again.
-
-### "Not authorized" errors
-
-- Verify your `tenancy_ocid`, `user_ocid`, and `fingerprint` are correct.
-- Make sure the API key is uploaded to the correct user in OCI.
-- Check that `TF_VAR_OCA_PRIVATE_KEY` is set and base64-encoded correctly.
-
-### SSH connection refused
-
-- Verify `user_ip_address` in `IaC/terraform.tfvars` matches your current public IP.
-- Check that the instance has finished booting (allow 2-3 minutes after apply).
-- Confirm you're using the correct SSH key.
+Run `make -C IaC ENV=<environment> check-auth` and complete browser authentication. Confirm the OCI profile name matches the encrypted environment.
 
 ### Backend initialization fails
 
-- Verify `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are set.
-- Check that the Object Storage bucket exists.
-- Verify the S3 endpoint URL uses the correct namespace and region.
+Confirm Tailscale connectivity and reachability of `100.69.231.117:31900`. Verify the selected encrypted backend environment file decrypts. Do not replace the backend with local state.
 
-### Tailscale not connecting on micro instances
+### SOPS reports no matching key
 
-- The auth key might have expired — generate a new one and redeploy.
-- Check cloud-init logs on the instance: `sudo cat /var/log/cloud-init-output.log`
+Confirm `SOPS_AGE_KEY_FILE`, file permissions, and that the encrypted file contains the operator's public recipient. Never copy a host private key into the repository.
+
+### A micro-node build fails locally
+
+Confirm `hp348` is online, reachable over SSH, and still configured as the x86_64 distributed builder for `pro-darwin`.
+
+### A k3s agent does not join
+
+Check Tailscale first, then `systemctl status k3s` on the agent. The server address is `https://100.69.231.117:6443`. Reapply the `tiny=true:NoSchedule` taint after rebuilding a micro node.

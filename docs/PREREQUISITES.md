@@ -1,209 +1,124 @@
 # Prerequisites
 
-Everything in this project runs on Oracle Cloud's **Always Free Tier**. You will not be charged anything — not now, not ever (as long as you stay within the free limits).
+This repository operates existing, personal infrastructure. It is not a turnkey free-tier template: account limits, DNS zones, hostnames, Tailnet addresses, secrets, and OCI capacity are environment-specific.
 
-## Oracle Cloud Always Free Tier
+## Access
 
-Oracle offers one of the most generous free tiers of any cloud provider. Here's what you get **permanently free**:
+You need authorized access to:
 
-### Compute (what this project uses)
+- the OCI tenancies, compartments, and regions represented by `beijns` and `beijnseu`;
+- OCI CLI SecurityToken profiles with those names in `~/.oci/config`;
+- the Tailscale network containing the fleet and Garage endpoint;
+- the SOPS age identity configured by `SOPS_AGE_KEY_FILE`;
+- the GitHub repository and Actions secrets if using CI;
+- the Cloudflare account used for DNS-01 and tunnel routes;
+- the k3s kubeconfig for `s145` at `~/.kube/s145.yaml`.
 
-| Resource | Free Allocation | What This Project Uses |
-|----------|----------------|----------------------|
-| **ARM Instances (A1.Flex)** | 4 OCPUs + 24 GB RAM total | 1 instance: 4 OCPUs, 24 GB RAM |
-| **Micro Instances (E2.1.Micro)** | 2 instances | 2 instances: 1 OCPU, 1 GB RAM each |
-| **Boot Volumes** | 200 GB total | 150 GB (50 GB × 3 instances) |
+## Tools
 
-### Networking (what this project uses)
+The operator workstation needs:
 
-| Resource | Free Allocation |
-|----------|----------------|
-| **VCN** | Up to 2 VCNs |
-| **Public IPs** | Included with instances |
-| **Outbound Data** | 10 TB/month |
-| **Internet Gateway** | Included |
-| **Route Tables / Security Lists** | Included |
+| Tool | Use |
+| --- | --- |
+| OpenTofu | OCI plans and applies |
+| OCI CLI | SecurityToken session authentication |
+| SOPS and age | Encrypted IaC, host, and Kubernetes data |
+| Nix with flakes | NixOS/nix-darwin evaluation and builds |
+| deploy-rs | Routine NixOS activation |
+| kubectl | Cluster inspection and manual resources |
+| Flux CLI | GitOps reconciliation and status |
+| Git and SSH | Source control and host access |
 
-### Storage (for Terraform state)
+Most NixOS tooling is available through `nix develop` in `anywhere/`. `direnv` sets `KUBECONFIG` and `SOPS_AGE_KEY_FILE`, but does not enter the dev shell.
 
-| Resource | Free Allocation |
-|----------|----------------|
-| **Object Storage** | 10 GB (Standard), 10 GB (Infrequent Access) |
-| **Object Storage API Requests** | 50,000/month |
-
-> **Bottom line:** This entire infrastructure fits within the Always Free Tier with room to spare. You still have 50 GB of boot volume quota left and all the networking headroom you need.
-
-### Sign up
-
-1. Go to [cloud.oracle.com](https://cloud.oracle.com) and click **Sign Up**.
-2. You'll need a valid email, phone number, and a credit/debit card (for identity verification only — you will **not** be charged).
-3. Choose your **Home Region** carefully — this cannot be changed later and determines where your Always Free resources live. Pick the region closest to you.
-4. Once your account is active, you'll have access to the Always Free tier immediately.
-
-> **Important:** Oracle gives you $300 in free credits for 30 days. After those credits expire or the 30 days pass, your account converts to "Always Free" and **only Always Free resources remain running**. Paid resources are terminated. The infrastructure in this project is all Always Free, so it will keep running.
-
-## Required Software
-
-### OpenTofu or Terraform
-
-This project uses infrastructure-as-code. You need one of these:
-
-**OpenTofu (recommended — open source)**
-```bash
-# macOS
-brew install opentofu
-
-# Linux (snap)
-snap install --classic opentofu
-
-# Or download from https://opentofu.org/docs/intro/install/
-```
-
-**Terraform**
-```bash
-# macOS
-brew install terraform
-
-# Linux
-# See https://developer.hashicorp.com/terraform/install
-```
-
-Both work identically with this project. The docs use `tofu` commands, but you can substitute `terraform` anywhere.
-
-### OCI CLI (optional but helpful)
-
-The OCI CLI isn't required to run this project, but it's useful for debugging and manual operations.
+Check the local tools without changing infrastructure:
 
 ```bash
-# macOS / Linux
-bash -c "$(curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh)"
+tofu version
+oci --version
+sops --version
+nix --version
+kubectl version --client
+flux version --client
 ```
 
-## OCI API Key Setup
+## OCI SecurityToken Profiles
 
-Terraform authenticates with OCI using an API signing key. You need to create one.
-
-### 1. Generate an API Key Pair
+The provider uses `auth = "SecurityToken"`; API-key environment variables are not the supported local path. Authenticate each environment before planning:
 
 ```bash
-# Create the .oci directory
-mkdir -p ~/.oci
-
-# Generate a 2048-bit RSA private key
-openssl genrsa -out ~/.oci/oci-api-key.pem 2048
-
-# Set proper permissions
-chmod 600 ~/.oci/oci-api-key.pem
-
-# Generate the public key
-openssl rsa -pubout -in ~/.oci/oci-api-key.pem -out ~/.oci/oci-api-key-public.pem
+make -C IaC ENV=beijns check-auth
+make -C IaC ENV=beijnseu check-auth
 ```
 
-### 2. Upload the Public Key to OCI
+The command opens OCI session authentication when a profile has expired. Never commit OCI session tokens or generated private keys.
 
-1. Log in to the [OCI Console](https://cloud.oracle.com).
-2. Click your **profile icon** (top-right) → **My Profile** (or **User Settings**).
-3. Under **Resources**, click **API Keys** → **Add API Key**.
-4. Choose **Paste Public Key** and paste the contents of `~/.oci/oci-api-key-public.pem`.
-5. Click **Add**.
-6. OCI will show you a **Configuration File Preview** — save these values! You'll need:
-   - `tenancy` (this is your `tenancy_ocid`)
-   - `user` (this is your `user_ocid`)
-   - `fingerprint`
-   - `region`
+## SOPS Identity
 
-### 3. Prepare the Private Key for Terraform
+The expected operator identity file is:
 
-This project expects the private key as a base64-encoded environment variable:
+```text
+~/.config/sops/age/keys.txt
+```
+
+Set it explicitly when not using the repository environment:
 
 ```bash
-# macOS
-export TF_VAR_OCA_PRIVATE_KEY="$(base64 < ~/.oci/oci-api-key.pem)"
-
-# Linux
-export TF_VAR_OCA_PRIVATE_KEY="$(base64 -w0 < ~/.oci/oci-api-key.pem)"
+export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
 ```
 
-## Object Storage Bucket (for Remote State)
-
-Terraform state is stored remotely in an OCI Object Storage bucket via the S3-compatible API.
-
-### Create the Bucket
-
-1. In the OCI Console, go to **Storage** → **Buckets**.
-2. Click **Create Bucket**.
-3. Give it a name (e.g., `tofu-backend`).
-4. Leave defaults (Standard storage tier) and click **Create**.
-
-### Get S3 Compatibility Credentials
-
-1. Click your **profile icon** → **My Profile**.
-2. Under **Resources**, click **Customer Secret Keys** → **Generate Secret Key**.
-3. Give it a name and click **Generate**.
-4. **Save the secret key immediately** — it won't be shown again.
-5. Note the **Access Key** that appears in the list.
-
-### Find Your Namespace
-
-1. In the OCI Console, click your **profile icon** → **Tenancy: <your-tenancy>**.
-2. Find the **Object Storage Namespace** — it's a random string like `axzfe5abcdef`.
-
-Your S3 endpoint will be:
-```
-https://<namespace>.compat.objectstorage.<region>.oraclecloud.com
-```
-
-Update `IaC/backend.tf` with your bucket name, region, and endpoint.
-
-## SSH Key
-
-You need an SSH key pair to access your instances.
+Verify access without printing plaintext:
 
 ```bash
-# Generate a new key if you don't have one
-ssh-keygen -t ed25519 -C "your-email@example.com"
+sops -d IaC/beijns.tfvars >/dev/null
+sops -d IaC/secrets/beijns.env >/dev/null
+sops -d anywhere/secrets/k3s/secrets.yaml >/dev/null
 ```
 
-The public key (contents of `~/.ssh/id_ed25519.pub`) goes into `IaC/terraform.tfvars` as `ssh_authorized_keys`.
+Do not display decrypted content in logs or create plaintext tfvars as a workaround.
 
-## Tailscale Auth Key (Optional)
+## Backend Connectivity
 
-The micro instances auto-install [Tailscale](https://tailscale.com/) for private mesh networking. If you want this feature:
+OpenTofu state uses Garage S3 at `100.69.231.117:31900`. Before `init`, `plan`, or state commands:
 
-1. Go to [Tailscale Admin Console](https://login.tailscale.com/admin/settings/keys).
-2. Generate an **Auth Key** (reusable, with your preferred tags).
-3. Set it as an environment variable:
-   ```bash
-   export TF_VAR_TAILSCALE_AUTH_KEY="tskey-auth-xxxxx"
-   ```
+- connect to Tailscale;
+- confirm `s145` is reachable;
+- confirm the encrypted backend environment file exists for the selected environment;
+- ensure Garage is healthy if performing a recovery or migration.
 
-If you don't use Tailscale, you can remove the Tailscale-related `user_data` block from `IaC/instance.tf` and the `TAILSCALE_AUTH_KEY` variable from `IaC/variables.tf`.
+A connectivity failure is not a reason to switch to local state. Changing the backend without a deliberate migration can split or lose state.
 
-## Your Public IP Address
+## Nix and SSH
 
-The security list restricts SSH access to a single IP address. Find yours:
+- Enable `nix-command` and `flakes`.
+- Accept the flake's configured substituters where appropriate.
+- Ensure `duck@<host>` resolves through Tailscale/MagicDNS.
+- Keep the configured SSH key available to the operator.
+- Keep `hp348` reachable for Mac-initiated builds of x86_64 micro-node closures.
+
+Validate access:
 
 ```bash
-curl -s ifconfig.me
+ssh duck@s145 hostname
+ssh duck@hp348 hostname
+cd anywhere && nix flake metadata --no-write-lock-file >/dev/null
 ```
 
-Use this IP with `/32` suffix in `IaC/terraform.tfvars`:
+## Kubernetes and Flux
+
+```bash
+export KUBECONFIG="$HOME/.kube/s145.yaml"
+kubectl cluster-info
+kubectl get nodes
+flux get kustomizations -n flux-system
 ```
-user_ip_address = "YOUR.IP.HERE/32"
-```
 
-> **Tip:** If your IP changes frequently (e.g., residential ISP), you'll need to update this value and run `tofu -chdir=IaC apply` again, or consider using Tailscale SSH instead which bypasses the security list entirely.
+Flux decryption additionally requires the in-cluster `flux-system/sops-age` Secret. Do not recreate or rotate it casually; encrypted manifests must include the matching public recipient first.
 
-## Summary Checklist
+## Before Any Change
 
-- [ ] Oracle Cloud account created (Always Free)
-- [ ] Home region selected
-- [ ] OpenTofu or Terraform installed
-- [ ] API key pair generated and public key uploaded to OCI
-- [ ] Noted down: `tenancy_ocid`, `user_ocid`, `fingerprint`, `region`
-- [ ] Object Storage bucket created for Terraform state
-- [ ] S3 compatibility credentials generated (access key + secret key)
-- [ ] Object Storage namespace noted
-- [ ] SSH key pair ready
-- [ ] Tailscale auth key generated (optional)
-- [ ] Your public IP address noted
+- Read the relevant app or migration runbook.
+- Check `git status` and preserve unrelated work.
+- Confirm the selected OCI environment and Git branch.
+- Run format/evaluation checks before state-changing commands.
+- Back up state and application data before storage, Garage layout, Disko, or control-plane work.

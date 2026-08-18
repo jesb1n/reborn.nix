@@ -1,13 +1,22 @@
 # K3s cluster migration to s145 (control-plane)
 
+> **Status: completed historical runbook.** This migration finished; s145
+> is the running k3s control-plane, Traefik uses the Let's Encrypt
+> **production** ACME resolver (not staging), and Vaultwarden/Immich/Garage/
+> LiteLLM/monitoring are deployed (see `k8s/README.md` and
+> `clusters/s145/`). Kept as a reference if the cluster ever needs to be
+> rebuilt from scratch; do not treat the "pending work" section below as
+> current outstanding work without re-checking the live cluster first.
+
 One-time runbook capturing the migration from the `oracle-eu-arm1`-rooted
 cluster to a new `s145`-rooted cluster. Use as a reference if you ever need
 to redo any of these steps.
 
-Status as of completion of this doc: **cluster is up, traefik is ready,
-ACME staging is configured. Application workloads are not yet deployed.**
+## New architecture (at time of this migration)
 
-## New architecture
+Only the four hosts below existed at the time of this migration; the
+`oracle-in-*` hosts and `hp348` joined later and are not reflected here — see
+the host table in the repo root `README.md` for current cluster membership.
 
 | Host             | Tailscale IP     | Role                              | Notes                                            |
 | ---------------- | ---------------- | --------------------------------- | ------------------------------------------------ |
@@ -97,13 +106,13 @@ ssh duck@s145 'sudo k3s kubectl get nodes -o wide'
 # expect: all four Ready
 ```
 
-## Pending work (pick up here)
+## Pending work at the time of this migration (now resolved — see notes)
 
 ### 1. Apply the `tiny` taint on micros
 
 The taint isn't declared in Nix (kubelet flag is, but node taints are
 applied via kubectl per MAINTENANCE.md convention). Re-apply after every
-cluster rebuild:
+cluster rebuild — this is an ongoing operational step, not a one-time task:
 
 ```bash
 ssh duck@s145 'sudo k3s kubectl taint node oracle-eu-micro1 tiny=true:NoSchedule --overwrite'
@@ -111,7 +120,12 @@ ssh duck@s145 'sudo k3s kubectl taint node oracle-eu-micro2 tiny=true:NoSchedule
 ssh duck@s145 'sudo k3s kubectl get nodes -o custom-columns=NAME:.metadata.name,TAINTS:.spec.taints'
 ```
 
-### 2. Apply cluster-wide middleware + app manifests
+### 2. Apply cluster-wide middleware + app manifests (done)
+
+Vaultwarden, Immich, Garage, LiteLLM, monitoring, and cloudflared are now
+Flux-managed via `anywhere/clusters/s145/`. The original imperative migration
+commands are retained only as a historical record; do not use them to update
+the current cluster:
 
 ```bash
 ssh duck@s145 'sudo k3s kubectl apply -f -' < anywhere/k8s/_infra/security-headers.yaml
@@ -124,7 +138,7 @@ done
 ssh duck@s145 'sudo k3s kubectl -n vaultwarden get pods,pvc,ingressroute'
 ```
 
-### 3. DNS records in Cloudflare
+### 3. DNS records in Cloudflare (done)
 
 For each app, point an A/AAAA record at whichever public IP terminates
 traffic. Suggested:
@@ -137,7 +151,7 @@ i1.beijns.eu.org   A   <s145 public IP>
 DNS-01 ACME does not need inbound :80/:443, only outbound to Cloudflare's
 API + a DNS resolver.
 
-### 4. Verify staging certificate issuance
+### 4. Verify staging certificate issuance (superseded — production CA is now live)
 
 Hit `https://v1.beijns.eu.org` — browsers will warn because the cert is from
 Let's Encrypt **Staging**. That warning is the success signal. Tail traefik
@@ -147,9 +161,12 @@ logs while you do this:
 ssh duck@s145 'sudo k3s kubectl -n kube-system logs -f deploy/traefik | grep -iE "vault|acme|certificate"'
 ```
 
-### 5. Promote ACME to production CA
+### 5. Promote ACME to production CA (done)
 
-Once staging is confirmed working:
+`hosts/s145/traefik.nix` never carries a `caserver` argument, so Traefik
+uses Let's Encrypt's default production ACME endpoint. The original
+promotion steps (kept for reference, in case staging is re-enabled for
+testing):
 
 1. In `hosts/s145/traefik.nix`, remove the `caserver` argument (or change
    to `https://acme-v02.api.letsencrypt.org/directory`).
@@ -170,7 +187,7 @@ Keep Traefik middleware namespace-local: the Immich `IngressRoute` must
 reference `security-headers` in the `immich` namespace, not
 `kube-system/security-headers`.
 
-## Standing concerns (not done, worth doing soon)
+## Standing concerns (still open as of this rewrite)
 
 1. **Backups.** s145's HDD is one disk, no RAID. Vaultwarden + Immich +
    k3s SQLite state all live there. Schedule Restic/Borg → off-host.

@@ -14,10 +14,16 @@ response's ``output`` when it arrives empty. Applies only to the ChatGPT
 custom provider, preserving the standard OpenAI path untouched.
 
 Applied via sitecustomize so it loads on interpreter startup; idempotent
-(guarded by a marker attribute).
+(guarded by marker attributes).
+
+Also maps Copilot's ``tool_choice=validated`` to Gemini's supported ``auto``
+mode. This preserves tool definitions and scopes the compatibility behavior to
+Google AI Studio Gemini requests.
 """
 
 import importlib
+
+import litellm
 
 _sink = importlib.import_module("litellm.responses.streaming_iterator")
 
@@ -116,4 +122,21 @@ def _install() -> None:
     _sink._litellm_chatgpt_backfill_installed = True
 
 
+def _install_gemini_tool_choice_compat() -> None:
+    config = litellm.GoogleAIStudioGeminiConfig
+    if getattr(config, "_copilot_validated_tool_choice_installed", False):
+        return
+
+    original = config.map_tool_choice_values
+
+    def _map_tool_choice_values(self, model, tool_choice):
+        if tool_choice == "validated":
+            tool_choice = "auto"
+        return original(self, model, tool_choice)
+
+    config.map_tool_choice_values = _map_tool_choice_values
+    config._copilot_validated_tool_choice_installed = True
+
+
 _install()
+_install_gemini_tool_choice_compat()
