@@ -36,6 +36,7 @@ const HOME_PACKAGES = new Set([
     "tree",
     "gh",
     "tmux",
+    "pre-commit",
     "kubectl",
     "kubectx",
     "kubernetes-helm",
@@ -43,6 +44,7 @@ const HOME_PACKAGES = new Set([
     "tailscale",
     "k9s",
     "code-cursor",
+    "discord",
     "firefox",
     "slack",
     "google-cloud-sdk",
@@ -58,6 +60,15 @@ const HOME_PACKAGES = new Set([
 
 const SYSTEM_PACKAGES = new Set(["1password", "1password-gui", "_1password-gui"]);
 
+const SPECIAL_INSTALLS = new Map([
+    ["netbird", {
+        method: "homebrew-formula-and-cask",
+        reason: "NetBird UI depends on the vendor tap's CLI formula and installs privileged macOS networking components.",
+        files: ["anywhere/hosts/pro-darwin/darwin-configuration.nix"],
+        change: "Add trusted tap `netbirdio/tap`, formula `netbirdio/tap/netbird`, and cask `netbirdio/tap/netbird-ui` under `homebrew`.",
+    }],
+]);
+
 const PACKAGE_ALIASES = new Map([
     ["node", { packageName: "nodejs", reason: "`node` is provided by the `nodejs` package in nixpkgs." }],
     ["nodejs", { packageName: "nodejs", reason: "Use the canonical nixpkgs package name." }],
@@ -68,16 +79,21 @@ const PACKAGE_ALIASES = new Map([
     ["aws-session-manager", { packageName: "ssm-session-manager-plugin", reason: "nixpkgs exposes the AWS Session Manager plugin as `ssm-session-manager-plugin`." }],
     ["docker", { packageName: "docker-desktop", reason: "On pro-darwin, Docker is managed via the `docker-desktop` Homebrew cask." }],
     ["docker-desktop", { packageName: "docker-desktop", reason: "On pro-darwin, Docker is managed via the `docker-desktop` Homebrew cask." }],
+    ["discord", { packageName: "discord", reason: "Discord is available for aarch64-darwin in nixpkgs and belongs in `home.packages`; allow it in `allowUnfreePredicate`." }],
     ["vscode", { packageName: "visual-studio-code", reason: "This repo uses the `visual-studio-code` Homebrew cask instead of nixpkgs `vscode`." }],
     ["visual-studio-code", { packageName: "visual-studio-code", reason: "This repo uses the `visual-studio-code` Homebrew cask instead of nixpkgs `vscode`." }],
     ["copilot", { packageName: "github-copilot-app", reason: "The GitHub Copilot desktop app is managed via the `github-copilot-app` Homebrew cask in this repo." }],
     ["copilot-app", { packageName: "github-copilot-app", reason: "The GitHub Copilot desktop app is managed via the `github-copilot-app` Homebrew cask in this repo." }],
     ["claude-desktop", { packageName: "claude", reason: "Claude Desktop is distributed via the Homebrew `claude` cask in this repo." }],
     ["claude-app", { packageName: "claude", reason: "Claude Desktop is distributed via the Homebrew `claude` cask in this repo." }],
+    ["netbird-ui", { packageName: "netbird", reason: "NetBird UI requires both the vendor CLI formula and UI cask." }],
+    ["netbird-cli", { packageName: "netbird", reason: "NetBird is managed as a vendor tap bundle on pro-darwin." }],
+    ["netbird-cli-and-netbird-ui", { packageName: "netbird", reason: "NetBird requires both the vendor CLI formula and UI cask." }],
 ]);
 
 const VALIDATION_BY_METHOD = {
     "homebrew-cask": "Validation: `cd anywhere && nix flake check && sudo darwin-rebuild build --flake .#pro-darwin`",
+    "homebrew-formula-and-cask": "Validation: `cd anywhere && nix flake check && sudo darwin-rebuild build --flake .#pro-darwin`",
     mas: "Validation: `cd anywhere && nix flake check && sudo darwin-rebuild build --flake .#pro-darwin`",
     "nix-system-package": "Validation: `cd anywhere && nix flake check && sudo darwin-rebuild build --flake .#pro-darwin`",
     "nix-home-package": "Validation: `cd anywhere && nix flake check && sudo darwin-rebuild build --flake .#pro-darwin`",
@@ -138,6 +154,10 @@ function classifyInstall(appName, preferredSource) {
                 change: "Extend `system.activationScripts.postActivation.text` instead of adding a package entry; follow the existing `install_gcloud_component` pattern in `anywhere/hosts/pro-darwin/darwin-configuration.nix`.",
             };
         }
+    }
+
+    if (SPECIAL_INSTALLS.has(effectiveNormalized)) {
+        return SPECIAL_INSTALLS.get(effectiveNormalized);
     }
 
     if (MAS_APPS.has(effectiveNormalized)) {
