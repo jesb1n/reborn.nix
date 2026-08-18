@@ -83,6 +83,7 @@ The iCloud path (`/Users/jesbin/Library/Mobile Documents/com~apple~CloudDocs/Doc
 `nixpkgs.config.allowUnfreePredicate` currently allows:
 - `1password` (1Password GUI)
 - `cursor` (Cursor editor)
+- `discord` (Discord desktop client)
 - `slack` (Slack)
 - `spotify` (Spotify)
 
@@ -111,6 +112,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | `claude` | Official Claude desktop app is distributed as a Homebrew cask and is not packaged as a supported nixpkgs macOS app here. |
 | `github-copilot-app` | GitHub Copilot desktop app is not in nixpkgs. |
 | `lens` | Lens Kubernetes IDE is proprietary; not packaged usefully in nixpkgs for macOS. |
+| `netbirdio/tap/netbird-ui` | NetBird's macOS UI installs privileged networking components and depends on the vendor's `netbirdio/tap/netbird` formula. Keep the tap, formula, and cask together. |
 
 ### Mac App Store (masApps)
 
@@ -125,8 +127,12 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 
 ### Nix (home.packages)
 
-CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `tailscale` (CLI), `k9s`, `google-cloud-sdk`, `opentofu`, `awscli2`, `oci-cli`, `sops`, `ffmpeg`, `k6`
-GUI: `code-cursor`, `firefox`, `iterm2`, `slack`, `spotify`
+CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `pre-commit`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `tailscale` (CLI), `k9s`, `google-cloud-sdk`, `opentofu`, `awscli2`, `oci-cli`, `sops`, `ffmpeg`, `k6`
+GUI: `code-cursor`, `discord`, `firefox`, `iterm2`, `slack`, `spotify`
+
+### Homebrew tap bundles
+
+- NetBird requires all three declarations: trusted tap `netbirdio/tap`, formula `netbirdio/tap/netbird`, and cask `netbirdio/tap/netbird-ui`.
 
 ### Special case: blocked `gcloud components` (gke-gcloud-auth-plugin, cloud-run-proxy)
 
