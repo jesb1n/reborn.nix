@@ -1,0 +1,133 @@
+name: Nix Cache Trust Monitor
+
+on:
+  pull_request:
+    paths:
+      - "anywhere/lib/binary-caches.nix"
+      - "anywhere/flake.nix"
+      - "anywhere/profiles/base.nix"
+      - "anywhere/hosts/rpi/configuration.nix"
+      - ".github/workflows/nix-cache-keys.yml"
+  push:
+    branches: [main]
+    paths:
+      - "anywhere/lib/binary-caches.nix"
+      - "anywhere/flake.nix"
+      - "anywhere/profiles/base.nix"
+      - "anywhere/hosts/rpi/configuration.nix"
+      - ".github/workflows/nix-cache-keys.yml"
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nix-cache-key-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    name: Validate cache policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196 # v20
+        with:
+          determinate: true
+      - name: Validate canonical inventory
+        working-directory: anywhere
+        shell: bash
+        run: |
+          set -euo pipefail
+          nix eval --json --no-write-lock-file --impure \
+            --expr '(import ./lib/binary-caches.nix).valid' | grep -qx true
+          nix eval --json --no-write-lock-file --impure \
+            --expr '(import ./lib/binary-caches.nix).caches' | jq --sort-keys . > "$RUNNER_TEMP/cache-inventory.json"
+          jq -e '
+            length > 0 and
+            ([.[].name] | length == (unique | length)) and
+            ([.[].url] | length == (unique | length)) and
+            ([.[].publicKey] | length == (unique | length)) and
+            ([.[] | select(.baseline == true)] | length == 1) and
+            all(.[];
+              (.url | test("^https://[^/]+/?$")) and
+              (.publicKey | test("^[^:]+:[A-Za-z0-9+/=]+$")) and
+              (.scope == "fleet" or .scope == "rpi") and
+              (.keyMonitor == "manual" or .keyMonitor == "nix-cache-info"))
+          ' "$RUNNER_TEMP/cache-inventory.json"
+
+      - name: Check cache reachability
+        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+        working-directory: anywhere
+        shell: bash
+        run: |
+          set -euo pipefail
+          inventory="$RUNNER_TEMP/cache-inventory.json"
+          report="$RUNNER_TEMP/cache-key-report.tsv"
+          : > "$report"
+          while IFS=$'\t' read -r name url expected monitor; do
+            endpoint="${url%/}/nix-cache-info"
+            response="$RUNNER_TEMP/${name}.nix-cache-info"
+            curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
+              --connect-timeout 5 --max-time 20 --retry 3 --retry-all-errors \
+              --retry-delay 1 --retry-max-time 60 --max-filesize 65536 \
+              --max-redirs 0 "$endpoint" -o "$response"
+            mapfile -t store_dirs < <(awk -F': ' '$1 == "StoreDir" {print $2}' "$response")
+            [[ "${#store_dirs[@]}" -eq 1 && "${store_dirs[0]}" == /nix/store ]] || {
+              echo "$name returned an invalid nix-cache-info StoreDir" >&2
+              exit 1
+            }
+            old_fp="$(printf '%s' "$expected" | sha256sum | awk '{print $1}')"
+            if [[ "$monitor" == nix-cache-info ]]; then
+              mapfile -t keys < <(awk -F': ' '$1 == "PublicKey" {print $2}' "$response")
+              [[ "${#keys[@]}" -eq 1 ]] || {
+                echo "$name did not expose exactly one PublicKey" >&2
+                exit 1
+              }
+              discovered="${keys[0]}"
+              [[ "$discovered" =~ ^[^:]+:[A-Za-z0-9+/=]+$ ]] || {
+                echo "$name returned a malformed PublicKey" >&2
+                exit 1
+              }
+              [[ "${discovered%%:*}" == "${expected%%:*}" ]] || {
+                echo "$name PublicKey identity changed unexpectedly" >&2
+                exit 1
+              }
+              new_fp="$(printf '%s' "$discovered" | sha256sum | awk '{print $1}')"
+              [[ "$discovered" == "$expected" ]] || {
+                echo "$name signing key differs from the reviewed inventory" >&2
+                exit 1
+              }
+              printf '%s\t%s\t%s\t%s\n' "$name" "$endpoint" "$old_fp" "$new_fp" >> "$report"
+            else
+              printf '%s\t%s\t%s\t%s\n' \
+                "$name" "$endpoint" "$old_fp" 'manual-review-required' >> "$report"
+            fi
+          done < <(jq -r '.[] | [.name, .url, .publicKey, .keyMonitor] | @tsv' "$inventory")
+          echo '::warning title=Manual Nix cache key review required::The binary-cache protocol has no portable signing-key discovery endpoint. Verify rotations through an independent official upstream channel.'
+          {
+            echo 'The Nix binary-cache protocol does not publish signing keys through a portable endpoint for caches marked manual. Reachability was checked, but key rotation requires independent upstream verification and a reviewed manual change.'
+            echo
+            echo '| Cache | Endpoint | Committed key SHA-256 | Rotation check |'
+            echo '| --- | --- | --- | --- |'
+            awk -F'\t' '{printf "| %s | %s | %s | %s |\\n", $1, $2, $3, $4}' "$report"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload public inventory evidence
+        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nix-cache-key-report-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/cache-inventory.json
+            ${{ runner.temp }}/cache-key-report.tsv
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

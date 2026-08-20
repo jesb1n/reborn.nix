@@ -1,15 +1,15 @@
 # litellm — LiteLLM Proxy
 
-Private, Flux-managed AI gateway exposing ChatGPT and Google Gemini models as
-an OpenAI-compatible API. ChatGPT authenticates to the Codex backend through
-OAuth device flow; Gemini uses a Google AI Studio API key.
+Private, Flux-managed AI gateway exposing ChatGPT, Google Gemini, and AgentRouter
+models as an OpenAI-compatible API. ChatGPT authenticates to the Codex backend
+through OAuth device flow; Gemini and AgentRouter use API keys.
 
 ## Layout
 
 | File | Purpose |
 |------|---------|
 | `namespace.yaml` | `litellm` namespace |
-| `secret.yaml` | SOPS-encrypted Secret: `LITELLM_MASTER_KEY`, `LITELLM_SALT_KEY`, `GEMINI_API_KEY` (recipients: `pro_darwin`, `mark`, `s145_cluster`) |
+| `secret.yaml` | SOPS-encrypted Secret: `LITELLM_MASTER_KEY`, `LITELLM_SALT_KEY`, `GEMINI_API_KEY`, `AGENTROUTER_API_KEY` (recipients: `pro_darwin`, `mark`, `s145_cluster`) |
 | `config.yaml` | proxy config → hash-suffixed ConfigMap via `configMapGenerator` (no secrets) |
 | `deployment.yaml` | pinned `ghcr.io/berriai/litellm:v1.95.0`, 1 replica, `nodeSelector: oracle-eu-arm1`, `/health/*` probes |
 | `sitecustomize.py` | runtime monkeypatch for the ChatGPT SSE output bug (mounted via `litellm-patch` ConfigMap, `PYTHONPATH=/patch`) |
@@ -29,6 +29,12 @@ OAuth device flow; Gemini uses a Google AI Studio API key.
 | `chatgpt-codex` | `chatgpt/gpt-5.4` | Coding through ChatGPT OAuth |
 | `gemini-flash` | `gemini/gemini-3.7-flash` | Default balance of quality, latency, and cost |
 | `gemini-flash-lite` | `gemini/gemini-3.5-flash-lite` | Low-cost, high-throughput tasks |
+| `agentrouter-gpt-5.6` | `openai/gpt-5.6` via AgentRouter | AgentRouter Responses API |
+| `agentrouter-gpt-5.5` | `openai/gpt-5.5` via AgentRouter | AgentRouter Responses API |
+| `agentrouter-glm-5.2` | `openai/glm-5.2` via AgentRouter | AgentRouter Responses API |
+| `agentrouter-opus` | `anthropic/claude-opus-4-6` via AgentRouter | AgentRouter Anthropic-compatible API |
+| `agentrouter-opus-4.7` | `anthropic/claude-opus-4-7` via AgentRouter | AgentRouter Anthropic-compatible API |
+| `agentrouter-opus-4.8` | `anthropic/claude-opus-4-8` via AgentRouter | AgentRouter Anthropic-compatible API |
 
 The ChatGPT models use `mode: responses`. `chatgpt_auth_file_path` points at the
 PVC-mounted auth file to disable interactive login and avoid the device-code
@@ -44,6 +50,34 @@ proxy deliberately exposes only the two Flash models verified on its free tier.
 The runtime compatibility patch maps Copilot's nonstandard
 `tool_choice: validated` to Gemini's `auto` mode. Tool definitions are preserved,
 so Gemini can still select tools automatically; ChatGPT routes are unaffected.
+
+### AgentRouter API access
+
+AgentRouter is configured as an OpenAI-compatible Responses provider. Its base
+URL must include `/v1`; LiteLLM appends the request path. The model IDs and
+aliases above match the models documented by AgentRouter. Add the API key to the
+encrypted Secret before reconciling Flux:
+
+```bash
+export SOPS_AGE_KEY_FILE="$HOME/.config/sops/age/keys.txt"
+sops anywhere/k8s/litellm/secret.yaml
+```
+
+Add this field under `stringData` (keep the value only in the encrypted file):
+
+```yaml
+AGENTROUTER_API_KEY: ak-xxxxxxxx
+```
+
+Do not add the key to `config.yaml`, manifests, shell history, or client
+configuration committed to Git. AgentRouter requests should use LiteLLM's
+`/v1/responses` endpoint with one of the `agentrouter-*` aliases.
+
+The documented Claude models use AgentRouter's Anthropic-compatible endpoint,
+whose base URL is `https://agentrouter.org` (without `/v1`; LiteLLM appends the
+Anthropic path). AgentRouter does not document `claude-opus-5` or
+`gpt-5.6-sol`. The existing `chatgpt-sol` alias remains available through the
+separate ChatGPT OAuth provider.
 
 ### Gemini API access
 
@@ -63,9 +97,9 @@ sops anywhere/k8s/litellm/secret.yaml
 Add `GEMINI_API_KEY` under `stringData`, save, and let SOPS re-encrypt the file.
 Never commit a plaintext key or paste it into logs, commands, or documentation.
 
-### Endpoint behavior
+### Existing endpoint behavior
 
-All endpoints are reliable, both models:
+The existing ChatGPT and Gemini routes are reliable:
 
 - `/v1/responses` → OK (streamed and non-stream).
 - `/v1/chat/completions` → OK with `stream: true` **and** `stream: false`.
@@ -174,6 +208,17 @@ for model in gemini-flash gemini-flash-lite; do
   echo
 done
 unset LITELLM_KEY
+```
+
+Test AgentRouter through the Responses API after adding `AGENTROUTER_API_KEY`
+and reconciling Flux:
+
+```bash
+curl --fail-with-body --silent --show-error \
+  http://100.84.230.4:31400/v1/responses \
+  -H "Authorization: Bearer $LITELLM_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"agentrouter-gpt-5.6","input":"Reply with OK"}'
 ```
 
 ## Update notes
