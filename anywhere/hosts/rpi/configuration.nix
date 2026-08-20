@@ -5,6 +5,7 @@
 { config, lib, pkgs, ... }:
 
 let
+  binaryCaches = import ../../lib/binary-caches.nix;
   hostSecretsFile = ../../secrets/rpi/secrets.yaml;
   hasHostSecretsFile = builtins.pathExists hostSecretsFile;
   hasTailscaleSecretsFile = builtins.pathExists ../../secrets/tailscale/secrets.yaml;
@@ -22,10 +23,8 @@ in
 
   # Pi-only binary cache (keep out of shared profiles/base.nix)
   nix.settings = {
-    substituters = lib.mkAfter [ "https://nixos-raspberrypi.cachix.org" ];
-    trusted-public-keys = lib.mkAfter [
-      "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
-    ];
+    substituters = lib.mkAfter binaryCaches.rpiNixSettings.substituters;
+    trusted-public-keys = lib.mkAfter binaryCaches.rpiNixSettings.trusted-public-keys;
   };
 
   boot.loader.raspberry-pi = {

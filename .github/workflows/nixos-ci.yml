@@ -1,0 +1,177 @@
+name: NixOS CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nixos-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NIX_CONFIG: |
+    experimental-features = nix-command flakes
+    accept-flake-config = true
+
+jobs:
+  static:
+    name: Static and VM gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196 # v20
+        with:
+          determinate: true
+      - name: Enable Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@87b14cf437d03d37989d87f0fa5ce4f5dc1a330b # v8
+      - name: Check flake and evaluated invariants
+        working-directory: anywhere
+        run: nix flake check --all-systems --no-build --no-write-lock-file
+      - name: Build SSH authentication VM test
+        working-directory: anywhere
+        run: nix build --no-write-lock-file .#checks.x86_64-linux.ssh-access
+      - name: Validate cache policy
+        working-directory: anywhere
+        run: |
+          set -euo pipefail
+          nix eval --json --no-write-lock-file --impure \
+            --expr '(import ./lib/binary-caches.nix).valid' | grep -qx true
+      - name: Test release and reconciliation helpers
+        working-directory: anywhere
+        env:
+          FLEET_RECONCILE_RETRY_BASE_SECONDS: 0
+          FLEET_RECONCILE_RETRY_JITTER_SECONDS: 0
+        run: |
+          set -euo pipefail
+          bash -n scripts/fleet-release scripts/fleet-reconcile scripts/release.sh scripts/reconcile.sh
+          bash tests/fleet-reconcile.sh
+
+  x86:
+    name: Native x86_64 release
+    needs: static
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196 # v20
+        with:
+          determinate: true
+      - name: Enable Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@87b14cf437d03d37989d87f0fa5ce4f5dc1a330b # v8
+      - name: Build and export x86 release
+        working-directory: anywhere
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          EXPECTED_RUNNER_ARCH: X64
+        run: |
+          set -euo pipefail
+          test '${{ runner.arch }}' = "$EXPECTED_RUNNER_ARCH"
+          test "$(uname -m)" = x86_64
+          printf 'runner_arch=%s uname=%s\n' '${{ runner.arch }}' "$(uname -m)" >> "$GITHUB_STEP_SUMMARY"
+          command -v jq
+          command -v zstd
+          ./scripts/fleet-release \
+            --system x86_64-linux \
+            --output "$RUNNER_TEMP/nixos-fleet-v1-${SOURCE_SHA}-x86_64-linux" \
+            --source-sha "$SOURCE_SHA" \
+            --created-by-run "${GITHUB_RUN_ID}/${GITHUB_RUN_ATTEMPT}"
+          jq -r '
+            "archive_bytes=" + (.archive.bytes|tostring) +
+            " closure_bytes=" + (.archive.closure_bytes|tostring) +
+            " paths=" + (.archive.store_path_count|tostring) +
+            " compression_ratio=" + (.archive.compression_ratio|tostring)
+          ' "$RUNNER_TEMP/nixos-fleet-v1-${SOURCE_SHA}-x86_64-linux/manifest.json" \
+            >> "$GITHUB_STEP_SUMMARY"
+          df -Pk "$RUNNER_TEMP" >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish x86 release artifact
+        id: publish
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nixos-fleet-v1-${{ github.sha }}-x86_64-linux
+          path: ${{ runner.temp }}/nixos-fleet-v1-${{ github.sha }}-x86_64-linux
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 3
+          compression-level: 0
+      - name: Record x86 artifact digest
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euo pipefail
+          test -n '${{ steps.publish.outputs.artifact-digest }}'
+          printf 'artifact_digest=%s\n' '${{ steps.publish.outputs.artifact-digest }}' >> "$GITHUB_STEP_SUMMARY"
+
+  arm:
+    name: Native aarch64 release
+    needs: static
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196 # v20
+        with:
+          determinate: true
+      - name: Enable Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@87b14cf437d03d37989d87f0fa5ce4f5dc1a330b # v8
+      - name: Build and export ARM release
+        working-directory: anywhere
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          EXPECTED_RUNNER_ARCH: ARM64
+        run: |
+          set -euo pipefail
+          test '${{ runner.arch }}' = "$EXPECTED_RUNNER_ARCH"
+          test "$(uname -m)" = aarch64
+          printf 'runner_arch=%s uname=%s\n' '${{ runner.arch }}' "$(uname -m)" >> "$GITHUB_STEP_SUMMARY"
+          command -v jq
+          command -v zstd
+          ./scripts/fleet-release \
+            --system aarch64-linux \
+            --output "$RUNNER_TEMP/nixos-fleet-v1-${SOURCE_SHA}-aarch64-linux" \
+            --source-sha "$SOURCE_SHA" \
+            --created-by-run "${GITHUB_RUN_ID}/${GITHUB_RUN_ATTEMPT}"
+          jq -r '
+            "archive_bytes=" + (.archive.bytes|tostring) +
+            " closure_bytes=" + (.archive.closure_bytes|tostring) +
+            " paths=" + (.archive.store_path_count|tostring) +
+            " compression_ratio=" + (.archive.compression_ratio|tostring)
+          ' "$RUNNER_TEMP/nixos-fleet-v1-${SOURCE_SHA}-aarch64-linux/manifest.json" \
+            >> "$GITHUB_STEP_SUMMARY"
+          df -Pk "$RUNNER_TEMP" >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish ARM release artifact
+        id: publish
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nixos-fleet-v1-${{ github.sha }}-aarch64-linux
+          path: ${{ runner.temp }}/nixos-fleet-v1-${{ github.sha }}-aarch64-linux
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 3
+          compression-level: 0
+      - name: Record ARM artifact digest
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euo pipefail
+          test -n '${{ steps.publish.outputs.artifact-digest }}'
+          printf 'artifact_digest=%s\n' '${{ steps.publish.outputs.artifact-digest }}' >> "$GITHUB_STEP_SUMMARY"
