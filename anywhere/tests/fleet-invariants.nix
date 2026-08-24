@@ -110,8 +110,9 @@ let
 
   inventoryChecks = [
     {
-      assertion = fleetHosts == configurationHosts;
-      message = "nixosConfigurations must contain exactly the nine fleet hosts";
+      assertion =
+        fleetHosts == builtins.filter (host: host != "travelmate") configurationHosts;
+      message = "nixosConfigurations must contain the nine fleet hosts plus standalone travelmate";
     }
     {
       assertion = fleetHosts == deployHosts;
