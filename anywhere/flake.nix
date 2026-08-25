@@ -201,6 +201,17 @@
         ];
       };
 
+      nixosConfigurations.travelmate = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+
+        modules = [
+          disko.nixosModules.disko
+          ./hosts/travelmate/disko-config.nix
+          ./hosts/travelmate/hardware-configuration.nix
+          ./hosts/travelmate/configuration.nix
+        ];
+      };
+
       nixosConfigurations.rpi = nixos-raspberrypi.lib.nixosSystem {
         modules = [
           nixos-raspberrypi.nixosModules.raspberry-pi-4.base
