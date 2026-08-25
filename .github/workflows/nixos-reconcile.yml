@@ -1,0 +1,399 @@
+name: NixOS Fleet Reconcile
+
+on:
+  schedule:
+    - cron: "30 20 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Reconcile mode
+        required: true
+        default: check-only
+        type: choice
+        options: [check-only, deploy]
+      target:
+        description: Fleet target
+        required: true
+        default: all
+        type: choice
+        options: [all, x86, arm, canary, workers, control-plane, oracle-eu-micro2, oracle-eu-arm1, oracle-eu-micro1, oracle-in-micro1, oracle-in-micro2, oracle-in-arm1, rpi, hp348, s145]
+      force_copy:
+        description: Copy and activate even when the desired path is already live
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nixos-production-reconcile
+  cancel-in-progress: false
+
+env:
+  NIX_CONFIG: |
+    experimental-features = nix-command flakes
+    accept-flake-config = true
+
+jobs:
+  resolve:
+    name: Resolve immutable main SHA
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      source_sha: ${{ steps.resolve.outputs.source_sha }}
+      target_hosts: ${{ steps.targets.outputs.hosts }}
+      reconcile_mode: ${{ steps.mode.outputs.mode }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196 # v20
+        with:
+          determinate: true
+      - name: Require protected main ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+      - name: Resolve source SHA
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          printf 'source_sha=%s\n' "$source_sha" >> "$GITHUB_OUTPUT"
+      - name: Resolve target order
+        id: targets
+        working-directory: anywhere
+        shell: bash
+        env:
+          TARGET: ${{ inputs.target || 'all' }}
+        run: |
+          set -euo pipefail
+          fleet="$(nix eval --json --no-write-lock-file .#fleet)"
+          hosts="$(printf '%s' "$fleet" | jq -r --arg target "$TARGET" '
+            [to_entries[] | .value + {host: .key}] | sort_by(.order) |
+            if $target == "all" then .[]
+            elif $target == "x86" then .[] | select(.system == "x86_64-linux")
+            elif $target == "arm" then .[] | select(.system == "aarch64-linux")
+            elif $target == "canary" then .[] | select(.wave == "x86-canary" or .wave == "arm-canary")
+            elif $target == "workers" then .[] | select(.wave == "workers")
+            elif $target == "control-plane" then .[] | select(.wave == "control-plane")
+            else .[] | select(.host == $target)
+            end | .host')"
+          test -n "$hosts"
+          {
+            echo 'hosts<<EOF'
+            printf '%s\n' "$hosts"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+      - name: Resolve reconciliation mode
+        id: mode
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_MODE: ${{ inputs.mode || 'check-only' }}
+          SCHEDULED_DEPLOY_ENABLED: ${{ vars.NIXOS_SCHEDULED_DEPLOY_ENABLED || 'false' }}
+        run: |
+          set -euo pipefail
+          mode="$REQUESTED_MODE"
+          if [[ "$EVENT_NAME" == schedule ]]; then
+            mode=check-only
+            if [[ "$SCHEDULED_DEPLOY_ENABLED" == true ]]; then
+              mode=deploy
+            else
+              echo '::warning::Scheduled activation is disabled; running check-only. Set NIXOS_SCHEDULED_DEPLOY_ENABLED=true only after the native artifact proof and staged deployment gates pass.'
+            fi
+          fi
+          [[ "$mode" == check-only || "$mode" == deploy ]]
+          printf 'mode=%s\n' "$mode" >> "$GITHUB_OUTPUT"
+          printf 'reconcile_mode=%s\n' "$mode" >> "$GITHUB_STEP_SUMMARY"
+
+  validate:
+    name: Validate exact source
+    needs: resolve
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out resolved source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.resolve.outputs.source_sha }}
+          fetch-depth: 1
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196 # v20
+        with:
+          determinate: true
+      - name: Enable Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@87b14cf437d03d37989d87f0fa5ce4f5dc1a330b # v8
+      - name: Run static and VM gates
+        working-directory: anywhere
+        run: |
+          nix flake check --all-systems --no-build --no-write-lock-file
+          nix build --no-write-lock-file .#checks.x86_64-linux.ssh-access
+      - name: Test release and reconciliation helpers
+        working-directory: anywhere
+        env:
+          FLEET_RECONCILE_RETRY_BASE_SECONDS: 0
+          FLEET_RECONCILE_RETRY_JITTER_SECONDS: 0
+        run: |
+          set -euo pipefail
+          bash -n scripts/fleet-release scripts/fleet-reconcile scripts/release.sh scripts/reconcile.sh
+          bash tests/fleet-reconcile.sh
+
+  build_x86:
+    name: Build x86 release
+    needs: [resolve, validate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
+    steps:
+      - name: Check out resolved source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.resolve.outputs.source_sha }}
+          fetch-depth: 1
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196 # v20
+        with:
+          determinate: true
+      - name: Enable Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@87b14cf437d03d37989d87f0fa5ce4f5dc1a330b # v8
+      - name: Build and export x86 release
+        working-directory: anywhere
+        env:
+          SOURCE_SHA: ${{ needs.resolve.outputs.source_sha }}
+          EXPECTED_RUNNER_ARCH: X64
+        run: |
+          set -euo pipefail
+          test '${{ runner.arch }}' = "$EXPECTED_RUNNER_ARCH"
+          test "$(uname -m)" = x86_64
+          printf 'runner_arch=%s uname=%s\n' '${{ runner.arch }}' "$(uname -m)" >> "$GITHUB_STEP_SUMMARY"
+          ./scripts/fleet-release --system x86_64-linux \
+            --output "$RUNNER_TEMP/nixos-fleet-v1-$SOURCE_SHA-x86_64-linux" \
+            --source-sha "$SOURCE_SHA" \
+            --created-by-run "$GITHUB_RUN_ID/$GITHUB_RUN_ATTEMPT"
+          jq -e '.schema == 1 and .system == "x86_64-linux"' \
+            "$RUNNER_TEMP/nixos-fleet-v1-$SOURCE_SHA-x86_64-linux/manifest.json"
+          jq -r '
+            "archive_bytes=" + (.archive.bytes|tostring) +
+            " closure_bytes=" + (.archive.closure_bytes|tostring) +
+            " paths=" + (.archive.store_path_count|tostring) +
+            " compression_ratio=" + (.archive.compression_ratio|tostring)
+          ' \
+            "$RUNNER_TEMP/nixos-fleet-v1-$SOURCE_SHA-x86_64-linux/manifest.json" >> "$GITHUB_STEP_SUMMARY"
+          df -Pk "$RUNNER_TEMP" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload x86 release
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nixos-fleet-v1-${{ needs.resolve.outputs.source_sha }}-x86_64-linux
+          path: ${{ runner.temp }}/nixos-fleet-v1-${{ needs.resolve.outputs.source_sha }}-x86_64-linux
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 3
+          compression-level: 0
+      - name: Record x86 artifact digest
+        run: |
+          set -euo pipefail
+          test -n '${{ steps.upload.outputs.artifact-digest }}'
+          printf 'artifact_digest=%s\n' '${{ steps.upload.outputs.artifact-digest }}' >> "$GITHUB_STEP_SUMMARY"
+
+  build_arm:
+    name: Build ARM release
+    needs: [resolve, validate]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
+    steps:
+      - name: Check out resolved source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.resolve.outputs.source_sha }}
+          fetch-depth: 1
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196 # v20
+        with:
+          determinate: true
+      - name: Enable Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@87b14cf437d03d37989d87f0fa5ce4f5dc1a330b # v8
+      - name: Build and export ARM release
+        working-directory: anywhere
+        env:
+          SOURCE_SHA: ${{ needs.resolve.outputs.source_sha }}
+          EXPECTED_RUNNER_ARCH: ARM64
+        run: |
+          set -euo pipefail
+          test '${{ runner.arch }}' = "$EXPECTED_RUNNER_ARCH"
+          test "$(uname -m)" = aarch64
+          printf 'runner_arch=%s uname=%s\n' '${{ runner.arch }}' "$(uname -m)" >> "$GITHUB_STEP_SUMMARY"
+          ./scripts/fleet-release --system aarch64-linux \
+            --output "$RUNNER_TEMP/nixos-fleet-v1-$SOURCE_SHA-aarch64-linux" \
+            --source-sha "$SOURCE_SHA" \
+            --created-by-run "$GITHUB_RUN_ID/$GITHUB_RUN_ATTEMPT"
+          jq -e '.schema == 1 and .system == "aarch64-linux"' \
+            "$RUNNER_TEMP/nixos-fleet-v1-$SOURCE_SHA-aarch64-linux/manifest.json"
+          jq -r '
+            "archive_bytes=" + (.archive.bytes|tostring) +
+            " closure_bytes=" + (.archive.closure_bytes|tostring) +
+            " paths=" + (.archive.store_path_count|tostring) +
+            " compression_ratio=" + (.archive.compression_ratio|tostring)
+          ' \
+            "$RUNNER_TEMP/nixos-fleet-v1-$SOURCE_SHA-aarch64-linux/manifest.json" >> "$GITHUB_STEP_SUMMARY"
+          df -Pk "$RUNNER_TEMP" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload ARM release
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nixos-fleet-v1-${{ needs.resolve.outputs.source_sha }}-aarch64-linux
+          path: ${{ runner.temp }}/nixos-fleet-v1-${{ needs.resolve.outputs.source_sha }}-aarch64-linux
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 3
+          compression-level: 0
+      - name: Record ARM artifact digest
+        run: |
+          set -euo pipefail
+          test -n '${{ steps.upload.outputs.artifact-digest }}'
+          printf 'artifact_digest=%s\n' '${{ steps.upload.outputs.artifact-digest }}' >> "$GITHUB_STEP_SUMMARY"
+
+  reconcile:
+    name: Reconcile selected fleet
+    needs: [resolve, build_x86, build_arm]
+    if: ${{ always() && needs.resolve.result == 'success' && needs.build_x86.result == 'success' && needs.build_arm.result == 'success' }}
+    runs-on: ubuntu-24.04
+    environment:
+      name: fleet-production
+    permissions:
+      contents: read
+    timeout-minutes: 120
+    steps:
+      - name: Check out resolved source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.resolve.outputs.source_sha }}
+          fetch-depth: 1
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196 # v20
+        with:
+          determinate: true
+      - name: Validate immutable artifact metadata
+        env:
+          X86_ARTIFACT_ID: ${{ needs.build_x86.outputs.artifact_id }}
+          X86_ARTIFACT_DIGEST: ${{ needs.build_x86.outputs.artifact_digest }}
+          ARM_ARTIFACT_ID: ${{ needs.build_arm.outputs.artifact_id }}
+          ARM_ARTIFACT_DIGEST: ${{ needs.build_arm.outputs.artifact_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$X86_ARTIFACT_ID" =~ ^[0-9]+$ ]]
+          [[ "$ARM_ARTIFACT_ID" =~ ^[0-9]+$ ]]
+          test "$X86_ARTIFACT_ID" != "$ARM_ARTIFACT_ID"
+          test -n "$X86_ARTIFACT_DIGEST"
+          test -n "$ARM_ARTIFACT_DIGEST"
+          {
+            printf 'x86_artifact_id=%s digest=%s\n' "$X86_ARTIFACT_ID" "$X86_ARTIFACT_DIGEST"
+            printf 'arm_artifact_id=%s digest=%s\n' "$ARM_ARTIFACT_ID" "$ARM_ARTIFACT_DIGEST"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Download x86 release by immutable artifact ID
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.build_x86.outputs.artifact_id }}
+          path: ${{ runner.temp }}/releases/x86
+          merge-multiple: true
+      - name: Download ARM release by immutable artifact ID
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.build_arm.outputs.artifact_id }}
+          path: ${{ runner.temp }}/releases/arm
+          merge-multiple: true
+      - name: Verify and import release contract before credentials
+        working-directory: anywhere
+        env:
+          SOURCE_SHA: ${{ needs.resolve.outputs.source_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/fleet-reconcile \
+            --release "$RUNNER_TEMP/releases/x86" \
+            --release "$RUNNER_TEMP/releases/arm" \
+            --source-sha "$SOURCE_SHA" \
+            --verify-only
+          df -Pk "$RUNNER_TEMP" >> "$GITHUB_STEP_SUMMARY"
+      - name: Realize pinned deploy-rs before credentials
+        working-directory: anywhere
+        shell: bash
+        run: |
+          set -euo pipefail
+          deploy_path="$(nix build --no-link --no-write-lock-file --print-out-paths \
+            .#packages.x86_64-linux.deploy-rs)"
+          test -x "$deploy_path/bin/deploy"
+          printf 'DEPLOY_BIN=%s/bin/deploy\n' "$deploy_path" >> "$GITHUB_ENV"
+      - name: Configure pinned SSH identity
+        env:
+          FLEET_SSH_PRIVATE_KEY: ${{ secrets.FLEET_SSH_PRIVATE_KEY }}
+          FLEET_KNOWN_HOSTS: ${{ secrets.NIX_DEPLOY_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$FLEET_SSH_PRIVATE_KEY"
+          test -n "$FLEET_KNOWN_HOSTS"
+          install -d -m 700 "$RUNNER_TEMP/ssh"
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$FLEET_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/ssh/fleet-key"
+          printf '%s\n' "$FLEET_KNOWN_HOSTS" > "$RUNNER_TEMP/ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/ssh/fleet-key" "$RUNNER_TEMP/ssh/known_hosts"
+          cat > "$HOME/.ssh/config" <<EOF
+          Host *
+            IdentityFile $RUNNER_TEMP/ssh/fleet-key
+            IdentitiesOnly yes
+            UserKnownHostsFile $RUNNER_TEMP/ssh/known_hosts
+            GlobalKnownHostsFile /dev/null
+            StrictHostKeyChecking yes
+            PasswordAuthentication no
+            KbdInteractiveAuthentication no
+            BatchMode yes
+          EOF
+          chmod 600 "$HOME/.ssh/config"
+      - name: Join production Tailnet ephemerally
+        uses: tailscale/github-action@6cae46e2d796f265265cfcf628b72a32b4d7cade # v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:nixos-ci
+          hostname: nixos-ci-${{ github.run_id }}
+      - name: Verify and reconcile release
+        working-directory: anywhere
+        env:
+          MODE: ${{ needs.resolve.outputs.reconcile_mode }}
+          TARGET: ${{ inputs.target || 'all' }}
+          FORCE_COPY: ${{ inputs.force_copy || false }}
+          SOURCE_SHA: ${{ needs.resolve.outputs.source_sha }}
+          TARGET_HOSTS: ${{ needs.resolve.outputs.target_hosts }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--release "$RUNNER_TEMP/releases/x86" --release "$RUNNER_TEMP/releases/arm"
+            --source-sha "$SOURCE_SHA" --known-hosts "$RUNNER_TEMP/ssh/known_hosts"
+            --ssh-key "$RUNNER_TEMP/ssh/fleet-key" "--$MODE")
+          while IFS= read -r host; do
+            [[ -n "$host" ]] && args+=(--host "$host")
+          done <<< "$TARGET_HOSTS"
+          [[ "$FORCE_COPY" != true ]] || args+=(--force-copy)
+          ./scripts/fleet-reconcile "${args[@]}"
+      - name: Remove temporary SSH material
+        if: always()
+        shell: bash
+        run: rm -f -- "$RUNNER_TEMP/ssh/fleet-key" "$RUNNER_TEMP/ssh/known_hosts"
+      - name: Leave Tailnet
+        if: always()
+        shell: bash
+        run: tailscale logout || true

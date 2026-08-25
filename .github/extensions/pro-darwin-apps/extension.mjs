@@ -22,6 +22,7 @@ const HOMEBREW_CASKS = new Map([
     ["visual-studio-code", "nixpkgs vscode has recurring build failures; Homebrew cask is the repo fallback."],
     ["warp", "Marked broken in nixpkgs."],
     ["whatsapp", "macOS app not in nixpkgs."],
+    ["zen", "Zen Browser is not available in nixpkgs for aarch64-darwin; use its official universal macOS cask."],
 ]);
 
 const MAS_APPS = new Map([
@@ -89,6 +90,7 @@ const PACKAGE_ALIASES = new Map([
     ["netbird-ui", { packageName: "netbird", reason: "NetBird UI requires both the vendor CLI formula and UI cask." }],
     ["netbird-cli", { packageName: "netbird", reason: "NetBird is managed as a vendor tap bundle on pro-darwin." }],
     ["netbird-cli-and-netbird-ui", { packageName: "netbird", reason: "NetBird requires both the vendor CLI formula and UI cask." }],
+    ["zen-browser", { packageName: "zen", reason: "Zen Browser is distributed through the official Homebrew `zen` cask on macOS." }],
 ]);
 
 const VALIDATION_BY_METHOD = {

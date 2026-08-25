@@ -1,0 +1,826 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+IFS=$'\n\t'
+umask 077
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+ANYWHERE_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+NIX_BIN=${NIX_BIN:-nix}
+NIX_STORE_BIN=${NIX_STORE_BIN:-nix-store}
+JQ_BIN=${JQ_BIN:-jq}
+ZSTD_BIN=${ZSTD_BIN:-zstd}
+SSH_BIN=${SSH_BIN:-ssh}
+GIT_BIN=${GIT_BIN:-git}
+DEPLOY_BIN=${DEPLOY_BIN:-deploy}
+retry_attempts=${FLEET_RECONCILE_RETRY_ATTEMPTS:-5}
+retry_base_seconds=${FLEET_RECONCILE_RETRY_BASE_SECONDS:-2}
+retry_jitter_seconds=${FLEET_RECONCILE_RETRY_JITTER_SECONDS:-2}
+
+usage() {
+  cat <<'EOF'
+Usage: fleet-reconcile --release DIR [--release DIR] --source-sha SHA \
+  --known-hosts FILE (--check-only|--deploy) [options]
+
+The release directories must contain exactly closure.nar.zst, manifest.json,
+and SHA256SUMS. One x86_64-linux and one aarch64-linux release are required.
+
+Options:
+  --release DIR       Architecture release directory (repeat once)
+  --source-sha SHA    Exact commit represented by both releases
+  --known-hosts FILE  Pinned OpenSSH known_hosts file (required)
+  --ssh-key FILE      Dedicated deployment private key
+  --ssh-user USER     SSH user (default: duck)
+  --host HOST         Select a host (repeatable; inventory order is retained)
+  --verify-only       Verify and import artifacts; never use network credentials
+  --check-only        Verify/import/preflight/health only
+  --deploy            Copy imported paths and activate with deploy-rs
+  --force-copy        Do not skip hosts whose desired path is already live
+  --allow-dirty       Permit local checkout changes for diagnostics
+  -h, --help          Show this help
+EOF
+}
+
+die() { printf 'fleet-reconcile: error: %s\n' "$*" >&2; exit 1; }
+require_command() { command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"; }
+validate_sha() { [[ "$1" =~ ^[0-9a-f]{40}$ ]] || die '--source-sha must be a lowercase 40-character SHA'; }
+validate_host() { [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || die "invalid host name: $1"; }
+validate_store_path() {
+  local path=$1 name
+  is_store_path "$path" || die "invalid Nix store path: $path"
+}
+is_store_path() {
+  local path=$1 name
+  [[ "$path" == /nix/store/* ]] || return 1
+  name=${path#/nix/store/}
+  [[ -n "$name" && "$name" != */* && "$name" != "." && "$name" != ".." \
+     && "$name" != *[[:cntrl:]]* ]]
+}
+validate_nonnegative_integer() { [[ "$1" =~ ^[0-9]+$ ]] || die "expected a non-negative integer: $1"; }
+
+nix_quote() {
+  local value=$1
+  value=${value//\\/\\\\}
+  value=${value//\"/\\\"}
+  value=${value//\$\{/\\\$\{}
+  value=${value//$'\n'/\\n}
+  value=${value//$'\r'/\\r}
+  printf '"%s"' "$value"
+}
+
+# Quote a value for the POSIX shell executed by sshd. Store paths are
+# validated as Nix paths separately, but their names may still contain a
+# single quote or other shell punctuation.
+shell_quote() {
+  local value=$1
+  value=${value//\'/\'\\\'\'}
+  printf "'%s'" "$value"
+}
+
+retry_sleep() {
+  local attempt=$1 delay=$retry_base_seconds jitter=0 index
+  for ((index = 1; index < attempt; index++)); do
+    if (( delay < 30 )); then delay=$((delay * 2)); fi
+  done
+  if (( delay > 30 )); then delay=30; fi
+  if (( retry_jitter_seconds > 0 )); then
+    jitter=$((RANDOM % (retry_jitter_seconds + 1)))
+  fi
+  if (( delay + jitter > 0 )); then sleep "$((delay + jitter))"; fi
+}
+
+ssh_error_is_retryable() {
+  local error=$1
+  [[ "$error" != *'Host key verification failed'* &&
+     "$error" != *'REMOTE HOST IDENTIFICATION HAS CHANGED'* &&
+     "$error" != *'Permission denied'* &&
+     "$error" != *'Too many authentication failures'* &&
+     "$error" != *'No matching host key type found'* &&
+     "$error" != *'sudo:'* &&
+     "$error" != *'a password is required'* &&
+     "$error" != *'not in the sudoers'* ]]
+}
+
+hash_file() {
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum -- "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then shasum -a 256 -- "$1" | awk '{print $1}'
+  else die 'neither sha256sum nor shasum is available'; fi
+}
+file_size() {
+  if stat -c '%s' -- "$1" >/dev/null 2>&1; then stat -c '%s' -- "$1"
+  else stat -f '%z' -- "$1"; fi
+}
+canonical_dir() {
+  [[ -d "$1" && ! -L "$1" ]] || die "not a real directory: $1"
+  CDPATH= cd -- "$1" && pwd
+}
+
+verify_exact_files() {
+  local dir=$1 entry rel
+  local -A seen=()
+  while IFS= read -r -d '' entry; do
+    [[ ! -L "$entry" && -f "$entry" ]] || die "release entry is not a regular file: $entry"
+    rel=${entry#"$dir"/}
+    case "$rel" in closure.nar.zst|manifest.json|SHA256SUMS) ;; *) die "unexpected release file: $rel";; esac
+    [[ -z "${seen[$rel]+x}" ]] || die "duplicate release entry: $rel"
+    seen[$rel]=1
+  done < <(find -P "$dir" -mindepth 1 -maxdepth 1 -print0)
+  for rel in closure.nar.zst manifest.json SHA256SUMS; do
+    [[ -n "${seen[$rel]+x}" ]] || die "release is missing $rel"
+  done
+}
+
+verify_checksums() {
+  local dir=$1 line digest rel actual count=0
+  local -A seen=()
+  while IFS= read -r line; do
+    [[ "$line" =~ ^([0-9a-fA-F]{64})[[:space:]][[:space:]](closure\.nar\.zst|manifest\.json)$ ]] \
+      || die "malformed SHA256SUMS line in $dir"
+    digest=${BASH_REMATCH[1],,}; rel=${BASH_REMATCH[2]}
+    [[ -z "${seen[$rel]+x}" ]] || die "duplicate checksum entry: $rel"
+    seen[$rel]=1; actual=$(hash_file "$dir/$rel")
+    [[ "$actual" == "$digest" ]] || die "checksum mismatch for $dir/$rel"
+    count=$((count + 1))
+  done <"$dir/SHA256SUMS"
+  (( count == 2 )) || die "SHA256SUMS must contain exactly two entries: $dir"
+  [[ -n "${seen[closure.nar.zst]+x}" && -n "${seen[manifest.json]+x}" ]] \
+    || die "SHA256SUMS must cover archive and manifest: $dir"
+}
+
+validate_manifest() {
+  "$JQ_BIN" -e '
+    .system as $manifest_system |
+    .schema == 1 and (.source_sha | type == "string" and test("^[0-9a-f]{40}$")) and
+    (.created_by_run | type == "string" and length > 0 and test("^[A-Za-z0-9._/-]+$")) and
+    (.system == "x86_64-linux" or .system == "aarch64-linux") and
+    (.inventory_sha256 | type == "string" and test("^[0-9a-f]{64}$")) and
+    (.archive.file == "closure.nar.zst") and (.archive.sha256 | type == "string" and test("^[0-9a-f]{64}$")) and
+    (.archive.bytes | type == "number" and floor == . and . > 0) and
+    (.archive.closure_bytes | type == "number" and floor == . and . > 0) and
+    (.archive.store_path_count | type == "number" and floor == . and . > 0) and
+    (.archive.compression_ratio | type == "number" and . > 0) and
+    (.hosts | type == "object" and length > 0) and
+    all(.hosts | to_entries[]; .value.system == $manifest_system) and
+    all(.hosts | to_entries[];
+      (.key | type == "string" and test("^[A-Za-z0-9][A-Za-z0-9_.-]*$")) and
+      (.value.system == "x86_64-linux" or .value.system == "aarch64-linux") and
+      (.value.toplevel | type == "string" and test("^/nix/store/[^/[:cntrl:]]+$")) and
+      (.value.activation | type == "string" and test("^/nix/store/[^/[:cntrl:]]+$")) and
+      (.value.activation_drv | type == "string" and test("^/nix/store/[^/[:cntrl:]]+\\.drv$")) and
+      (.value.wave | type == "string" and length > 0) and
+      (.value.role | type == "string" and length > 0) and
+      (.value.class | type == "string" and length > 0) and
+      (.value.order | type == "number" and floor == . and . >= 0) and
+      (.value.activation_timeout | type == "number" and floor == . and . > 0) and
+      (.value.confirm_timeout | type == "number" and floor == . and . > 0) and
+      (.value.remote_build | type == "boolean") and (.value.fast_connection | type == "boolean")
+    ) and
+    (([.hosts | to_entries[] | .key] | unique | length) == (.hosts | length)) and
+    (([.hosts | to_entries[] | .value.order] | unique | length) == (.hosts | length))
+  ' "$1" >/dev/null || die "manifest schema validation failed: $1"
+}
+
+ssh_setup() {
+  SSH_ARGS=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts"
+    -o GlobalKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o PasswordAuthentication=no
+    -o KbdInteractiveAuthentication=no -o PreferredAuthentications=publickey -o ConnectTimeout=15
+    -o ConnectionAttempts=2 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 -o ControlMaster=no)
+  if [[ -n "$ssh_key" ]]; then SSH_ARGS+=(-i "$ssh_key"); fi
+  nix_ssh_opts="-o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$known_hosts -o GlobalKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o PreferredAuthentications=publickey -o ConnectTimeout=15 -o ConnectionAttempts=2 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 -o ControlMaster=no"
+  if [[ -n "$ssh_key" ]]; then nix_ssh_opts="$nix_ssh_opts -i $ssh_key"; fi
+}
+run_ssh() { "$SSH_BIN" "${SSH_ARGS[@]}" "$ssh_user@$1" "$2"; }
+
+health_command() {
+  local service=$1
+  cat <<EOF
+set -eu
+printf 'hostname=%s\n' "\$(hostname)"
+printf 'arch=%s\n' "\$(uname -m)"
+printf 'current=%s\n' "\$(readlink -f /run/current-system)"
+printf 'systemd=%s\n' "\$(systemctl is-system-running 2>/dev/null || true)"
+printf 'failed=%s\n' "\$(systemctl --failed --no-legend --plain 2>/dev/null | awk 'NF {n++} END {print n+0}')"
+printf 'tailscale=%s\n' "\$(systemctl is-active tailscaled 2>/dev/null || true)"
+tailscale_json=\$(tailscale status --json | tr -d '\\n')
+tailscale_backend=\$(printf '%s' "\$tailscale_json" | sed -n 's/.*"BackendState"[[:space:]]*:[[:space:]]*"\\([^"\\]*\\)".*/\\1/p')
+printf 'tailscale_backend=%s\n' "\$tailscale_backend"
+printf 'k3s=%s\n' "\$(systemctl is-active $service 2>/dev/null || true)"
+sudo -n true
+printf 'sudo=ok\n'
+EOF
+}
+
+health_failure() {
+  printf '%s: %s\n' "$1" "$2" >&2
+  return 1
+}
+
+parse_health() {
+  local host=$1 system=$2 output=$3 expected_arch=x86_64
+  local hostname arch current systemd failed tailscale tailscale_backend k3s sudo
+  [[ "$system" == aarch64-linux ]] && expected_arch=aarch64
+  hostname=$(printf '%s\n' "$output" | sed -n 's/^hostname=//p')
+  arch=$(printf '%s\n' "$output" | sed -n 's/^arch=//p')
+  current=$(printf '%s\n' "$output" | sed -n 's/^current=//p')
+  systemd=$(printf '%s\n' "$output" | sed -n 's/^systemd=//p')
+  failed=$(printf '%s\n' "$output" | sed -n 's/^failed=//p')
+  tailscale=$(printf '%s\n' "$output" | sed -n 's/^tailscale=//p')
+  tailscale_backend=$(printf '%s\n' "$output" | sed -n 's/^tailscale_backend=//p')
+  k3s=$(printf '%s\n' "$output" | sed -n 's/^k3s=//p')
+  sudo=$(printf '%s\n' "$output" | sed -n 's/^sudo=//p')
+  if [[ "$hostname" != "$host" ]]; then
+    health_failure fatal "SSH identity mismatch for $host: $hostname"
+    return 1
+  fi
+  if [[ "$arch" != "$expected_arch" ]]; then
+    health_failure fatal "architecture mismatch for $host: $arch"
+    return 1
+  fi
+  if ! is_store_path "$current"; then
+    health_failure fatal "invalid current system path for $host: $current"
+    return 1
+  fi
+  if [[ "$systemd" != running ]]; then
+    health_failure retryable "systemd is not running on $host: $systemd"
+    return 1
+  fi
+  if [[ "$failed" != 0 ]]; then
+    health_failure retryable "failed systemd units on $host: $failed"
+    return 1
+  fi
+  if [[ "$tailscale" != active || "$tailscale_backend" != Running ]]; then
+    health_failure retryable "Tailscale is not connected on $host"
+    return 1
+  fi
+  if [[ "$k3s" != active ]]; then
+    health_failure retryable "k3s is not active on $host: $k3s"
+    return 1
+  fi
+  if [[ "$sudo" != ok ]]; then
+    health_failure fatal "passwordless sudo failed on $host"
+    return 1
+  fi
+  printf '%s\n' "$current"
+}
+
+health_check_with_retries() {
+  local host=$1 system=$2 service=$3 phase=$4
+  local attempt output current error_file parse_error_file reason
+  for ((attempt = 1; attempt <= retry_attempts; attempt++)); do
+    error_file="$work_dir/health-${phase}-${host}-${attempt}.stderr"
+    parse_error_file="$work_dir/health-${phase}-${host}-${attempt}.parse"
+    if output=$(run_ssh "$host" "$(health_command "$service")" 2>"$error_file"); then
+      if current=$(parse_health "$host" "$system" "$output" 2>"$parse_error_file"); then
+        printf '%s\n' "$current"
+        return 0
+      fi
+      reason=$(tr '\n' ' ' <"$parse_error_file")
+      if [[ "$reason" == fatal:* ]]; then
+        printf '%s\n' "${reason#fatal: }" >&2
+        return 2
+      fi
+    else
+      reason=$(tr '\n' ' ' <"$error_file")
+      if ! ssh_error_is_retryable "$reason"; then
+        printf 'non-retryable SSH failure for %s\n' "$host" >&2
+        return 2
+      fi
+      reason='SSH transport unavailable'
+    fi
+    [[ -n "$reason" ]] || reason='health predicate failed'
+    printf '%s attempt %d/%d failed for %s: %s\n' "$phase" "$attempt" "$retry_attempts" "$host" "$reason" >&2
+    if (( attempt == retry_attempts )); then
+      printf '%s failed for %s after %d attempt(s)\n' "$phase" "$host" "$retry_attempts" >&2
+      return 1
+    fi
+    retry_sleep "$attempt"
+  done
+  return 1
+}
+
+cluster_node_ready() {
+  local host=$1 output error_file attempt reason
+  for ((attempt = 1; attempt <= retry_attempts; attempt++)); do
+    error_file="$work_dir/node-${host}-${attempt}.stderr"
+    if output=$(run_ssh s145 "sudo k3s kubectl get node '$host' -o json" 2>"$error_file"); then
+      if "$JQ_BIN" -e --arg host "$host" \
+        '.metadata.name == $host and any(.status.conditions[]?; .type == "Ready" and .status == "True")' \
+        <<<"$output" >/dev/null; then
+        return 0
+      fi
+      reason='node is not Ready'
+    else
+      reason=$(tr '\n' ' ' <"$error_file")
+      if ! ssh_error_is_retryable "$reason"; then
+        printf 'non-retryable Kubernetes SSH failure for %s\n' "$host" >&2
+        return 2
+      fi
+      reason='Kubernetes query unavailable'
+    fi
+    printf 'node Ready attempt %d/%d failed for %s: %s\n' \
+      "$attempt" "$retry_attempts" "$host" "$reason" >&2
+    if (( attempt == retry_attempts )); then
+      printf 'Kubernetes node is not Ready: %s\n' "$host" >&2
+      return 1
+    fi
+    retry_sleep "$attempt"
+  done
+  return 1
+}
+
+cluster_health() {
+  local expected=$1 nodes count ready
+  nodes=$(run_ssh s145 'sudo k3s kubectl get nodes -o json') || die 'failed to query cluster nodes'
+  count=$("$JQ_BIN" '[.items[]] | length' <<<"$nodes")
+  ready=$("$JQ_BIN" '[.items[] | select(any(.status.conditions[]?; .type=="Ready" and .status=="True"))] | length' <<<"$nodes")
+  [[ "$count" == "$expected" && "$ready" == "$expected" ]] || die "cluster Ready count is $ready/$count; expected $expected"
+}
+
+write_deploy_file() {
+  local host=$1 user=$2 activation=$3 activation_drv=$4 fast=$5 at=$6 ct=$7 dir=$8 fast_value=false
+  local -a deploy_ssh_opts=(
+    -o BatchMode=yes
+    -o StrictHostKeyChecking=yes
+    -o "UserKnownHostsFile=$known_hosts"
+    -o GlobalKnownHostsFile=/dev/null
+    -o IdentitiesOnly=yes
+    -o PasswordAuthentication=no
+    -o KbdInteractiveAuthentication=no
+    -o PreferredAuthentications=publickey
+    -o ConnectTimeout=15
+    -o ConnectionAttempts=2
+    -o ServerAliveInterval=15
+    -o ServerAliveCountMax=2
+    -o ControlMaster=no
+    -o ControlPath=none
+  )
+  [[ -n "$ssh_key" ]] && deploy_ssh_opts+=( -i "$ssh_key" )
+  [[ "$fast" == true ]] && fast_value=true
+  {
+    printf '%s\n' '{'
+    printf '  deploy.nodes."%s" = {\n' "$host"
+    printf '    hostname = "%s";\n' "$host"
+    printf '    sshUser = "%s";\n' "$user"
+    printf '%s\n' '    remoteBuild = false;'
+    printf '    fastConnection = %s;\n' "$fast_value"
+    printf '    activationTimeout = %s;\n' "$at"
+    printf '    confirmTimeout = %s;\n' "$ct"
+    printf '%s\n' '    magicRollback = true;' '    autoRollback = true;' '    profiles.system = {'
+    printf '      user = "root";\n      path = { outPath = %s; drvPath = %s; };\n' \
+      "$(nix_quote "$activation")" "$(nix_quote "$activation_drv")"
+    printf '%s\n' '    };' '    sshOpts = ['
+    for option in "${deploy_ssh_opts[@]}"; do
+      printf '      %s\n' "$(nix_quote "$option")"
+    done
+    printf '%s\n' '    ];' '  };' '}'
+  } >"$dir/default.nix"
+}
+
+mode=''
+source_sha=''
+known_hosts=''
+ssh_key=''
+ssh_user=${SSH_USER:-duck}
+allow_dirty=false
+force_copy=false
+declare -a release_args=()
+declare -a requested_hosts=()
+
+while (($# > 0)); do
+  case "$1" in
+    --release)
+      (($# >= 2)) || die '--release requires a directory'
+      release_args+=("$2")
+      shift 2
+      ;;
+    --source-sha)
+      (($# >= 2)) || die '--source-sha requires a value'
+      source_sha=$2
+      shift 2
+      ;;
+    --known-hosts)
+      (($# >= 2)) || die '--known-hosts requires a file'
+      known_hosts=$2
+      shift 2
+      ;;
+    --ssh-key)
+      (($# >= 2)) || die '--ssh-key requires a file'
+      ssh_key=$2
+      shift 2
+      ;;
+    --ssh-user)
+      (($# >= 2)) || die '--ssh-user requires a value'
+      ssh_user=$2
+      shift 2
+      ;;
+    --host)
+      (($# >= 2)) || die '--host requires a name'
+      requested_hosts+=("$2")
+      shift 2
+      ;;
+    --verify-only|--check-only|--deploy)
+      [[ -z "$mode" ]] || die 'choose exactly one of --check-only or --deploy'
+      mode=${1#--}
+      shift
+      ;;
+    --force-copy)
+      force_copy=true
+      shift
+      ;;
+    --allow-dirty)
+      allow_dirty=true
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unexpected argument: $1"
+      ;;
+  esac
+done
+
+(( ${#release_args[@]} == 1 || ${#release_args[@]} == 2 )) \
+  || die 'provide exactly one x86 and one ARM release'
+[[ "$mode" == verify-only || "$mode" == check-only || "$mode" == deploy ]] \
+  || die 'select --verify-only, --check-only, or --deploy'
+validate_nonnegative_integer "$retry_attempts"
+validate_nonnegative_integer "$retry_base_seconds"
+validate_nonnegative_integer "$retry_jitter_seconds"
+(( retry_attempts > 0 )) || die 'FLEET_RECONCILE_RETRY_ATTEMPTS must be greater than zero'
+if [[ "$mode" != verify-only ]]; then
+  [[ -n "$known_hosts" ]] || die '--known-hosts is required'
+fi
+[[ "$ssh_user" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]] || die "invalid SSH user: $ssh_user"
+
+commands=("$NIX_BIN" "$NIX_STORE_BIN" "$JQ_BIN" "$ZSTD_BIN" "$GIT_BIN" awk cmp sed find sort mktemp)
+if [[ "$mode" != verify-only ]]; then
+  commands+=("$SSH_BIN")
+  [[ "$mode" == deploy ]] && commands+=("$DEPLOY_BIN")
+fi
+for command in "${commands[@]}"; do
+  require_command "$command"
+done
+if [[ "$mode" != verify-only ]]; then
+  [[ -f "$known_hosts" && ! -L "$known_hosts" && -r "$known_hosts" ]] \
+    || die "known_hosts is not readable: $known_hosts"
+  known_hosts=$(CDPATH= cd -- "$(dirname -- "$known_hosts")" && pwd)/$(basename -- "$known_hosts")
+  [[ "$known_hosts" != *[[:space:]]* ]] \
+    || die 'known_hosts path must not contain whitespace'
+  [[ "$known_hosts" =~ ^[A-Za-z0-9._/:-]+$ ]] \
+    || die 'known_hosts path contains unsupported shell punctuation'
+fi
+if [[ -n "$ssh_key" ]]; then
+  [[ -f "$ssh_key" && ! -L "$ssh_key" && -r "$ssh_key" ]] \
+    || die "SSH key is not readable: $ssh_key"
+  ssh_key=$(CDPATH= cd -- "$(dirname -- "$ssh_key")" && pwd)/$(basename -- "$ssh_key")
+  [[ "$ssh_key" != *[[:space:]]* ]] \
+    || die 'SSH key path must not contain whitespace'
+  [[ "$ssh_key" =~ ^[A-Za-z0-9._/:-]+$ ]] \
+    || die 'SSH key path contains unsupported shell punctuation'
+fi
+
+work_dir=$(mktemp -d "${TMPDIR:-/tmp}/fleet-reconcile.XXXXXX")
+trap 'rm -rf -- "$work_dir"' EXIT
+
+cd -- "$ANYWHERE_DIR"
+head_sha=$("$GIT_BIN" rev-parse HEAD 2>/dev/null) || die 'not a Git checkout'
+if [[ -z "$source_sha" ]]; then
+  source_sha=$head_sha
+else
+  validate_sha "$source_sha"
+  [[ "$source_sha" == "$head_sha" ]] || die 'checked-out HEAD does not match source SHA'
+fi
+if [[ "$allow_dirty" != true ]]; then
+  [[ -z "$("$GIT_BIN" status --porcelain=v1 --untracked-files=normal -- .)" ]] \
+    || die 'checkout is dirty; use --allow-dirty for diagnostics'
+fi
+
+current_inventory="$work_dir/inventory.json"
+"$NIX_BIN" eval --json --no-write-lock-file .#fleet >"$current_inventory" \
+  || die 'failed to evaluate .#fleet'
+"$JQ_BIN" -e 'type == "object" and length == 9' "$current_inventory" >/dev/null \
+  || die '.#fleet must contain exactly nine hosts'
+inventory_normalized="$work_dir/inventory.normalized.json"
+"$JQ_BIN" -S -c . "$current_inventory" >"$inventory_normalized"
+inventory_sha=$(hash_file "$inventory_normalized")
+
+declare -A manifest_by_system=()
+declare -a manifest_files=()
+declare -a release_dirs=()
+for raw_dir in "${release_args[@]}"; do
+  dir=$(canonical_dir "$raw_dir")
+  for prior in "${release_dirs[@]}"; do
+    [[ "$prior" != "$dir" ]] || die "release directory repeated: $dir"
+  done
+  release_dirs+=("$dir")
+  verify_exact_files "$dir"
+  verify_checksums "$dir"
+  manifest="$dir/manifest.json"
+  validate_manifest "$manifest"
+  system=$("$JQ_BIN" -r '.system' "$manifest")
+  [[ -z "${manifest_by_system[$system]+x}" ]] \
+    || die "duplicate architecture release: $system"
+  [[ "$("$JQ_BIN" -r '.source_sha' "$manifest")" == "$source_sha" ]] \
+    || die "source SHA mismatch: $dir"
+  [[ "$("$JQ_BIN" -r '.inventory_sha256' "$manifest")" == "$inventory_sha" ]] \
+    || die "inventory mismatch: $dir"
+  archive_sha=$("$JQ_BIN" -r '.archive.sha256' "$manifest")
+  [[ "$(hash_file "$dir/closure.nar.zst")" == "$archive_sha" ]] \
+    || die "archive digest mismatch: $dir"
+  [[ "$("$JQ_BIN" -r '.archive.bytes' "$manifest")" == "$(file_size "$dir/closure.nar.zst")" ]] \
+    || die "archive size mismatch: $dir"
+  manifest_by_system[$system]=$manifest
+  manifest_files+=("$manifest")
+done
+[[ -n "${manifest_by_system[x86_64-linux]+x}" && -n "${manifest_by_system[aarch64-linux]+x}" ]] \
+  || die 'both architecture releases are required'
+
+combined_hosts="$work_dir/combined-hosts.json"
+"$JQ_BIN" -s '
+  [.[].hosts | to_entries[]] as $entries |
+  if ([ $entries[].key ] | unique | length) != ($entries | length)
+  then error("duplicate host across releases")
+  else reduce $entries[] as $entry ({}; .[$entry.key] = $entry.value)
+  end
+' "${manifest_files[@]}" >"$combined_hosts" || die 'could not combine manifests'
+
+release_hosts=$("$JQ_BIN" -r 'keys[]' "$combined_hosts" | LC_ALL=C sort)
+inventory_hosts=$("$JQ_BIN" -r 'keys[]' "$current_inventory" | LC_ALL=C sort)
+[[ "$release_hosts" == "$inventory_hosts" ]] \
+  || die 'combined release host set differs from .#fleet'
+
+while IFS= read -r host; do
+  record=$("$JQ_BIN" -c --arg host "$host" '.[$host]' "$combined_hosts")
+  actual=$("$JQ_BIN" -S -c '
+    {system, role, class, wave, order,
+     activationTimeout: .activation_timeout, confirmTimeout: .confirm_timeout,
+     remoteBuild: .remote_build, fastConnection: .fast_connection}
+  ' <<<"$record")
+  expected=$("$JQ_BIN" -S -c --arg host "$host" '.[$host]' "$current_inventory" |
+    "$JQ_BIN" -S -c '{system, role, class, wave, order, activationTimeout, confirmTimeout, remoteBuild, fastConnection}')
+  [[ "$actual" == "$expected" ]] || die "release metadata differs for $host"
+  system=$("$JQ_BIN" -r '.system' <<<"$record")
+  manifest_system=$("$JQ_BIN" -r '.system' "${manifest_by_system[$system]}")
+  [[ "$manifest_system" == "$system" ]] || die "wrong architecture manifest for $host"
+  validate_store_path "$("$JQ_BIN" -r '.toplevel' <<<"$record")"
+  validate_store_path "$("$JQ_BIN" -r '.activation' <<<"$record")"
+done <<<"$inventory_hosts"
+
+# Inspect and import each architecture archive locally before any SSH preflight
+# or copy. The archive's exact store-path set must equal the union of all
+# declared root closures; a matching count alone cannot detect a missing path
+# replaced by an unrelated extra path.
+for system in x86_64-linux aarch64-linux; do
+  manifest=${manifest_by_system[$system]}
+  archive_dir=$(CDPATH= cd -- "$(dirname -- "$manifest")" && pwd)
+  archive="$archive_dir/closure.nar.zst"
+  archive_listing="$work_dir/$system.archive.json"
+  archive_paths="$work_dir/$system.archive-paths"
+  "$ZSTD_BIN" -dc -- "$archive" | "$NIX_BIN" nario list --json --no-pretty >"$archive_listing" \
+    || die "failed to inspect $system closure archive"
+  "$JQ_BIN" -e '.version == 1 and (.paths | type == "object" and length > 0)' \
+    "$archive_listing" >/dev/null || die "invalid $system closure archive listing"
+  "$JQ_BIN" -r '.paths | keys[]' "$archive_listing" | LC_ALL=C sort >"$archive_paths"
+  while IFS= read -r path; do
+    [[ -n "$path" ]] || continue
+    validate_store_path "$path"
+  done <"$archive_paths"
+  expected_count=$("$JQ_BIN" -r '.archive.store_path_count' "$manifest")
+  archive_count=$(wc -l <"$archive_paths" | tr -d ' ')
+  [[ "$archive_count" == "$expected_count" ]] \
+    || die "$system archive path count differs: $archive_count != $expected_count"
+
+  printf 'fleet-reconcile: importing %s\n' "$system" >&2
+  "$ZSTD_BIN" -dc -- "$archive" | "$NIX_STORE_BIN" --import >/dev/null \
+    || die "failed to import $system closure"
+
+  roots="$work_dir/$system.roots"
+  derivers="$work_dir/$system.derivers"
+  actual_paths="$work_dir/$system.paths"
+  : >"$roots"
+  : >"$derivers"
+  : >"$actual_paths"
+  while IFS= read -r host; do
+    record=$("$JQ_BIN" -c --arg host "$host" '.[$host]' "$combined_hosts")
+    [[ "$("$JQ_BIN" -r '.system' <<<"$record")" == "$system" ]] || continue
+    printf '%s\n%s\n' \
+      "$("$JQ_BIN" -r '.toplevel' <<<"$record")" \
+      "$("$JQ_BIN" -r '.activation' <<<"$record")" >>"$roots"
+    "$JQ_BIN" -r '.activation_drv' <<<"$record" >>"$derivers"
+  done <<<"$inventory_hosts"
+
+  while IFS= read -r host; do
+    record=$("$JQ_BIN" -c --arg host "$host" '.[$host]' "$combined_hosts")
+    [[ "$("$JQ_BIN" -r '.system' <<<"$record")" == "$system" ]] || continue
+    activation=$("$JQ_BIN" -r '.activation' <<<"$record")
+    declared_deriver=$("$JQ_BIN" -r '.activation_drv' <<<"$record")
+    actual_deriver=$("$NIX_STORE_BIN" --query --deriver "$activation" 2>/dev/null) \
+      || die "could not resolve imported activation deriver: $activation"
+    actual_deriver=$(printf '%s\n' "$actual_deriver" | sed '/^[[:space:]]*$/d' | head -n 1)
+    [[ "$actual_deriver" == "$declared_deriver" ]] \
+      || die "activation deriver mismatch for $host"
+  done <<<"$inventory_hosts"
+
+  while IFS= read -r root; do
+    [[ -n "$root" ]] || continue
+    "$NIX_STORE_BIN" --verify-path "$root" >/dev/null \
+      || die "imported root is invalid: $root"
+    "$NIX_STORE_BIN" --query --requisites "$root" >>"$actual_paths" \
+      || die "could not query imported closure: $root"
+  done <"$roots"
+  while IFS= read -r deriver; do
+    [[ -n "$deriver" ]] || continue
+    "$NIX_STORE_BIN" --verify-path "$deriver" >/dev/null \
+      || die "imported activation deriver is invalid: $deriver"
+    # The .drv is an explicit export root, not necessarily a runtime
+    # requisite of the activation output. Account for its complete reference
+    # closure so a no-substitute deploy-rs realization cannot miss an input.
+    "$NIX_STORE_BIN" --query --requisites "$deriver" >>"$actual_paths" \
+      || die "could not query imported activation derivation closure: $deriver"
+  done <"$derivers"
+  sort -u "$actual_paths" -o "$actual_paths"
+  actual_count=$(wc -l <"$actual_paths" | tr -d ' ')
+  [[ "$actual_count" == "$expected_count" ]] \
+    || die "$system closure path count differs: $actual_count != $expected_count"
+  cmp -s "$archive_paths" "$actual_paths" \
+    || die "$system archive path set differs from declared root closures"
+done
+
+if [[ "$mode" == verify-only ]]; then
+  printf 'fleet-reconcile: release verification/import complete (source %s)\n' "$source_sha" >&2
+  exit 0
+fi
+
+ssh_setup
+declare -a selected_hosts=()
+declare -A requested=()
+for host in "${requested_hosts[@]}"; do
+  validate_host "$host"
+  [[ -z "${requested[$host]+x}" ]] || die "host selected twice: $host"
+  "$JQ_BIN" -e --arg host "$host" 'has($host)' "$combined_hosts" >/dev/null \
+    || die "host not in release: $host"
+  requested[$host]=1
+done
+while IFS= read -r host; do
+  if (( ${#requested_hosts[@]} == 0 )) || [[ -n "${requested[$host]+x}" ]]; then
+    selected_hosts+=("$host")
+  fi
+done < <("$JQ_BIN" -r 'to_entries | sort_by(.value.order) | .[].key' "$current_inventory")
+full_selection=false
+if (( ${#selected_hosts[@]} == $("$JQ_BIN" 'length' "$current_inventory") )); then
+  full_selection=true
+fi
+
+declare -A gate=()
+declare -A required_current=()
+for host in "${selected_hosts[@]}"; do gate[$host]=1; done
+# Kubernetes readiness is queried through s145 for every target. Validate the
+# control-plane SSH identity and host health before trusting those responses.
+gate[s145]=1
+if [[ "$mode" == deploy ]]; then
+  for host in "${selected_hosts[@]}"; do
+    wave=$("$JQ_BIN" -r --arg host "$host" '.[$host].wave' "$current_inventory")
+    order=$("$JQ_BIN" -r --arg host "$host" '.[$host].order' "$current_inventory")
+    while IFS=$'\t' read -r canary canary_order; do
+      [[ -n "$canary" ]] || continue
+      if (( canary_order < order )); then
+        gate[$canary]=1
+        required_current[$canary]=1
+      fi
+    done < <("$JQ_BIN" -r '
+      to_entries | sort_by(.value.order) | .[] |
+      select(.value.wave == "x86-canary" or .value.wave == "arm-canary") |
+      [.key, (.value.order | tostring)] | @tsv
+    ' "$current_inventory")
+    [[ "$wave" == control-plane ]] || continue
+    while IFS= read -r worker; do
+      if [[ -n "$worker" ]]; then
+        gate[$worker]=1
+        required_current[$worker]=1
+      fi
+    done < <("$JQ_BIN" -r 'to_entries[] | select(.value.wave=="workers") | .key' "$current_inventory")
+  done
+fi
+
+declare -a gate_hosts=()
+while IFS= read -r host; do
+  [[ -n "${gate[$host]+x}" ]] && gate_hosts+=("$host")
+done < <("$JQ_BIN" -r 'to_entries | sort_by(.value.order) | .[].key' "$current_inventory")
+
+declare -A live=()
+for host in "${gate_hosts[@]}"; do
+  record=$("$JQ_BIN" -c --arg host "$host" '.[$host]' "$combined_hosts")
+  system=$("$JQ_BIN" -r '.system' <<<"$record")
+  role=$("$JQ_BIN" -r '.role' <<<"$record")
+  service=k3s-agent.service
+  [[ "$role" == server ]] && service=k3s.service
+  printf 'fleet-reconcile: preflight %s\n' "$host" >&2
+  if live_path=$(health_check_with_retries "$host" "$system" "$service" preflight); then
+    live[$host]=$live_path
+  else
+    status=$?
+    (( status == 2 )) && die "SSH preflight failed for $host"
+    die "SSH preflight did not converge for $host"
+  fi
+done
+
+for host in "${gate_hosts[@]}"; do
+  cluster_node_ready "$host" || die "Kubernetes node is not Ready: $host"
+done
+
+if [[ "$full_selection" == true ]]; then
+  cluster_health 9
+fi
+
+if [[ "$mode" == deploy && ${#requested_hosts[@]} -gt 0 ]]; then
+  for host in "${gate_hosts[@]}"; do
+    [[ -n "${required_current[$host]+x}" ]] || continue
+    [[ -n "${requested[$host]+x}" ]] && continue
+    wave=$("$JQ_BIN" -r --arg host "$host" '.[$host].wave' "$current_inventory")
+    desired=$("$JQ_BIN" -r --arg host "$host" '.[$host].toplevel // empty' "$combined_hosts")
+    if [[ "${live[$host]:-}" != "$desired" ]]; then
+      dependency=worker
+      [[ "$wave" == x86-canary || "$wave" == arm-canary ]] && dependency=canary
+      die "required $dependency $host is not at the desired path; select it first"
+    fi
+  done
+fi
+
+if [[ "$mode" == check-only ]]; then
+  for host in "${selected_hosts[@]}"; do
+    record=$("$JQ_BIN" -c --arg host "$host" '.[$host]' "$combined_hosts")
+    desired=$("$JQ_BIN" -r '.toplevel' <<<"$record")
+    printf 'fleet-reconcile: %s current=%s desired=%s\n' \
+      "$host" "${live[$host]:-not-preflighted}" "$desired" >&2
+  done
+  exit 0
+fi
+
+for host in "${selected_hosts[@]}"; do
+  record=$("$JQ_BIN" -c --arg host "$host" '.[$host]' "$combined_hosts")
+  system=$("$JQ_BIN" -r '.system' <<<"$record")
+  role=$("$JQ_BIN" -r '.role' <<<"$record")
+  desired=$("$JQ_BIN" -r '.toplevel' <<<"$record")
+  current=${live[$host]:-}
+  if [[ "$current" == "$desired" && "$force_copy" != true ]]; then
+    printf 'fleet-reconcile: skipping %s; desired path already live\n' "$host" >&2
+    continue
+  fi
+
+  activation=$("$JQ_BIN" -r '.activation' <<<"$record")
+  activation_drv=$("$JQ_BIN" -r '.activation_drv' <<<"$record")
+  export NIX_SSHOPTS="$nix_ssh_opts"
+  # Both roots were verified after artifact import. Keep the copy offline and
+  # builder-free so a missing local path is a release-contract failure instead
+  # of an implicit cache fetch or build.
+  "$NIX_BIN" copy --offline --no-check-sigs \
+    --option builders "" --option max-jobs 0 \
+    --option substituters "" --option substitute false \
+    --to "ssh://$ssh_user@$host" "$desired" "$activation" \
+    || die "copy failed for $host"
+  remote_desired=$(shell_quote "$desired")
+  remote_activation=$(shell_quote "$activation")
+  run_ssh "$host" "nix path-info $remote_desired $remote_activation >/dev/null" \
+    || die "copied paths unavailable on $host"
+
+  deploy_dir="$work_dir/deploy-$host"
+  mkdir -m 700 -- "$deploy_dir"
+  write_deploy_file "$host" "$ssh_user" "$activation" "$activation_drv" \
+    "$("$JQ_BIN" -r '.fast_connection' <<<"$record")" \
+    "$("$JQ_BIN" -r '.activation_timeout' <<<"$record")" \
+    "$("$JQ_BIN" -r '.confirm_timeout' <<<"$record")" "$deploy_dir"
+  printf 'fleet-reconcile: activating %s\n' "$host" >&2
+  # deploy-rs still asks Nix to realize the activation derivation. The
+  # release imports that .drv and its output; these options make any missing
+  # path fail instead of compiling locally, substituting, or delegating.
+  deploy_nix_config=${NIX_CONFIG:-}
+  deploy_nix_config+=$'\nsubstituters =\ntrusted-public-keys =\nsubstitute = false\nbuilders =\nmax-jobs = 0\n'
+  NIX_CONFIG="$deploy_nix_config" "$DEPLOY_BIN" --skip-checks --file "$deploy_dir" \
+    --fast-connection true "$host" -- \
+    --option builders "" \
+    --option max-jobs 0 \
+    --option substituters "" \
+    --option trusted-public-keys "" \
+    --option substitute false \
+    || die "deploy-rs failed for $host"
+
+  service=k3s-agent.service
+  [[ "$role" == server ]] && service=k3s.service
+  if actual=$(health_check_with_retries "$host" "$system" "$service" health); then
+    :
+  else
+    status=$?
+    (( status == 2 )) && die "post-activation SSH failed for $host"
+    die "post-activation health did not converge for $host"
+  fi
+  [[ "$actual" == "$desired" ]] || die "generation mismatch for $host: $actual != $desired"
+  cluster_node_ready "$host" || die "Kubernetes node is not Ready: $host"
+  live[$host]=$actual
+done
+
+if [[ "$full_selection" == true || -n "${requested[s145]+x}" ]]; then
+  cluster_health 9
+fi
+printf 'fleet-reconcile: deploy complete (%s host(s), source %s)\n' \
+  "${#selected_hosts[@]}" "$source_sha" >&2

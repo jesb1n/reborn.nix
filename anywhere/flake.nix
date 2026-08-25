@@ -2,6 +2,8 @@
   description = "OCI NixOS management";
 
   nixConfig = {
+    # Flake-level settings must be literal values; Nix rejects imported thunks
+    # before evaluating outputs. Keep these synchronized with lib/binary-caches.nix.
     extra-substituters = [
       "https://nixos-raspberrypi.cachix.org"
       "https://nix-community.cachix.org"
@@ -48,13 +50,60 @@
 
   outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-anywhere, nixos-raspberrypi, deploy-rs, disko, sops-nix, hermes-agent, nix-darwin, home-manager, mac-app-util, ... }:
     let
+      fleet = import ./lib/fleet.nix;
+
+      linuxSystems = [
+        "aarch64-linux"
+        "x86_64-linux"
+      ];
+
       managementSystems = [
         "aarch64-darwin"
         "x86_64-linux"
       ];
 
       forAllManagementSystems = nixpkgs.lib.genAttrs managementSystems;
+      forAllLinuxSystems = nixpkgs.lib.genAttrs linuxSystems;
+
+      hostsForSystem = system:
+        nixpkgs.lib.filterAttrs (_: host: host.system == system) fleet;
+
+      activationFor = host:
+        deploy-rs.lib.${fleet.${host}.system}.activate.nixos self.nixosConfigurations.${host};
+
+      mkDeployNode = ci: host: metadata: {
+        hostname = host;
+        sshUser = "duck";
+        remoteBuild = if ci then false else metadata.remoteBuild;
+        fastConnection = metadata.fastConnection;
+        activationTimeout = metadata.activationTimeout;
+        confirmTimeout = metadata.confirmTimeout;
+
+        profiles.system = {
+          user = "root";
+          path = activationFor host;
+        };
+      };
+
+      deployNodes = nixpkgs.lib.mapAttrs (mkDeployNode false) fleet;
+      ciDeployNodes = nixpkgs.lib.mapAttrs (mkDeployNode true) fleet;
+
+      releasePackages = system:
+        (nixpkgs.lib.concatMapAttrs
+          (host: _: {
+            "${host}-toplevel" = self.nixosConfigurations.${host}.config.system.build.toplevel;
+            "${host}-activation" = activationFor host;
+          })
+          (hostsForSystem system))
+        // {
+          # The deployment runner realizes this small, pinned executable before
+          # production credentials are loaded. It must not enter the broad
+          # operator devShell during an activation.
+          deploy-rs = deploy-rs.packages.${system}.default;
+        };
     in {
+      inherit fleet;
+
       devShells = forAllManagementSystems (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
@@ -176,128 +225,41 @@
         ];
       };
 
-      deploy.nodes = {
-        oracle-eu-arm1 = {
-          hostname = "oracle-eu-arm1";
-          sshUser = "duck";
-          remoteBuild = true;
-          activationTimeout = 600;
-          confirmTimeout = 60;
+      packages = forAllLinuxSystems (system:
+        (releasePackages system) // {
+          # CI invokes the pinned deploy-rs binary directly so it does not
+          # materialize the operator devShell's unrelated tool closure.
+          deploy-rs = deploy-rs.packages.${system}.default;
+        });
 
-          profiles.system = {
-            user = "root";
-            path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.oracle-eu-arm1;
-          };
-        };
+      deploy.nodes = deployNodes;
 
-        oracle-eu-micro1 = {
-          hostname = "oracle-eu-micro1";
-          sshUser = "duck";
-          remoteBuild = false;
-          fastConnection = true;
-          activationTimeout = 600;
-          confirmTimeout = 60;
+      # CI imports native release closures before using this topology. Every
+      # node is therefore a local no-op realization followed by an SSH copy.
+      ciDeploy.nodes = ciDeployNodes;
 
-          profiles.system = {
-            user = "root";
-            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.oracle-eu-micro1;
-          };
-        };
+      checks = builtins.mapAttrs
+        (system: deployLib:
+          let
+            normalDeployChecks = deployLib.deployChecks self.deploy;
+            ciDeployChecks = deployLib.deployChecks self.ciDeploy;
+          in
+          normalDeployChecks
+          // nixpkgs.lib.mapAttrs'
+            (name: value: nixpkgs.lib.nameValuePair "ci-${name}" value)
+            ciDeployChecks
+          // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+            fleet-invariants = import ./tests/fleet-invariants.nix {
+              pkgs = nixpkgs.legacyPackages.${system};
+              inherit (nixpkgs) lib;
+              inherit fleet;
+              inherit (self) nixosConfigurations deploy ciDeploy;
+            };
 
-        oracle-eu-micro2 = {
-          hostname = "oracle-eu-micro2";
-          sshUser = "duck";
-          remoteBuild = false;
-          fastConnection = true;
-          activationTimeout = 600;
-          confirmTimeout = 60;
-
-          profiles.system = {
-            user = "root";
-            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.oracle-eu-micro2;
-          };
-        };
-
-        oracle-in-arm1 = {
-          hostname = "oracle-in-arm1";
-          sshUser = "duck";
-          remoteBuild = true;
-          activationTimeout = 600;
-          confirmTimeout = 60;
-
-          profiles.system = {
-            user = "root";
-            path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.oracle-in-arm1;
-          };
-        };
-
-        oracle-in-micro1 = {
-          hostname = "oracle-in-micro1";
-          sshUser = "duck";
-          remoteBuild = false;
-          fastConnection = true;
-          activationTimeout = 600;
-          confirmTimeout = 60;
-
-          profiles.system = {
-            user = "root";
-            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.oracle-in-micro1;
-          };
-        };
-
-        oracle-in-micro2 = {
-          hostname = "oracle-in-micro2";
-          sshUser = "duck";
-          remoteBuild = false;
-          fastConnection = true;
-          activationTimeout = 600;
-          confirmTimeout = 60;
-
-          profiles.system = {
-            user = "root";
-            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.oracle-in-micro2;
-          };
-        };
-
-        rpi = {
-          hostname = "rpi";
-          sshUser = "duck";
-          remoteBuild = true;
-          activationTimeout = 900;
-          confirmTimeout = 60;
-
-          profiles.system = {
-            user = "root";
-            path = deploy-rs.lib.aarch64-linux.activate.nixos self.nixosConfigurations.rpi;
-          };
-        };
-
-        s145 = {
-          hostname = "s145";
-          sshUser = "duck";
-          remoteBuild = true;
-          activationTimeout = 600;
-          confirmTimeout = 60;
-
-          profiles.system = {
-            user = "root";
-            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.s145;
-          };
-        };
-
-        hp348 = {
-          hostname = "hp348";
-          sshUser = "duck";
-          remoteBuild = true;
-          fastConnection = true;
-          activationTimeout = 600;
-          confirmTimeout = 60;
-
-          profiles.system = {
-            user = "root";
-            path = deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.hp348;
-          };
-        };
-      };
+            ssh-access = import ./tests/ssh-access.nix {
+              pkgs = nixpkgs-unstable.legacyPackages.${system};
+            };
+          })
+        deploy-rs.lib;
     };
 }
