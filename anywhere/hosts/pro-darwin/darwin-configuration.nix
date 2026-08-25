@@ -82,6 +82,7 @@
       "visual-studio-code"
       "warp"
       "whatsapp"
+      "zen"
     ];
   };
 

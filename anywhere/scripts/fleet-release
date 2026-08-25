@@ -1,0 +1,396 @@
+#!/usr/bin/env bash
+
+# Build one immutable, architecture-scoped Nix store export.
+# Host metadata comes from the flake's public .#fleet output; no host matrix is
+# maintained in this script.
+
+set -Eeuo pipefail
+IFS=$'\n\t'
+umask 022
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+ANYWHERE_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+
+NIX_BIN=${NIX_BIN:-nix}
+NIX_STORE_BIN=${NIX_STORE_BIN:-nix-store}
+JQ_BIN=${JQ_BIN:-jq}
+ZSTD_BIN=${ZSTD_BIN:-zstd}
+GIT_BIN=${GIT_BIN:-git}
+
+usage() {
+  cat <<'EOF'
+Usage: fleet-release --system SYSTEM --output DIRECTORY --source-sha SHA [options]
+
+Build every host in the selected native architecture and export their union
+closure once. The output directory must not already exist.
+
+Required:
+  --system SYSTEM       x86_64-linux or aarch64-linux
+  --output DIRECTORY    Destination artifact directory
+  --source-sha SHA      Exact 40-character commit SHA being built
+
+Optional:
+  --created-by-run ID   CI run identifier (default: GitHub run or local)
+  --min-free-bytes N    Required free bytes before export (default: 1 GiB)
+  --max-archive-bytes N Optional compressed archive upper bound
+  -h, --help            Show this help
+EOF
+}
+
+die() {
+  printf 'fleet-release: error: %s\n' "$*" >&2
+  exit 1
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"
+}
+
+hash_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum -- "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 -- "$1" | awk '{print $1}'
+  else
+    die 'neither sha256sum nor shasum is available'
+  fi
+}
+
+file_size() {
+  if stat -c '%s' -- "$1" >/dev/null 2>&1; then
+    stat -c '%s' -- "$1"
+  else
+    stat -f '%z' -- "$1"
+  fi
+}
+
+validate_store_path() {
+  local path=$1 name
+  [[ "$path" == /nix/store/* ]] || die "not a canonical Nix store path: $path"
+  name=${path#/nix/store/}
+  [[ -n "$name" && "$name" != */* && "$name" != "." && "$name" != ".." \
+     && "$name" != *[[:cntrl:]]* ]] \
+    || die "not a canonical Nix store path: $path"
+  [[ -e "$path" ]] || die "Nix store path does not exist: $path"
+  [[ ! -L "$path" ]] || die "Nix store path unexpectedly remains a symlink: $path"
+}
+
+canonical_store_path() {
+  local raw=$1 resolved
+  [[ "$raw" != *$'\n'* && "$raw" != *$'\r'* ]] \
+    || die 'Nix build returned a path containing a newline'
+  resolved=$(readlink -f -- "$raw") || die "cannot canonicalize Nix path: $raw"
+  validate_store_path "$resolved"
+  printf '%s\n' "$resolved"
+}
+
+build_path() {
+  local installable=$1 output paths count
+  printf 'fleet-release: building %s\n' "$installable" >&2
+  output=$("$NIX_BIN" build --no-link --no-write-lock-file --print-out-paths -L "$installable") \
+    || die "failed to build $installable"
+  paths=$(printf '%s\n' "$output" | awk '/^\/nix\/store\/[^\/[:cntrl:]]+$/ { print }')
+  count=$(printf '%s\n' "$paths" | sed '/^[[:space:]]*$/d' | wc -l | tr -d ' ')
+  [[ "$count" == 1 ]] || die "$installable did not produce exactly one store path"
+  canonical_store_path "$paths"
+}
+
+validate_decimal() {
+  [[ "$1" =~ ^[0-9]+$ ]] || die "expected a non-negative integer, got: $1"
+}
+
+free_bytes() {
+  local directory=$1 blocks available
+  blocks=$(df -Pk -- "$directory" | awk 'NR == 2 { print $4 }')
+  [[ "$blocks" =~ ^[0-9]+$ ]] || die "could not determine free disk space for $directory"
+  available=$((blocks * 1024))
+  printf '%s\n' "$available"
+}
+
+check_free_watermark() {
+  local directory=$1 minimum=$2 context=$3 available
+  available=$(free_bytes "$directory")
+  (( available >= minimum )) \
+    || die "$context: only ${available} free bytes remain (minimum ${minimum})"
+  printf 'fleet-release: %s free bytes before %s\n' "$available" "$context" >&2
+}
+
+validate_inventory() {
+  local file=$1
+  "$JQ_BIN" -e '
+    type == "object" and length > 0 and
+    all(to_entries[];
+      (.key | type == "string" and test("^[A-Za-z0-9][A-Za-z0-9_.-]*$")) and
+      (.value | type == "object") and
+      (.value.system | type == "string" and (. == "x86_64-linux" or . == "aarch64-linux")) and
+      (.value.role | type == "string" and length > 0) and
+      (.value.class | type == "string" and length > 0) and
+      (.value.wave | type == "string" and length > 0) and
+      (.value.order | type == "number" and floor == . and . >= 0) and
+      (.value.activationTimeout | type == "number" and floor == . and . > 0) and
+      (.value.confirmTimeout | type == "number" and floor == . and . > 0) and
+      (.value.remoteBuild | type == "boolean") and
+      (.value.fastConnection | type == "boolean")
+    ) and
+    (([to_entries[].value.order] | unique | length) == length)
+  ' "$file" >/dev/null || die 'the .#fleet output failed inventory validation'
+}
+
+system=''
+output_dir=''
+source_sha=''
+created_by_run=${FLEET_RELEASE_RUN_ID:-}
+min_free_bytes=${FLEET_RELEASE_MIN_FREE_BYTES:-1073741824}
+max_archive_bytes=${FLEET_RELEASE_MAX_ARCHIVE_BYTES:-0}
+
+while (($# > 0)); do
+  case "$1" in
+    --system)
+      (($# >= 2)) || die '--system requires a value'
+      system=$2
+      shift 2
+      ;;
+    --output)
+      (($# >= 2)) || die '--output requires a directory'
+      output_dir=$2
+      shift 2
+      ;;
+    --source-sha)
+      (($# >= 2)) || die '--source-sha requires a value'
+      source_sha=$2
+      shift 2
+      ;;
+    --created-by-run|--run-id)
+      (($# >= 2)) || die "$1 requires a value"
+      created_by_run=$2
+      shift 2
+      ;;
+    --min-free-bytes)
+      (($# >= 2)) || die '--min-free-bytes requires a value'
+      min_free_bytes=$2
+      shift 2
+      ;;
+    --max-archive-bytes)
+      (($# >= 2)) || die '--max-archive-bytes requires a value'
+      max_archive_bytes=$2
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unexpected argument: $1"
+      ;;
+  esac
+done
+
+[[ "$system" == x86_64-linux || "$system" == aarch64-linux ]] \
+  || die "unsupported architecture: ${system:-<missing>}"
+[[ "$source_sha" =~ ^[0-9a-f]{40}$ ]] \
+  || die '--source-sha must be a lowercase 40-character commit SHA'
+[[ -n "$output_dir" ]] || die '--output is required'
+if [[ -z "$created_by_run" || "$created_by_run" == *$'\n'* ]]; then
+  created_by_run="${GITHUB_RUN_ID:-local}/${GITHUB_RUN_ATTEMPT:-1}"
+fi
+[[ "$created_by_run" =~ ^[A-Za-z0-9._/-]+$ ]] \
+  || die '--created-by-run contains unsupported characters'
+validate_decimal "$min_free_bytes"
+validate_decimal "$max_archive_bytes"
+
+require_command "$NIX_BIN"
+require_command "$NIX_STORE_BIN"
+require_command "$JQ_BIN"
+require_command "$ZSTD_BIN"
+require_command "$GIT_BIN"
+require_command readlink
+require_command df
+require_command awk
+require_command sed
+require_command sort
+require_command wc
+require_command getconf
+
+output_parent=$(dirname -- "$output_dir")
+mkdir -p -- "$output_parent"
+output_parent=$(CDPATH= cd -- "$output_parent" && pwd)
+output_dir="$output_parent/$(basename -- "$output_dir")"
+[[ ! -e "$output_dir" ]] || die "destination already exists: $output_dir"
+
+cd -- "$ANYWHERE_DIR"
+head_sha=$("$GIT_BIN" rev-parse HEAD 2>/dev/null) \
+  || die 'source checkout is not a Git worktree'
+[[ "$head_sha" == "$source_sha" ]] \
+  || die "checked-out HEAD $head_sha does not match --source-sha $source_sha"
+[[ -z "$("$GIT_BIN" status --porcelain=v1 --untracked-files=normal -- .)" ]] \
+  || die 'the anywhere source tree is dirty; release artifacts require an exact commit'
+
+work_dir=$(mktemp -d "${TMPDIR:-/tmp}/fleet-release.XXXXXX")
+staging=$(mktemp -d "$output_parent/.fleet-release.XXXXXX")
+cleanup() {
+  rm -rf -- "$work_dir"
+  if [[ -n "${staging:-}" && -d "$staging" ]]; then
+    rm -rf -- "$staging"
+  fi
+}
+trap cleanup EXIT
+
+inventory_raw="$work_dir/inventory.raw.json"
+inventory_json="$work_dir/inventory.json"
+"$NIX_BIN" eval --json --no-write-lock-file .#fleet >"$inventory_raw" \
+  || die 'failed to evaluate .#fleet'
+validate_inventory "$inventory_raw"
+"$JQ_BIN" -S -c . "$inventory_raw" >"$inventory_json"
+inventory_sha=$(hash_file "$inventory_json")
+
+hosts_file="$work_dir/hosts.tsv"
+"$JQ_BIN" -r --arg system "$system" '
+  to_entries[] | select(.value.system == $system) |
+  [.key, .value.system, (.value.wave // ""), (.value.order|tostring),
+   (.value.activationTimeout|tostring), (.value.confirmTimeout|tostring)] | @tsv
+' "$inventory_json" | sort -t $'\t' -k4,4n >"$hosts_file"
+[[ -s "$hosts_file" ]] || die "inventory contains no hosts for $system"
+
+records="$work_dir/records.jsonl"
+: >"$records"
+roots="$work_dir/roots"
+: >"$roots"
+requisites_raw="$work_dir/requisites.raw"
+: >"$requisites_raw"
+
+while IFS=$'\t' read -r host host_system wave order activation_timeout confirm_timeout; do
+  [[ -n "$host" ]] || continue
+  toplevel=$(build_path ".#packages.${system}.${host}-toplevel")
+  activation=$(build_path ".#packages.${system}.${host}-activation")
+  activation_drv=$("$NIX_STORE_BIN" --query --deriver "$activation" 2>/dev/null) \
+    || die "failed to query activation deriver for $host"
+  canonical_store_path "$activation_drv" >/dev/null
+  [[ "$toplevel" != "$activation" ]] \
+    || die "$host toplevel and activation paths are identical"
+  printf '%s\n%s\n%s\n' "$toplevel" "$activation" "$activation_drv" >>"$roots"
+  # deploy-rs resolves a literal profile path through its deriver before the
+  # local no-op build. Export the .drv and its own references explicitly; the
+  # derivation is not necessarily a runtime requisite of the activation output.
+  "$NIX_STORE_BIN" --query --requisites "$activation_drv" >>"$requisites_raw" \
+    || die "failed to query activation derivation closure for $host"
+
+  "$NIX_STORE_BIN" --query --requisites "$toplevel" >>"$requisites_raw" \
+    || die "failed to query toplevel closure for $host"
+  "$NIX_STORE_BIN" --query --requisites "$activation" >>"$requisites_raw" \
+    || die "failed to query activation closure for $host"
+
+  role=$("$JQ_BIN" -r --arg host "$host" '.[$host].role // ""' "$inventory_json")
+  class=$("$JQ_BIN" -r --arg host "$host" '.[$host].class // ""' "$inventory_json")
+  remote_build=$("$JQ_BIN" -r --arg host "$host" '.[$host].remoteBuild // false' "$inventory_json")
+  fast_connection=$("$JQ_BIN" -r --arg host "$host" '.[$host].fastConnection // false' "$inventory_json")
+  "$JQ_BIN" -cn \
+    --arg name "$host" \
+    --arg system "$host_system" \
+    --arg toplevel "$toplevel" \
+    --arg activation "$activation" \
+    --arg activation_drv "$activation_drv" \
+    --arg wave "$wave" \
+    --arg role "$role" \
+    --arg class "$class" \
+    --argjson order "$order" \
+    --argjson activation_timeout "$activation_timeout" \
+    --argjson confirm_timeout "$confirm_timeout" \
+    --argjson remote_build "$remote_build" \
+    --argjson fast_connection "$fast_connection" \
+    '{name:$name, system:$system, toplevel:$toplevel, activation:$activation,
+      activation_drv:$activation_drv,
+      wave:$wave, order:$order, role:$role, class:$class,
+      activation_timeout:$activation_timeout, confirm_timeout:$confirm_timeout,
+      remote_build:$remote_build, fast_connection:$fast_connection}' \
+    >>"$records"
+done <"$hosts_file"
+
+requisites="$work_dir/requisites"
+: >"$requisites"
+while IFS= read -r path; do
+  [[ -n "$path" ]] || continue
+  canonical_store_path "$path" >>"$requisites"
+done <"$requisites_raw"
+sort -u "$requisites" -o "$requisites"
+path_count=$(wc -l <"$requisites" | tr -d ' ')
+[[ "$path_count" =~ ^[1-9][0-9]*$ ]] || die 'the architecture closure is empty'
+
+check_free_watermark "$output_parent" "$min_free_bytes" 'closure export'
+
+root_sizes="$work_dir/root-closure-sizes"
+"$NIX_BIN" path-info -S --stdin <"$roots" >"$root_sizes" \
+  || die 'failed to measure root closures with nix path-info -S'
+path_sizes="$work_dir/path-sizes"
+"$NIX_BIN" path-info -s --stdin <"$requisites" >"$path_sizes" \
+  || die 'failed to measure closure paths with nix path-info -s'
+closure_bytes=$(awk '$NF ~ /^[0-9]+$/ { sum += $NF } END { printf "%.0f\n", sum }' "$path_sizes")
+[[ "$closure_bytes" =~ ^[1-9][0-9]*$ ]] \
+  || die 'could not determine uncompressed closure size'
+
+archive="$staging/closure.nar.zst"
+printf 'fleet-release: exporting %s store paths\n' "$path_count" >&2
+argument_bytes=$(awk '{ total += length($0) + 1 } END { print total + 0 }' "$requisites")
+argument_limit=$(getconf ARG_MAX 2>/dev/null || printf '1048576\n')
+if (( argument_bytes + 65536 < argument_limit )); then
+  paths=()
+  while IFS= read -r path; do
+    paths+=("$path")
+  done <"$requisites"
+  "$NIX_STORE_BIN" --export "${paths[@]}" | "$ZSTD_BIN" -T0 -19 -o "$archive" \
+    || die 'failed to stream the closure through zstd'
+else
+  # nix-store accepts one store path per line with --stdin. This avoids an
+  # ARG_MAX failure when a large fleet shares a native runner.
+  "$NIX_STORE_BIN" --export --stdin <"$requisites" | "$ZSTD_BIN" -T0 -19 -o "$archive" \
+    || die 'failed to stream the closure through zstd'
+fi
+
+archive_bytes=$(file_size "$archive")
+[[ "$archive_bytes" =~ ^[1-9][0-9]*$ ]] || die 'compressed archive is empty'
+if (( max_archive_bytes > 0 && archive_bytes > max_archive_bytes )); then
+  die "archive is ${archive_bytes} bytes, above maximum ${max_archive_bytes}"
+fi
+check_free_watermark "$output_parent" "$min_free_bytes" 'artifact publication'
+archive_sha=$(hash_file "$archive")
+compression_ratio=$(awk -v compressed="$archive_bytes" -v plain="$closure_bytes" \
+  'BEGIN { printf "%.6f", compressed / plain }')
+
+hosts_json=$("$JQ_BIN" -s 'map({key:.name, value:(del(.name))}) | from_entries' "$records")
+manifest="$staging/manifest.json"
+"$JQ_BIN" -S -n \
+  --argjson schema 1 \
+  --arg source_sha "$source_sha" \
+  --arg system "$system" \
+  --arg created_by_run "$created_by_run" \
+  --arg inventory_sha256 "$inventory_sha" \
+  --arg archive_file 'closure.nar.zst' \
+  --arg archive_sha256 "$archive_sha" \
+  --argjson archive_bytes "$archive_bytes" \
+  --argjson closure_bytes "$closure_bytes" \
+  --argjson store_path_count "$path_count" \
+  --argjson compression_ratio "$compression_ratio" \
+  --argjson hosts "$hosts_json" \
+  '{schema:$schema, source_sha:$source_sha, system:$system,
+    created_by_run:$created_by_run, inventory_sha256:$inventory_sha256,
+    archive:{file:$archive_file, sha256:$archive_sha256, bytes:$archive_bytes,
+      closure_bytes:$closure_bytes, store_path_count:$store_path_count,
+      compression_ratio:$compression_ratio}, hosts:$hosts}' \
+  >"$manifest"
+
+checksum="$staging/SHA256SUMS"
+{
+  printf '%s  %s\n' "$(hash_file "$archive")" 'closure.nar.zst'
+  printf '%s  %s\n' "$(hash_file "$manifest")" 'manifest.json'
+} >"$checksum"
+
+[[ "$(hash_file "$archive")" == "$(awk '$2 == "closure.nar.zst" {print $1}' "$checksum")" ]] \
+  || die 'archive checksum self-check failed'
+[[ "$(hash_file "$manifest")" == "$(awk '$2 == "manifest.json" {print $1}' "$checksum")" ]] \
+  || die 'manifest checksum self-check failed'
+
+mv -- "$staging" "$output_dir"
+staging=''
+printf 'fleet-release: wrote %s (%s, %s hosts, %s paths, %s bytes)\n' \
+  "$output_dir" "$system" "$(wc -l <"$hosts_file" | tr -d ' ')" \
+  "$path_count" "$archive_bytes" >&2
+printf '%s\n' "$output_dir"
