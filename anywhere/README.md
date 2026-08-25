@@ -1,6 +1,6 @@
 # Fleet and cluster configuration
 
-`anywhere/` is the standalone Nix flake that configures the repository's nine
+`anywhere/` is the standalone Nix flake that configures the repository's ten
 NixOS hosts, the `pro-darwin` operator machine, and the Kubernetes resources
 running on the `s145` k3s cluster.
 
@@ -33,6 +33,7 @@ model.
 | --- | --- | --- | --- |
 | `s145` | `x86_64-linux` | k3s server, durable storage, Garage | target host |
 | `hp348` | `x86_64-linux` | k3s agent, distributed Nix builder | target host |
+| `nuc7i3` | `x86_64-linux` | k3s agent, general-purpose server | target host |
 | `oracle-eu-arm1` | `aarch64-linux` | k3s agent, Hermes Agent | target host |
 | `oracle-in-arm1` | `aarch64-linux` | k3s agent, monitoring | target host |
 | four Oracle micro nodes | `x86_64-linux` | resource-limited k3s agents | `hp348` for Mac-initiated builds |

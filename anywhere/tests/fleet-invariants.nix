@@ -112,19 +112,19 @@ let
     {
       assertion =
         fleetHosts == builtins.filter (host: host != "travelmate") configurationHosts;
-      message = "nixosConfigurations must contain the nine fleet hosts plus standalone travelmate";
+      message = "nixosConfigurations must contain the ten fleet hosts plus standalone travelmate";
     }
     {
       assertion = fleetHosts == deployHosts;
-      message = "deploy.nodes must contain exactly the nine fleet hosts";
+      message = "deploy.nodes must contain exactly the ten fleet hosts";
     }
     {
       assertion = fleetHosts == ciDeployHosts;
-      message = "ciDeploy.nodes must contain exactly the nine fleet hosts";
+      message = "ciDeploy.nodes must contain exactly the ten fleet hosts";
     }
     {
-      assertion = builtins.length fleetHosts == 9;
-      message = "fleet inventory must contain exactly nine hosts";
+      assertion = builtins.length fleetHosts == 10;
+      message = "fleet inventory must contain exactly ten hosts";
     }
   ];
 
