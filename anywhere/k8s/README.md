@@ -22,6 +22,7 @@ k8s/
 ├── immich-public-proxy/   Flux-managed Immich share frontend (depends on `immich`, routed via cloudflared, not Traefik)
 ├── garage/                Flux-managed Garage S3, three-zone layout (garage-arm/-micro/-onprem HelmReleases)
 ├── litellm/               Flux-managed LiteLLM proxy (ChatGPT Plus OAuth + Gemini, pinned to oracle-eu-arm1, NodePort only)
+├── omniroute/             Flux-managed OmniRoute gateway (stable web image, pinned to nuc7i3, Tailnet NodePorts)
 ├── cloudflared/           Flux-managed Cloudflare Tunnel DaemonSet
 └── monitoring/            Flux-managed kube-prometheus-stack (pinned to oracle-in-arm1)
 ```
@@ -40,6 +41,7 @@ infra
  ├── immich
  │    └── immich-public-proxy
  ├── litellm
+ ├── omniroute
  ├── monitoring
  └── vaultwarden
 ```
@@ -48,6 +50,7 @@ Conventions:
 
 - Stateful app workloads (Immich, Vaultwarden, …) **pin `nodeSelector: kubernetes.io/hostname: s145`** so their PVCs (`local-path`, or the static `hostPath`-backed PVs under Immich) land on the 1 TB HDD, not on disposable Oracle agents.
 - **Exception:** Prometheus, Grafana, Alertmanager, the Prometheus Operator, and kube-state-metrics pin to `oracle-in-arm1` — see [`monitoring/`](monitoring/). `node-exporter` still runs as a DaemonSet on every node, including the tainted `tiny` micros.
+- OmniRoute pins its SQLite, Redis, and Chromium workload to `nuc7i3`; its dashboard/API/WebSocket are available only through Tailnet NodePorts. See [`omniroute/`](omniroute/) for access, backup, and provider limitations.
 - Hostnames default to `*.beijns.eu.org` (Vaultwarden, Immich, Garage S3, Grafana) or the equivalent Cloudflare Tunnel Published-application hostname for `immich-public-proxy`. Search/replace if you use a different zone.
 - Traefik handles HTTP → HTTPS redirect globally (chart-level config in [`../hosts/s145/traefik.nix`](../hosts/s145/traefik.nix)) — do **not** add redirect middlewares per app.
 - Traefik `Middleware` resources are namespaced. Public app `IngressRoute`s each define their own same-namespace `security-headers` Middleware and reference it as `- name: security-headers`; do not point app routes at `kube-system/security-headers` (the copy under `_infra/security-headers.yaml`) unless Traefik is explicitly reconfigured to allow cross-namespace middleware references.
