@@ -1,18 +1,19 @@
 # Remotely-managed Cloudflare Tunnel — follows
 # https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/deployment-guides/kubernetes/
 #
-# DaemonSet: one connector per node so the tunnel stays up if individual
-# nodes fail. All pods share the same remotely-managed tunnel token.
+# Deployment: three connectors spread across distinct nodes so the tunnel stays
+# up if individual nodes fail. All pods share the remotely-managed tunnel token.
 # Add Published application routes in the Cloudflare dashboard (FQDN
 # ClusterIP URLs across namespaces).
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
   name: cloudflared
   namespace: cloudflared
   labels:
     app: cloudflared
 spec:
+  replicas: 3
   selector:
     matchLabels:
       pod: cloudflared
@@ -22,6 +23,13 @@ spec:
         pod: cloudflared
         app: cloudflared
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: cloudflared
+              topologyKey: kubernetes.io/hostname
       # Nodes carry taints; this pod carries the matching toleration.
       # Live: oracle-eu-micro{1,2} have tiny=true:NoSchedule (others untainted).
       tolerations:
