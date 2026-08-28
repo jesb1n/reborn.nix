@@ -98,6 +98,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 
 | Package | Reason |
 |---------|--------|
+| `anydesk` | Remote-control app requiring preserved macOS signing plus Accessibility and Screen Recording permissions; use the current official Homebrew cask. |
 | `arc` | Removed from nixpkgs (unmaintained). |
 | `cloudflare-warp` | Needs macOS Network Extension entitlements — cannot ship via Nix. |
 | `tailscale-app` | Needs macOS Network Extension entitlements. (The `tailscale` CLI IS installed via Nix in home.packages — separate from the GUI app.) |
@@ -210,7 +211,7 @@ sudo darwin-rebuild switch --flake .#pro-darwin
 - **Do not** try to install blocked gcloud components (`gke-gcloud-auth-plugin`, `cloud-run-proxy`, ...) via `gcloud components install` — it is blocked by both Nix and Homebrew SDK installations. Add another `install_gcloud_component` call inside `postActivation.text` instead.
 - **Do not** add `system.activationScripts.<customName>.text = "..."` expecting it to run — only `preActivation` / `extraActivation` / `postActivation` execute; custom names are silently ignored. Merge new activation code into `postActivation.text`.
 - **Do not** reintroduce `defaultbrowser` activation or PlistBuddy default-browser hacks.
-- **Do not** move `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker-desktop`, `whatsapp`, `handy`, `loom`, `visual-studio-code`, `github-copilot-app`, `lens`, or `zen` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
+- **Do not** move `anydesk`, `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker-desktop`, `whatsapp`, `handy`, `loom`, `visual-studio-code`, `github-copilot-app`, `lens`, or `zen` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
 - **Do not** reinstall `opencode`, `ripgrep`, `ffmpeg`, or `k6` via Homebrew — they are managed by Nix in `home.packages`. Brew copies shadow Nix because `sessionPath` prepends `/opt/homebrew/bin`.
 - **Do not** add `wireguard-tools` back to `home.packages` — WireGuard is managed via the Mac App Store GUI app.
 - **Do not** hardcode `user.name`/`user.email` via `git config --global` — use `programs.git.settings` in `home.nix`.

@@ -2,6 +2,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - namespace.yaml
-  - tunnel-secret.yaml
+  - secret.yaml
+  - pvc.yaml
+  - redis.yaml
   - deployment.yaml
-  - podmonitor.yaml
+  - service.yaml
