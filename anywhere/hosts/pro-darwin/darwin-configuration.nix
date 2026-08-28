@@ -67,6 +67,7 @@
       "Bitwarden" = 1352778147;
     };
     casks = [
+      "anydesk"
       "arc"
       "chatgpt"
       "claude"
