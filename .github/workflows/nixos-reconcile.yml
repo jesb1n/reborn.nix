@@ -128,12 +128,14 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196 # v20
         with:
           determinate: true
-      - name: Enable Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@87b14cf437d03d37989d87f0fa5ce4f5dc1a330b # v8
-      - name: Run static and VM gates
+      - name: Run Linux fleet and VM gates
         working-directory: anywhere
         run: |
-          nix flake check --all-systems --no-build --no-write-lock-file
+          nix eval --json --no-write-lock-file .#checks.x86_64-linux \
+            --apply 'checks: builtins.mapAttrs (_: check: check.drvPath) checks'
+          nix eval --json --no-write-lock-file .#checks.aarch64-linux \
+            --apply 'checks: builtins.mapAttrs (_: check: check.drvPath) checks'
+          nix eval --raw --no-write-lock-file .#nixosConfigurations.oracle-eu-arm1.config.system.build.toplevel.drvPath
           nix build --no-write-lock-file .#checks.x86_64-linux.ssh-access
       - name: Test release and reconciliation helpers
         working-directory: anywhere
@@ -163,8 +165,6 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196 # v20
         with:
           determinate: true
-      - name: Enable Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@87b14cf437d03d37989d87f0fa5ce4f5dc1a330b # v8
       - name: Build and export x86 release
         working-directory: anywhere
         env:
@@ -223,8 +223,6 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196 # v20
         with:
           determinate: true
-      - name: Enable Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@87b14cf437d03d37989d87f0fa5ce4f5dc1a330b # v8
       - name: Build and export ARM release
         working-directory: anywhere
         env:

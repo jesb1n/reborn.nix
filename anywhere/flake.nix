@@ -201,6 +201,16 @@
         ];
       };
 
+      nixosConfigurations.nuc7i3 = nixpkgs-unstable.lib.nixosSystem {
+        system = "x86_64-linux";
+
+        modules = [
+          disko.nixosModules.disko
+          sops-nix.nixosModules.sops
+          ./hosts/nuc7i3/configuration.nix
+        ];
+      };
+
       nixosConfigurations.travelmate = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
 

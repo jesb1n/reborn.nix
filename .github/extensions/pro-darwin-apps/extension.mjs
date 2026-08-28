@@ -8,6 +8,7 @@ const MANUAL_ONLY_PATTERNS = [
 ];
 
 const HOMEBREW_CASKS = new Map([
+    ["anydesk", "Remote-control app requiring preserved macOS signing plus Accessibility and Screen Recording permissions; use the current official cask."],
     ["arc", "Removed from nixpkgs (unmaintained)."],
     ["chatgpt", "Official desktop app is not supported in nixpkgs."],
     ["claude", "Official Claude desktop app is managed as a Homebrew cask in this repo."],
