@@ -95,12 +95,24 @@
     fastConnection = true;
   };
 
+  nuc7i3 = {
+    system = "x86_64-linux";
+    role = "agent";
+    class = "on-prem";
+    wave = "workers";
+    order = 90;
+    activationTimeout = 600;
+    confirmTimeout = 60;
+    remoteBuild = true;
+    fastConnection = true;
+  };
+
   s145 = {
     system = "x86_64-linux";
     role = "server";
     class = "on-prem";
     wave = "control-plane";
-    order = 90;
+    order = 100;
     activationTimeout = 600;
     confirmTimeout = 60;
     remoteBuild = true;
