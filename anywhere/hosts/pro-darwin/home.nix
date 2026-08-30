@@ -127,6 +127,7 @@
     kubernetes-helm
     opencode
     tailscale
+    cloudflared
     k9s
     code-cursor
     discord

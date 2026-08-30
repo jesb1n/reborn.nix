@@ -44,6 +44,7 @@ const HOME_PACKAGES = new Set([
     "kubernetes-helm",
     "opencode",
     "tailscale",
+    "cloudflared",
     "k9s",
     "code-cursor",
     "discord",
