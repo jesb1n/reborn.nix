@@ -30,6 +30,9 @@ pkgs.testers.runNixOSTest {
     boot.loader.efi.canTouchEfiVariables = lib.mkForce false;
     boot.kernelParams = lib.mkForce [ ];
     networking.networkmanager.enable = lib.mkForce false;
+    nix.gc.automatic = lib.mkForce false;
+    nix.optimise.automatic = lib.mkForce false;
+    services.fstrim.enable = lib.mkForce false;
 
     users.users.duck.openssh.authorizedKeys.keys = lib.mkForce [ testPublicKey ];
     users.users.root.openssh.authorizedKeys.keys = lib.mkForce [ testPublicKey ];
@@ -48,24 +51,37 @@ pkgs.testers.runNixOSTest {
     machine.wait_for_unit("sshd.service")
     machine.wait_for_open_port(22)
 
-    machine.succeed("sshd -T | grep -Fx 'passwordauthentication no'")
-    machine.succeed("sshd -T | grep -Fx 'kbdinteractiveauthentication no'")
-    machine.succeed("sshd -T | grep -Fx 'permitrootlogin no'")
+    effective_sshd_config_text = machine.succeed(
+        "${pkgs.openssh}/bin/sshd -T -f /etc/ssh/sshd_config"
+    )
+    effective_sshd_config = {
+        line.lower() for line in effective_sshd_config_text.splitlines()
+    }
+    assert "passwordauthentication no" in effective_sshd_config, effective_sshd_config_text
+    assert "kbdinteractiveauthentication no" in effective_sshd_config, effective_sshd_config_text
+    assert "permitrootlogin no" in effective_sshd_config, effective_sshd_config_text
 
     ssh_options = (
         "-o BatchMode=yes "
         "-o ConnectTimeout=10 "
         "-o ControlMaster=no "
         "-o ControlPath=none "
+        "-o ServerAliveCountMax=2 "
+        "-o ServerAliveInterval=5 "
+        "-o StdinNull=yes "
         "-o StrictHostKeyChecking=no "
         "-o UserKnownHostsFile=/dev/null "
         "-i /etc/ssh-access-test/id_ed25519"
     )
 
-    machine.succeed(f"ssh {ssh_options} duck@127.0.0.1 true")
-    machine.succeed(f"ssh {ssh_options} duck@127.0.0.1 'id -nG | grep -qw wheel'")
-    machine.succeed(f"ssh {ssh_options} duck@127.0.0.1 'sudo -n true'")
-    machine.succeed(f"ssh {ssh_options} duck@127.0.0.1 'sudo -n id -u | grep -qx 0'")
+    machine.succeed(f"timeout 30 ssh {ssh_options} duck@127.0.0.1 true")
+    machine.succeed(
+        f"timeout 30 ssh {ssh_options} duck@127.0.0.1 'id -nG | grep -qw wheel'"
+    )
+    machine.succeed(f"timeout 30 ssh {ssh_options} duck@127.0.0.1 'sudo -n true'")
+    machine.succeed(
+        f"timeout 30 ssh {ssh_options} duck@127.0.0.1 'sudo -n id -u | grep -qx 0'"
+    )
 
     password_options = (
         "-o ConnectTimeout=10 "
@@ -98,7 +114,7 @@ pkgs.testers.runNixOSTest {
     machine.succeed("systemctl restart sshd.service")
     machine.wait_for_unit("sshd.service")
     machine.wait_for_open_port(22)
-    machine.succeed(f"ssh {ssh_options} duck@127.0.0.1 true")
+    machine.succeed(f"timeout 30 ssh {ssh_options} duck@127.0.0.1 true")
 
     machine.succeed("systemctl is-active --quiet sshd.service systemd-logind.service")
     machine.succeed(
