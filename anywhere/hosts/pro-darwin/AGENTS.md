@@ -129,7 +129,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 
 ### Nix (home.packages)
 
-CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `pre-commit`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `tailscale` (CLI), `k9s`, `google-cloud-sdk`, `opentofu`, `awscli2`, `oci-cli`, `sops`, `ffmpeg`, `k6`
+CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `pre-commit`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `tailscale` (CLI), `cloudflared`, `k9s`, `google-cloud-sdk`, `opentofu`, `awscli2`, `oci-cli`, `sops`, `ffmpeg`, `k6`
 GUI: `code-cursor`, `discord`, `firefox`, `iterm2`, `slack`, `spotify`
 
 ### Homebrew tap bundles
