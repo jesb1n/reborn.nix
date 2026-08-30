@@ -72,16 +72,16 @@ validate_store_path() {
      && "$name" != *[[:cntrl:]]* ]] \
     || die "not a canonical Nix store path: $path"
   [[ -e "$path" ]] || die "Nix store path does not exist: $path"
-  [[ ! -L "$path" ]] || die "Nix store path unexpectedly remains a symlink: $path"
 }
 
 canonical_store_path() {
-  local raw=$1 resolved
+  local raw=$1
   [[ "$raw" != *$'\n'* && "$raw" != *$'\r'* ]] \
     || die 'Nix build returned a path containing a newline'
-  resolved=$(readlink -f -- "$raw") || die "cannot canonicalize Nix path: $raw"
-  validate_store_path "$resolved"
-  printf '%s\n' "$resolved"
+  # A store object may itself be a symlink. Dereferencing it changes the store
+  # identity into an interior path that nix-store cannot export independently.
+  validate_store_path "$raw"
+  printf '%s\n' "$raw"
 }
 
 build_path() {
@@ -203,7 +203,6 @@ require_command "$NIX_STORE_BIN"
 require_command "$JQ_BIN"
 require_command "$ZSTD_BIN"
 require_command "$GIT_BIN"
-require_command readlink
 require_command df
 require_command awk
 require_command sed
