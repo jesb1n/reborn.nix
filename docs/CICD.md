@@ -95,7 +95,8 @@ checking. Configure the protected fleet-production environment with:
 | TS_OAUTH_CLIENT_ID | Restricted Tailscale OAuth client |
 | TS_OAUTH_SECRET | Restricted Tailscale OAuth secret |
 
-Bootstrap the matching public key to all nine hosts before enabling deployment.
+Bootstrap the matching public key to every host in the evaluated fleet inventory
+before enabling deployment.
 The reconciler verifies exact artifact contents and checksums, inspects the
 legacy Nix export with `nix nario list`, and requires its exact store-path set to
 match the declared root closures. It then imports both archives before contacting

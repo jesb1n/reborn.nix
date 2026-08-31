@@ -52,7 +52,8 @@ write_inventory() {
       "oracle-in-arm1": host("aarch64-linux"; "agent"; "arm"; "workers"; 60; 600; true; false),
       "rpi": host("aarch64-linux"; "agent"; "rpi"; "workers"; 70; 900; true; false),
       "hp348": host("x86_64-linux"; "agent"; "on-prem"; "workers"; 80; 600; true; true),
-      "s145": host("x86_64-linux"; "server"; "on-prem"; "control-plane"; 90; 600; true; false)
+      "nuc7i3": host("x86_64-linux"; "agent"; "on-prem"; "workers"; 90; 600; true; true),
+      "s145": host("x86_64-linux"; "server"; "on-prem"; "control-plane"; 100; 600; true; false)
     }
   ' >"$file"
 }
@@ -648,7 +649,7 @@ test_control_plane_preflights_all_dependencies() {
   run_reconciler "$CASE_DIR" --known-hosts "$CASE_DIR/known_hosts" --deploy --host s145
   assert_success
   mapfile -t hosts < <(awk -F '\t' '$2 ~ /^set -eu/ {print $1}' "$CASE_DIR/state/ssh.log")
-  expected='oracle-eu-micro2 oracle-eu-arm1 oracle-eu-micro1 oracle-in-micro1 oracle-in-micro2 oracle-in-arm1 rpi hp348 s145 s145'
+  expected='oracle-eu-micro2 oracle-eu-arm1 oracle-eu-micro1 oracle-in-micro1 oracle-in-micro2 oracle-in-arm1 rpi hp348 nuc7i3 s145 s145'
   actual=$(IFS=' '; printf '%s' "${hosts[*]}")
   [[ "$actual" == "$expected" ]] || {
     printf 'unexpected control-plane gate order: %s\n' "$actual" >&2
