@@ -266,7 +266,31 @@ remote_command=${*: -1}
 host=${target#*@}
 printf "%s\t%s\n" "$host" "${remote_command%%$'\n'*}" >>"$MOCK_STATE/ssh.log"
 
+if [[ "$remote_command" == "sudo -n '"*"'/bin/switch-to-configuration switch" ]]; then
+  if [[ "${MOCK_ROLLBACK_FAILURE:-false}" == true ]]; then
+    printf 'rollback command failed\n' >&2
+    exit 1
+  fi
+  previous=${remote_command#sudo -n \'}
+  previous=${previous%\'/bin/switch-to-configuration switch}
+  printf '%s\n' "$previous" >"$MOCK_LIVE/$host"
+  rm -f -- "$MOCK_STATE/activated-$host"
+  : >"$MOCK_STATE/rolled-back-$host"
+  printf '%s\t%s\n' "$host" "$previous" >>"$MOCK_STATE/rollback.log"
+  exit 0
+fi
+
+if [[ "$remote_command" == 'readlink -f /run/current-system' ]]; then
+  command cat -- "$MOCK_LIVE/$host"
+  exit 0
+fi
+
 if [[ "$remote_command" == *"kubectl get node "* ]]; then
+  if [[ "${MOCK_CONTROL_PLANE_API_UNAVAILABLE_UNTIL_ACTIVATION:-false}" == true &&
+        ! -f "$MOCK_STATE/activated-$host" ]]; then
+    printf 'k3s API unavailable\n' >&2
+    exit 255
+  fi
   prefix="get node '"
   suffix="' -o json"
   node=${remote_command#*"$prefix"}
@@ -289,12 +313,27 @@ fi
 
 if [[ "$remote_command" == *"kubectl get nodes -o json"* ]]; then
   hosts=$(jq -r 'keys[]' "$MOCK_INVENTORY")
+  unhealthy=false
+  if [[ "${MOCK_CLUSTER_UNHEALTHY_ALWAYS:-false}" == true ]]; then
+    unhealthy=true
+  elif [[ "${MOCK_CLUSTER_UNHEALTHY_UNTIL_ACTIVATION:-false}" == true ]] &&
+       [[ -z "$(find "$MOCK_STATE" -maxdepth 1 -name 'activated-*' -print -quit)" ]]; then
+    unhealthy=true
+  fi
   printf '{"items":['
   first=true
   while IFS= read -r node; do
     [[ "$first" == true ]] || printf ','
     first=false
-    jq -n --arg node "$node" '{metadata:{name:$node},status:{conditions:[{type:"Ready",status:"True"}]}}' | tr -d '\n'
+    status=True
+    if [[ "$unhealthy" == true ||
+          ( "${MOCK_POST_CLUSTER_UNHEALTHY:-false}" == true &&
+            -f "$MOCK_STATE/activated-$host" ) ]]; then
+      status=False
+    fi
+    jq -n --arg node "$node" --arg status "$status" \
+      '{metadata:{name:$node},status:{conditions:[{type:"Ready",status:$status}]}}' |
+      tr -d '\n'
   done <<<"$hosts"
   printf ']}\n'
   exit 0
@@ -307,6 +346,11 @@ fi
 
 system=$(jq -r --arg host "$host" '.[$host].system' "$MOCK_INVENTORY")
 [[ "$system" != null ]] || exit 98
+if [[ "${MOCK_PREFLIGHT_UNAVAILABLE_HOST:-}" == "$host" &&
+      ! -f "$MOCK_STATE/activated-$host" ]]; then
+  printf "ssh: connect to host %s port 22: Connection timed out\n" "$host" >&2
+  exit 255
+fi
 arch=x86_64
 [[ "$system" != aarch64-linux ]] || arch=aarch64
 desired="/nix/store/$host-toplevel"
@@ -342,7 +386,18 @@ printf "hostname=%s\n" "$host"
 printf "arch=%s\n" "$arch"
 printf "current=%s\n" "$current"
 printf "systemd=running\n"
-printf "failed=0\n"
+failed=0
+if [[ -f "$MOCK_STATE/activated-$host" ]]; then
+  count=$(command cat -- "$MOCK_STATE/post-health-$host.count")
+  if (( count <= ${MOCK_POST_HEALTH_FAILURES:-0} )); then
+    failed=1
+  fi
+fi
+if [[ "${MOCK_ROLLBACK_HEALTH_FAILURE:-false}" == true &&
+      -f "$MOCK_STATE/rolled-back-$host" ]]; then
+  failed=1
+fi
+printf "failed=%s\n" "$failed"
 printf "tailscale=active\n"
 printf "tailscale_backend=Running\n"
 printf "k3s=active\n"
@@ -377,6 +432,14 @@ run_reconciler() {
     MOCK_POST_HOSTKEY_FAILURE="${MOCK_POST_HOSTKEY_FAILURE:-false}" \
     MOCK_POST_TRANSPORT_FAILURES="${MOCK_POST_TRANSPORT_FAILURES:-0}" \
     MOCK_POST_NODE_NOT_READY="${MOCK_POST_NODE_NOT_READY:-0}" \
+    MOCK_POST_HEALTH_FAILURES="${MOCK_POST_HEALTH_FAILURES:-0}" \
+    MOCK_POST_CLUSTER_UNHEALTHY="${MOCK_POST_CLUSTER_UNHEALTHY:-false}" \
+    MOCK_CLUSTER_UNHEALTHY_ALWAYS="${MOCK_CLUSTER_UNHEALTHY_ALWAYS:-false}" \
+    MOCK_CLUSTER_UNHEALTHY_UNTIL_ACTIVATION="${MOCK_CLUSTER_UNHEALTHY_UNTIL_ACTIVATION:-false}" \
+    MOCK_CONTROL_PLANE_API_UNAVAILABLE_UNTIL_ACTIVATION="${MOCK_CONTROL_PLANE_API_UNAVAILABLE_UNTIL_ACTIVATION:-false}" \
+    MOCK_ROLLBACK_FAILURE="${MOCK_ROLLBACK_FAILURE:-false}" \
+    MOCK_ROLLBACK_HEALTH_FAILURE="${MOCK_ROLLBACK_HEALTH_FAILURE:-false}" \
+    MOCK_PREFLIGHT_UNAVAILABLE_HOST="${MOCK_PREFLIGHT_UNAVAILABLE_HOST:-}" \
     FLEET_RECONCILE_RETRY_ATTEMPTS=5 \
     FLEET_RECONCILE_RETRY_BASE_SECONDS=0 \
     FLEET_RECONCILE_RETRY_JITTER_SECONDS=0 \
@@ -455,6 +518,14 @@ test_valid_verify_only() {
   assert_success
   assert_contains "$CASE_DIR/stderr" 'release verification/import complete'
   [[ ! -e "$CASE_DIR/state/ssh.log" ]]
+}
+
+test_skip_import_still_verifies_preimported_closures() {
+  CASE_DIR=$(create_case skip-import)
+  run_reconciler "$CASE_DIR" --verify-only --skip-import
+  assert_success
+  assert_contains "$CASE_DIR/stderr" 'requiring pre-imported x86_64-linux closure'
+  [[ ! -e "$CASE_DIR/state/nix-store.log" ]]
 }
 
 test_rejects_unexpected_artifact_file() {
@@ -609,6 +680,31 @@ test_target_selection_preserves_inventory_order() {
   [[ ! -e "$CASE_DIR/state/nix.log" ]]
 }
 
+test_check_only_continues_after_unavailable_host() {
+  CASE_DIR=$(create_case check-only-continues)
+  MOCK_PREFLIGHT_UNAVAILABLE_HOST=oracle-eu-micro1 run_reconciler "$CASE_DIR" \
+    --known-hosts "$CASE_DIR/known_hosts" --check-only \
+    --host oracle-eu-micro1 --host rpi
+  assert_failure
+  assert_contains "$CASE_DIR/stderr" \
+    'warning: preflight failed for oracle-eu-micro1; continuing diagnostics'
+  assert_contains "$CASE_DIR/stderr" 'rpi current=/nix/store/rpi-toplevel'
+}
+
+test_control_plane_is_discovered_from_inventory() {
+  CASE_DIR=$(create_case dynamic-control-plane)
+  jq '."control1" = (.s145 | .order = 95) | del(.s145)' \
+    "$CASE_DIR/inventory.json" >"$CASE_DIR/inventory.tmp"
+  mv -- "$CASE_DIR/inventory.tmp" "$CASE_DIR/inventory.json"
+  rm -rf -- "$CASE_DIR/releases/x86_64-linux" "$CASE_DIR/releases/aarch64-linux"
+  write_release "$CASE_DIR" x86_64-linux
+  write_release "$CASE_DIR" aarch64-linux
+  run_reconciler "$CASE_DIR" --known-hosts "$CASE_DIR/known_hosts" \
+    --check-only --host oracle-eu-micro1
+  assert_success
+  assert_contains "$CASE_DIR/state/ssh.log" $'control1\tset -eu'
+}
+
 test_changed_unselected_canary_blocks_worker() {
   CASE_DIR=$(create_case changed-canary)
   set_live_old "$CASE_DIR" oracle-eu-micro2
@@ -659,6 +755,16 @@ test_control_plane_preflights_all_dependencies() {
   assert_not_contains "$CASE_DIR/state/nix.log" 'ssh://duck@hp348'
 }
 
+test_control_plane_repair_defers_kubernetes_dependency_checks() {
+  CASE_DIR=$(create_case control-plane-api-repair)
+  set_live_old "$CASE_DIR" s145
+  MOCK_CONTROL_PLANE_API_UNAVAILABLE_UNTIL_ACTIVATION=true \
+    run_reconciler "$CASE_DIR" --known-hosts "$CASE_DIR/known_hosts" \
+      --deploy --host s145
+  assert_success
+  assert_contains "$CASE_DIR/state/nix.log" 'ssh://duck@s145'
+}
+
 test_changed_worker_blocks_control_plane() {
   CASE_DIR=$(create_case changed-worker-control-plane)
   set_live_old "$CASE_DIR" oracle-in-arm1
@@ -668,6 +774,15 @@ test_changed_worker_blocks_control_plane() {
   assert_contains "$CASE_DIR/stderr" \
     'required worker oracle-in-arm1 is not at the desired path; select it first'
   [[ ! -e "$CASE_DIR/state/nix.log" ]]
+}
+
+test_full_deploy_can_repair_an_unhealthy_cluster() {
+  CASE_DIR=$(create_case full-deploy-repair)
+  set_live_old "$CASE_DIR" oracle-eu-micro2
+  MOCK_CLUSTER_UNHEALTHY_UNTIL_ACTIVATION=true run_reconciler "$CASE_DIR" \
+    --known-hosts "$CASE_DIR/known_hosts" --deploy
+  assert_success
+  assert_contains "$CASE_DIR/state/nix.log" 'ssh://duck@oracle-eu-micro2'
 }
 
 test_post_activation_ssh_retries_transient_failure() {
@@ -713,6 +828,72 @@ test_node_ready_retries_after_activation() {
   assert_contains "$CASE_DIR/stderr" 'node Ready attempt 1/5 failed for oracle-eu-micro2'
 }
 
+test_post_activation_health_failure_rolls_back() {
+  CASE_DIR=$(create_case health-rollback)
+  set_live_old "$CASE_DIR" oracle-eu-micro2
+  MOCK_POST_HEALTH_FAILURES=5 run_reconciler "$CASE_DIR" \
+    --known-hosts "$CASE_DIR/known_hosts" --deploy --host oracle-eu-micro2
+  assert_failure
+  assert_contains "$CASE_DIR/stderr" \
+    'automatic rollback restored oracle-eu-micro2 to /nix/store/oracle-eu-micro2-old'
+  assert_contains "$CASE_DIR/state/rollback.log" \
+    $'oracle-eu-micro2\t/nix/store/oracle-eu-micro2-old'
+  [[ "$(cat "$CASE_DIR/live/oracle-eu-micro2")" == /nix/store/oracle-eu-micro2-old ]]
+}
+
+test_node_ready_failure_rolls_back() {
+  CASE_DIR=$(create_case node-rollback)
+  set_live_old "$CASE_DIR" oracle-eu-micro2
+  MOCK_POST_NODE_NOT_READY=5 run_reconciler "$CASE_DIR" \
+    --known-hosts "$CASE_DIR/known_hosts" --deploy --host oracle-eu-micro2
+  assert_failure
+  assert_contains "$CASE_DIR/stderr" \
+    'automatic rollback restored oracle-eu-micro2 to /nix/store/oracle-eu-micro2-old'
+}
+
+test_control_plane_cluster_failure_rolls_back() {
+  CASE_DIR=$(create_case control-plane-rollback)
+  set_live_old "$CASE_DIR" s145
+  MOCK_POST_CLUSTER_UNHEALTHY=true run_reconciler "$CASE_DIR" \
+    --known-hosts "$CASE_DIR/known_hosts" --deploy --host s145
+  assert_failure
+  assert_contains "$CASE_DIR/stderr" \
+    'automatic rollback restored s145 to /nix/store/s145-old'
+}
+
+test_unchanged_control_plane_cluster_failure_is_reported() {
+  CASE_DIR=$(create_case unchanged-control-plane-cluster-failure)
+  MOCK_CLUSTER_UNHEALTHY_ALWAYS=true run_reconciler "$CASE_DIR" \
+    --known-hosts "$CASE_DIR/known_hosts" --deploy --host s145
+  assert_failure
+  assert_contains "$CASE_DIR/stderr" \
+    'post-deployment cluster health did not converge'
+  assert_not_contains "$CASE_DIR/stderr" 'unbound variable'
+}
+
+test_rollback_command_failure_is_reported() {
+  CASE_DIR=$(create_case rollback-command-failure)
+  set_live_old "$CASE_DIR" oracle-eu-micro2
+  MOCK_POST_HEALTH_FAILURES=5 MOCK_ROLLBACK_FAILURE=true run_reconciler "$CASE_DIR" \
+    --known-hosts "$CASE_DIR/known_hosts" --deploy --host oracle-eu-micro2
+  assert_failure
+  assert_contains "$CASE_DIR/stderr" \
+    'automatic rollback failed for oracle-eu-micro2'
+}
+
+test_unhealthy_rollback_is_not_reported_as_restored() {
+  CASE_DIR=$(create_case rollback-health-failure)
+  set_live_old "$CASE_DIR" oracle-eu-micro2
+  MOCK_POST_HEALTH_FAILURES=5 MOCK_ROLLBACK_HEALTH_FAILURE=true \
+    run_reconciler "$CASE_DIR" --known-hosts "$CASE_DIR/known_hosts" \
+      --deploy --host oracle-eu-micro2
+  assert_failure
+  assert_contains "$CASE_DIR/stderr" \
+    'rollback restored the generation but health failed for oracle-eu-micro2'
+  assert_not_contains "$CASE_DIR/stderr" \
+    'automatic rollback restored oracle-eu-micro2'
+}
+
 test_deploy_invocation_uses_requested_ssh_user_and_strict_options() {
   CASE_DIR=$(create_case deploy-invocation)
   set_live_old "$CASE_DIR" oracle-eu-micro2
@@ -749,6 +930,7 @@ test_deploy_invocation_uses_requested_ssh_user_and_strict_options() {
 }
 
 run_test 'valid artifacts verify and import without SSH' test_valid_verify_only
+run_test 'skip-import verifies closures without importing again' test_skip_import_still_verifies_preimported_closures
 run_test 'unexpected artifact files are rejected before import' test_rejects_unexpected_artifact_file
 run_test 'checksum mismatch is rejected' test_rejects_checksum_mismatch
 run_test 'source SHA binding is enforced' test_rejects_source_binding_mismatch
@@ -761,15 +943,25 @@ run_test 'activation outputs stay bound to their exported derivers' test_rejects
 run_test 'archive paths exactly match declared root closures' test_rejects_same_count_archive_path_substitution
 run_test 'host records cannot cross architecture artifacts' test_rejects_host_in_wrong_architecture_artifact
 run_test 'selected hosts retain inventory rollout order' test_target_selection_preserves_inventory_order
+run_test 'check-only continues after an unavailable selected host' test_check_only_continues_after_unavailable_host
+run_test 'control-plane identity comes from fleet inventory' test_control_plane_is_discovered_from_inventory
 run_test 'a changed unselected canary blocks a worker deployment' test_changed_unselected_canary_blocks_worker
 run_test 'the x86 canary can deploy before the ARM canary' test_x86_canary_can_lead_arm_canary
 run_test 'the ARM canary requires the x86 canary gate' test_arm_canary_requires_x86_canary
 run_test 'control-plane deployment preflights every dependency first' test_control_plane_preflights_all_dependencies
+run_test 'control-plane repair defers Kubernetes dependency checks' test_control_plane_repair_defers_kubernetes_dependency_checks
 run_test 'a changed worker blocks a control-plane-only deployment' test_changed_worker_blocks_control_plane
+run_test 'a full deployment can repair an unhealthy cluster' test_full_deploy_can_repair_an_unhealthy_cluster
 run_test 'post-activation SSH retries transient convergence failure' test_post_activation_ssh_retries_transient_failure
 run_test 'identity mismatch is never retried' test_identity_mismatch_is_not_retried
 run_test 'host-key failure is never retried' test_host_key_failure_is_not_retried
 run_test 'Kubernetes node Ready uses bounded retries' test_node_ready_retries_after_activation
+run_test 'post-activation health failure restores the previous generation' test_post_activation_health_failure_rolls_back
+run_test 'post-activation node failure restores the previous generation' test_node_ready_failure_rolls_back
+run_test 'control-plane cluster failure restores the previous generation' test_control_plane_cluster_failure_rolls_back
+run_test 'unchanged control-plane cluster failure is reported safely' test_unchanged_control_plane_cluster_failure_is_reported
+run_test 'rollback command failure is reported explicitly' test_rollback_command_failure_is_reported
+run_test 'an unhealthy rollback is not reported as restored' test_unhealthy_rollback_is_not_reported_as_restored
 run_test 'deploy invocation preserves SSH and rollback policy' test_deploy_invocation_uses_requested_ssh_user_and_strict_options
 
 printf '1..%s\n' "$((passes + failures))"

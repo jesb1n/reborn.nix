@@ -110,7 +110,7 @@ jobs:
           path: ${{ runner.temp }}/nixos-fleet-v1-${{ github.sha }}-x86_64-linux
           if-no-files-found: error
           include-hidden-files: false
-          retention-days: 3
+          retention-days: 1
           compression-level: 0
       - name: Record x86 artifact digest
         if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
@@ -168,7 +168,7 @@ jobs:
           path: ${{ runner.temp }}/nixos-fleet-v1-${{ github.sha }}-aarch64-linux
           if-no-files-found: error
           include-hidden-files: false
-          retention-days: 3
+          retention-days: 1
           compression-level: 0
       - name: Record ARM artifact digest
         if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
