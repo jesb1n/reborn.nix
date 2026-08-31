@@ -179,6 +179,27 @@ validate_manifest() {
   ' "$1" >/dev/null || die "manifest schema validation failed: $1"
 }
 
+validate_inventory() {
+  "$JQ_BIN" -e '
+    type == "object" and length > 0 and
+    all(to_entries[];
+      (.key | type == "string" and test("^[A-Za-z0-9][A-Za-z0-9_.-]*$")) and
+      (.value | type == "object") and
+      (.value.system | type == "string" and
+        (. == "x86_64-linux" or . == "aarch64-linux")) and
+      (.value.role | type == "string" and length > 0) and
+      (.value.class | type == "string" and length > 0) and
+      (.value.wave | type == "string" and length > 0) and
+      (.value.order | type == "number" and floor == . and . >= 0) and
+      (.value.activationTimeout | type == "number" and floor == . and . > 0) and
+      (.value.confirmTimeout | type == "number" and floor == . and . > 0) and
+      (.value.remoteBuild | type == "boolean") and
+      (.value.fastConnection | type == "boolean")
+    ) and
+    (([to_entries[].value.order] | unique | length) == length)
+  ' "$1" >/dev/null || die 'the .#fleet output failed inventory validation'
+}
+
 ssh_setup() {
   SSH_ARGS=(-o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$known_hosts"
     -o GlobalKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o PasswordAuthentication=no
@@ -499,8 +520,7 @@ fi
 current_inventory="$work_dir/inventory.json"
 "$NIX_BIN" eval --json --no-write-lock-file .#fleet >"$current_inventory" \
   || die 'failed to evaluate .#fleet'
-"$JQ_BIN" -e 'type == "object" and length == 9' "$current_inventory" >/dev/null \
-  || die '.#fleet must contain exactly nine hosts'
+validate_inventory "$current_inventory"
 inventory_normalized="$work_dir/inventory.normalized.json"
 "$JQ_BIN" -S -c . "$current_inventory" >"$inventory_normalized"
 inventory_sha=$(hash_file "$inventory_normalized")
@@ -730,7 +750,7 @@ for host in "${gate_hosts[@]}"; do
 done
 
 if [[ "$full_selection" == true ]]; then
-  cluster_health 9
+  cluster_health "$("$JQ_BIN" 'length' "$current_inventory")"
 fi
 
 if [[ "$mode" == deploy && ${#requested_hosts[@]} -gt 0 ]]; then
@@ -820,7 +840,7 @@ for host in "${selected_hosts[@]}"; do
 done
 
 if [[ "$full_selection" == true || -n "${requested[s145]+x}" ]]; then
-  cluster_health 9
+  cluster_health "$("$JQ_BIN" 'length' "$current_inventory")"
 fi
 printf 'fleet-reconcile: deploy complete (%s host(s), source %s)\n' \
   "${#selected_hosts[@]}" "$source_sha" >&2

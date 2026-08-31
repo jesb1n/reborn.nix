@@ -16,7 +16,7 @@ on:
         required: true
         default: all
         type: choice
-        options: [all, x86, arm, canary, workers, control-plane, oracle-eu-micro2, oracle-eu-arm1, oracle-eu-micro1, oracle-in-micro1, oracle-in-micro2, oracle-in-arm1, rpi, hp348, s145]
+        options: [all, x86, arm, canary, workers, control-plane, oracle-eu-micro2, oracle-eu-arm1, oracle-eu-micro1, oracle-in-micro1, oracle-in-micro2, oracle-in-arm1, rpi, hp348, nuc7i3, s145]
       force_copy:
         description: Copy and activate even when the desired path is already live
         required: true
