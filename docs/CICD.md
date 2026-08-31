@@ -43,7 +43,7 @@ initialization succeed.
 ## Native Nix Builds
 
 Pull requests run the evaluated fleet invariants, deploy-rs checks, the x86 SSH
-authentication VM, and all nine release outputs. They do not receive Tailscale,
+authentication VM, and all ten release outputs. They do not receive Tailscale,
 SSH, SOPS, OCI, or deployment secrets and do not upload deployable artifacts.
 The three intended required checks run on every pull request and main push;
 there are no path filters that can leave an unrelated change stuck at Expected.
@@ -66,7 +66,10 @@ upload compression is disabled. The release helper enforces a free-disk
 watermark and an optional archive-size ceiling. Job summaries record closure
 bytes, archive bytes, path count, compression ratio, and the post-export/import
 disk snapshot. Measure the real runner high-water mark and upload/download
-timings before enabling production.
+timings before enabling production. Closure artifacts use one-day retention to
+cap storage while GitHub artifacts remain the transport. Move to a dedicated
+binary cache before artifact growth or daily transfer cost becomes operationally
+significant.
 
 ## Protected Reconciliation
 
@@ -118,12 +121,17 @@ hostname, architecture, current generation, systemd state, failed units,
 Tailscale, k3s, and passwordless sudo. Changed hosts receive only the imported
 toplevel and activation paths. A generated literal deploy-rs definition sets
 remoteBuild = false while retaining magic rollback and inventory timeouts.
-Canaries run first, workers run next, and s145 is last. Any failed gate stops
-later hosts; there is no automatic fleet-wide rollback.
+Canaries run first, workers run next, and the sole inventory server runs last.
+If post-activation SSH, system, generation, Kubernetes node, or control-plane
+cluster health fails, the reconciler reactivates that host's captured previous
+generation before stopping later hosts. It does not attempt a fleet-wide rollback.
 
 The check-only mode performs all verification and health checks without copying
-or activating. An unchanged full-fleet run performs zero activations but still
-checks canaries and cluster readiness.
+or activating. It continues through other selected hosts after a failed preflight,
+then returns failure after reporting all diagnostics. Deployment preflight still
+requires identity, architecture, current-generation, and sudo safety, but permits
+a selected host's unhealthy services to be repaired. An unchanged full-fleet run
+performs zero activations but still checks canaries and cluster readiness.
 
 ## Cache Key Monitoring
 

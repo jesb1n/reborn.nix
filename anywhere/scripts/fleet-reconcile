@@ -34,6 +34,7 @@ Options:
   --verify-only       Verify and import artifacts; never use network credentials
   --check-only        Verify/import/preflight/health only
   --deploy            Copy imported paths and activate with deploy-rs
+  --skip-import       Require closures to already be imported after verification
   --force-copy        Do not skip hosts whose desired path is already live
   --allow-dirty       Permit local checkout changes for diagnostics
   -h, --help          Show this help
@@ -196,7 +197,8 @@ validate_inventory() {
       (.value.remoteBuild | type == "boolean") and
       (.value.fastConnection | type == "boolean")
     ) and
-    (([to_entries[].value.order] | unique | length) == length)
+    (([to_entries[].value.order] | unique | length) == length) and
+    ([to_entries[] | select(.value.role == "server")] | length == 1)
   ' "$1" >/dev/null || die 'the .#fleet output failed inventory validation'
 }
 
@@ -221,7 +223,7 @@ printf 'current=%s\n' "\$(readlink -f /run/current-system)"
 printf 'systemd=%s\n' "\$(systemctl is-system-running 2>/dev/null || true)"
 printf 'failed=%s\n' "\$(systemctl --failed --no-legend --plain 2>/dev/null | awk 'NF {n++} END {print n+0}')"
 printf 'tailscale=%s\n' "\$(systemctl is-active tailscaled 2>/dev/null || true)"
-tailscale_json=\$(tailscale status --json | tr -d '\\n')
+tailscale_json=\$(tailscale status --json 2>/dev/null | tr -d '\\n' || true)
 tailscale_backend=\$(printf '%s' "\$tailscale_json" | sed -n 's/.*"BackendState"[[:space:]]*:[[:space:]]*"\\([^"\\]*\\)".*/\\1/p')
 printf 'tailscale_backend=%s\n' "\$tailscale_backend"
 printf 'k3s=%s\n' "\$(systemctl is-active $service 2>/dev/null || true)"
@@ -236,7 +238,7 @@ health_failure() {
 }
 
 parse_health() {
-  local host=$1 system=$2 output=$3 expected_arch=x86_64
+  local host=$1 system=$2 output=$3 require_services=$4 expected_arch=x86_64
   local hostname arch current systemd failed tailscale tailscale_backend k3s sudo
   [[ "$system" == aarch64-linux ]] && expected_arch=aarch64
   hostname=$(printf '%s\n' "$output" | sed -n 's/^hostname=//p')
@@ -260,19 +262,20 @@ parse_health() {
     health_failure fatal "invalid current system path for $host: $current"
     return 1
   fi
-  if [[ "$systemd" != running ]]; then
+  if [[ "$require_services" == true && "$systemd" != running ]]; then
     health_failure retryable "systemd is not running on $host: $systemd"
     return 1
   fi
-  if [[ "$failed" != 0 ]]; then
+  if [[ "$require_services" == true && "$failed" != 0 ]]; then
     health_failure retryable "failed systemd units on $host: $failed"
     return 1
   fi
-  if [[ "$tailscale" != active || "$tailscale_backend" != Running ]]; then
+  if [[ "$require_services" == true &&
+        ( "$tailscale" != active || "$tailscale_backend" != Running ) ]]; then
     health_failure retryable "Tailscale is not connected on $host"
     return 1
   fi
-  if [[ "$k3s" != active ]]; then
+  if [[ "$require_services" == true && "$k3s" != active ]]; then
     health_failure retryable "k3s is not active on $host: $k3s"
     return 1
   fi
@@ -284,13 +287,13 @@ parse_health() {
 }
 
 health_check_with_retries() {
-  local host=$1 system=$2 service=$3 phase=$4
+  local host=$1 system=$2 service=$3 phase=$4 require_services=${5:-true}
   local attempt output current error_file parse_error_file reason
   for ((attempt = 1; attempt <= retry_attempts; attempt++)); do
     error_file="$work_dir/health-${phase}-${host}-${attempt}.stderr"
     parse_error_file="$work_dir/health-${phase}-${host}-${attempt}.parse"
     if output=$(run_ssh "$host" "$(health_command "$service")" 2>"$error_file"); then
-      if current=$(parse_health "$host" "$system" "$output" 2>"$parse_error_file"); then
+      if current=$(parse_health "$host" "$system" "$output" "$require_services" 2>"$parse_error_file"); then
         printf '%s\n' "$current"
         return 0
       fi
@@ -322,7 +325,7 @@ cluster_node_ready() {
   local host=$1 output error_file attempt reason
   for ((attempt = 1; attempt <= retry_attempts; attempt++)); do
     error_file="$work_dir/node-${host}-${attempt}.stderr"
-    if output=$(run_ssh s145 "sudo k3s kubectl get node '$host' -o json" 2>"$error_file"); then
+    if output=$(run_ssh "$control_plane" "sudo k3s kubectl get node '$host' -o json" 2>"$error_file"); then
       if "$JQ_BIN" -e --arg host "$host" \
         '.metadata.name == $host and any(.status.conditions[]?; .type == "Ready" and .status == "True")' \
         <<<"$output" >/dev/null; then
@@ -350,10 +353,50 @@ cluster_node_ready() {
 
 cluster_health() {
   local expected=$1 nodes count ready
-  nodes=$(run_ssh s145 'sudo k3s kubectl get nodes -o json') || die 'failed to query cluster nodes'
+  nodes=$(run_ssh "$control_plane" 'sudo k3s kubectl get nodes -o json') \
+    || {
+      printf 'failed to query cluster nodes\n' >&2
+      return 1
+    }
   count=$("$JQ_BIN" '[.items[]] | length' <<<"$nodes")
   ready=$("$JQ_BIN" '[.items[] | select(any(.status.conditions[]?; .type=="Ready" and .status=="True"))] | length' <<<"$nodes")
-  [[ "$count" == "$expected" && "$ready" == "$expected" ]] || die "cluster Ready count is $ready/$count; expected $expected"
+  [[ "$count" == "$expected" && "$ready" == "$expected" ]] || {
+    printf 'cluster Ready count is %s/%s; expected %s\n' \
+      "$ready" "$count" "$expected" >&2
+    return 1
+  }
+}
+
+rollback_and_die() {
+  local host=$1 previous=$2 reason=$3 quoted_previous actual system role service
+  quoted_previous=$(shell_quote "$previous")
+  printf 'fleet-reconcile: rolling back %s to %s\n' "$host" "$previous" >&2
+  if ! run_ssh "$host" \
+    "sudo -n $quoted_previous/bin/switch-to-configuration switch"; then
+    die "$reason; automatic rollback failed for $host"
+  fi
+  if ! actual=$(run_ssh "$host" 'readlink -f /run/current-system'); then
+    die "$reason; rollback command completed but verification failed for $host"
+  fi
+  [[ "$actual" == "$previous" ]] \
+    || die "$reason; rollback generation mismatch for $host: $actual != $previous"
+  system=$("$JQ_BIN" -r --arg host "$host" '.[$host].system' "$current_inventory")
+  role=$("$JQ_BIN" -r --arg host "$host" '.[$host].role' "$current_inventory")
+  service=k3s-agent.service
+  [[ "$role" == server ]] && service=k3s.service
+  if ! actual=$(health_check_with_retries \
+      "$host" "$system" "$service" rollback-health true); then
+    die "$reason; rollback restored the generation but health failed for $host"
+  fi
+  [[ "$actual" == "$previous" ]] \
+    || die "$reason; rollback health observed an unexpected generation for $host: $actual != $previous"
+  cluster_node_ready "$host" \
+    || die "$reason; rollback restored the generation but Kubernetes readiness failed for $host"
+  if [[ "$role" == server ]]; then
+    cluster_health "$("$JQ_BIN" 'length' "$current_inventory")" \
+      || die "$reason; rollback restored the control-plane generation but cluster health failed"
+  fi
+  die "$reason; automatic rollback restored $host to $previous"
 }
 
 write_deploy_file() {
@@ -403,6 +446,7 @@ ssh_key=''
 ssh_user=${SSH_USER:-duck}
 allow_dirty=false
 force_copy=false
+skip_import=false
 declare -a release_args=()
 declare -a requested_hosts=()
 
@@ -445,6 +489,10 @@ while (($# > 0)); do
       ;;
     --force-copy)
       force_copy=true
+      shift
+      ;;
+    --skip-import)
+      skip_import=true
       shift
       ;;
     --allow-dirty)
@@ -521,6 +569,9 @@ current_inventory="$work_dir/inventory.json"
 "$NIX_BIN" eval --json --no-write-lock-file .#fleet >"$current_inventory" \
   || die 'failed to evaluate .#fleet'
 validate_inventory "$current_inventory"
+control_plane=$("$JQ_BIN" -r '
+  [to_entries[] | select(.value.role == "server") | .key] | first
+' "$current_inventory")
 inventory_normalized="$work_dir/inventory.normalized.json"
 "$JQ_BIN" -S -c . "$current_inventory" >"$inventory_normalized"
 inventory_sha=$(hash_file "$inventory_normalized")
@@ -611,9 +662,13 @@ for system in x86_64-linux aarch64-linux; do
   [[ "$archive_count" == "$expected_count" ]] \
     || die "$system archive path count differs: $archive_count != $expected_count"
 
-  printf 'fleet-reconcile: importing %s\n' "$system" >&2
-  "$ZSTD_BIN" -dc -- "$archive" | "$NIX_STORE_BIN" --import >/dev/null \
-    || die "failed to import $system closure"
+  if [[ "$skip_import" == true ]]; then
+    printf 'fleet-reconcile: requiring pre-imported %s closure\n' "$system" >&2
+  else
+    printf 'fleet-reconcile: importing %s\n' "$system" >&2
+    "$ZSTD_BIN" -dc -- "$archive" | "$NIX_STORE_BIN" --import >/dev/null \
+      || die "failed to import $system closure"
+  fi
 
   roots="$work_dir/$system.roots"
   derivers="$work_dir/$system.derivers"
@@ -694,10 +749,18 @@ fi
 
 declare -A gate=()
 declare -A required_current=()
-for host in "${selected_hosts[@]}"; do gate[$host]=1; done
-# Kubernetes readiness is queried through s145 for every target. Validate the
+declare -A selected=()
+for host in "${selected_hosts[@]}"; do
+  gate[$host]=1
+  selected[$host]=1
+done
+repairing_control_plane=false
+if [[ "$mode" == deploy && -n "${selected[$control_plane]+x}" ]]; then
+  repairing_control_plane=true
+fi
+# Kubernetes readiness is queried through the inventory's server. Validate the
 # control-plane SSH identity and host health before trusting those responses.
-gate[s145]=1
+gate[$control_plane]=1
 if [[ "$mode" == deploy ]]; then
   for host in "${selected_hosts[@]}"; do
     wave=$("$JQ_BIN" -r --arg host "$host" '.[$host].wave' "$current_inventory")
@@ -729,28 +792,60 @@ while IFS= read -r host; do
 done < <("$JQ_BIN" -r 'to_entries | sort_by(.value.order) | .[].key' "$current_inventory")
 
 declare -A live=()
+preflight_failed=false
+control_plane_previous=''
+control_plane_changed=false
 for host in "${gate_hosts[@]}"; do
   record=$("$JQ_BIN" -c --arg host "$host" '.[$host]' "$combined_hosts")
   system=$("$JQ_BIN" -r '.system' <<<"$record")
   role=$("$JQ_BIN" -r '.role' <<<"$record")
   service=k3s-agent.service
   [[ "$role" == server ]] && service=k3s.service
+  require_services=true
+  if [[ "$mode" == deploy && -n "${selected[$host]+x}" ]]; then
+    require_services=false
+  fi
   printf 'fleet-reconcile: preflight %s\n' "$host" >&2
-  if live_path=$(health_check_with_retries "$host" "$system" "$service" preflight); then
+  if live_path=$(health_check_with_retries \
+      "$host" "$system" "$service" preflight "$require_services"); then
     live[$host]=$live_path
   else
     status=$?
+    if [[ "$mode" == check-only ]]; then
+      preflight_failed=true
+      printf 'fleet-reconcile: warning: preflight failed for %s; continuing diagnostics\n' \
+        "$host" >&2
+      continue
+    fi
     (( status == 2 )) && die "SSH preflight failed for $host"
     die "SSH preflight did not converge for $host"
   fi
 done
 
 for host in "${gate_hosts[@]}"; do
-  cluster_node_ready "$host" || die "Kubernetes node is not Ready: $host"
+  [[ -n "${live[$host]+x}" ]] || continue
+  if [[ "$mode" == deploy && -n "${selected[$host]+x}" ]]; then
+    continue
+  fi
+  # A targeted control-plane repair cannot depend on its currently broken API.
+  # Strict host checks above still gate dependencies, and the complete cluster
+  # is checked after the control-plane activation.
+  if [[ "$repairing_control_plane" == true ]]; then
+    continue
+  fi
+  if ! cluster_node_ready "$host"; then
+    if [[ "$mode" == check-only ]]; then
+      preflight_failed=true
+      continue
+    fi
+    die "Kubernetes node is not Ready: $host"
+  fi
 done
 
-if [[ "$full_selection" == true ]]; then
-  cluster_health "$("$JQ_BIN" 'length' "$current_inventory")"
+if [[ "$mode" == check-only && "$full_selection" == true &&
+      "$preflight_failed" == false ]]; then
+  cluster_health "$("$JQ_BIN" 'length' "$current_inventory")" \
+    || die 'full-fleet Kubernetes health check failed'
 fi
 
 if [[ "$mode" == deploy && ${#requested_hosts[@]} -gt 0 ]]; then
@@ -774,6 +869,8 @@ if [[ "$mode" == check-only ]]; then
     printf 'fleet-reconcile: %s current=%s desired=%s\n' \
       "$host" "${live[$host]:-not-preflighted}" "$desired" >&2
   done
+  [[ "$preflight_failed" == false ]] \
+    || die 'check-only diagnostics completed with unhealthy or unreachable hosts'
   exit 0
 fi
 
@@ -786,6 +883,10 @@ for host in "${selected_hosts[@]}"; do
   if [[ "$current" == "$desired" && "$force_copy" != true ]]; then
     printf 'fleet-reconcile: skipping %s; desired path already live\n' "$host" >&2
     continue
+  fi
+  if [[ "$host" == "$control_plane" ]]; then
+    control_plane_previous=$current
+    control_plane_changed=true
   fi
 
   activation=$("$JQ_BIN" -r '.activation' <<<"$record")
@@ -831,16 +932,28 @@ for host in "${selected_hosts[@]}"; do
     :
   else
     status=$?
-    (( status == 2 )) && die "post-activation SSH failed for $host"
-    die "post-activation health did not converge for $host"
+    if (( status == 2 )); then
+      rollback_and_die "$host" "$current" "post-activation SSH failed for $host"
+    fi
+    rollback_and_die "$host" "$current" \
+      "post-activation health did not converge for $host"
   fi
-  [[ "$actual" == "$desired" ]] || die "generation mismatch for $host: $actual != $desired"
-  cluster_node_ready "$host" || die "Kubernetes node is not Ready: $host"
+  [[ "$actual" == "$desired" ]] \
+    || rollback_and_die "$host" "$current" \
+      "generation mismatch for $host: $actual != $desired"
+  cluster_node_ready "$host" \
+    || rollback_and_die "$host" "$current" "Kubernetes node is not Ready: $host"
   live[$host]=$actual
 done
 
-if [[ "$full_selection" == true || -n "${requested[s145]+x}" ]]; then
-  cluster_health "$("$JQ_BIN" 'length' "$current_inventory")"
+if [[ "$full_selection" == true || -n "${requested[$control_plane]+x}" ]]; then
+  if ! cluster_health "$("$JQ_BIN" 'length' "$current_inventory")"; then
+    if [[ "$control_plane_changed" == true ]]; then
+      rollback_and_die "$control_plane" "$control_plane_previous" \
+        'post-activation cluster health did not converge'
+    fi
+    die 'post-deployment cluster health did not converge'
+  fi
 fi
 printf 'fleet-reconcile: deploy complete (%s host(s), source %s)\n' \
   "${#selected_hosts[@]}" "$source_sha" >&2

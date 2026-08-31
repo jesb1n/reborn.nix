@@ -197,7 +197,7 @@ jobs:
           path: ${{ runner.temp }}/nixos-fleet-v1-${{ needs.resolve.outputs.source_sha }}-x86_64-linux
           if-no-files-found: error
           include-hidden-files: false
-          retention-days: 3
+          retention-days: 1
           compression-level: 0
       - name: Record x86 artifact digest
         run: |
@@ -255,7 +255,7 @@ jobs:
           path: ${{ runner.temp }}/nixos-fleet-v1-${{ needs.resolve.outputs.source_sha }}-aarch64-linux
           if-no-files-found: error
           include-hidden-files: false
-          retention-days: 3
+          retention-days: 1
           compression-level: 0
       - name: Record ARM artifact digest
         run: |
@@ -381,7 +381,7 @@ jobs:
           set -euo pipefail
           args=(--release "$RUNNER_TEMP/releases/x86" --release "$RUNNER_TEMP/releases/arm"
             --source-sha "$SOURCE_SHA" --known-hosts "$RUNNER_TEMP/ssh/known_hosts"
-            --ssh-key "$RUNNER_TEMP/ssh/fleet-key" "--$MODE")
+            --ssh-key "$RUNNER_TEMP/ssh/fleet-key" --skip-import "--$MODE")
           while IFS= read -r host; do
             [[ -n "$host" ]] && args+=(--host "$host")
           done <<< "$TARGET_HOSTS"
