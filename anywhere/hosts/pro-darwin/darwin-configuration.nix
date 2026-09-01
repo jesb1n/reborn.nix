@@ -75,6 +75,7 @@
       "docker-desktop"
       "github-copilot-app"
       "handy"
+      "hermes-desktop"
       "lens"
       "loom"
       "maccy"

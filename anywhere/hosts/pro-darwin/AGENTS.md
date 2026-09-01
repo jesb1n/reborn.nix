@@ -112,6 +112,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | `chatgpt` | Official ChatGPT desktop app is not available as a supported nixpkgs package. |
 | `claude` | Official Claude desktop app is distributed as a Homebrew cask and is not packaged as a supported nixpkgs macOS app here. |
 | `github-copilot-app` | GitHub Copilot desktop app is not in nixpkgs. |
+| `hermes-desktop` | Official Hermes Agent Desktop distribution is provided as a signed Homebrew cask; the upstream Nix flake packages the CLI, not the desktop app. |
 | `lens` | Lens Kubernetes IDE is proprietary; not packaged usefully in nixpkgs for macOS. |
 | `netbirdio/tap/netbird-ui` | NetBird's macOS UI installs privileged networking components and depends on the vendor's `netbirdio/tap/netbird` formula. Keep the tap, formula, and cask together. |
 | `zen` | Zen Browser is not in nixpkgs for aarch64-darwin; the official Homebrew cask ships a universal macOS build. |
@@ -211,7 +212,7 @@ sudo darwin-rebuild switch --flake .#pro-darwin
 - **Do not** try to install blocked gcloud components (`gke-gcloud-auth-plugin`, `cloud-run-proxy`, ...) via `gcloud components install` — it is blocked by both Nix and Homebrew SDK installations. Add another `install_gcloud_component` call inside `postActivation.text` instead.
 - **Do not** add `system.activationScripts.<customName>.text = "..."` expecting it to run — only `preActivation` / `extraActivation` / `postActivation` execute; custom names are silently ignored. Merge new activation code into `postActivation.text`.
 - **Do not** reintroduce `defaultbrowser` activation or PlistBuddy default-browser hacks.
-- **Do not** move `anydesk`, `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker-desktop`, `whatsapp`, `handy`, `loom`, `visual-studio-code`, `github-copilot-app`, `lens`, or `zen` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
+- **Do not** move `anydesk`, `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker-desktop`, `whatsapp`, `handy`, `hermes-desktop`, `loom`, `visual-studio-code`, `github-copilot-app`, `lens`, or `zen` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
 - **Do not** reinstall `opencode`, `ripgrep`, `ffmpeg`, or `k6` via Homebrew — they are managed by Nix in `home.packages`. Brew copies shadow Nix because `sessionPath` prepends `/opt/homebrew/bin`.
 - **Do not** add `wireguard-tools` back to `home.packages` — WireGuard is managed via the Mac App Store GUI app.
 - **Do not** hardcode `user.name`/`user.email` via `git config --global` — use `programs.git.settings` in `home.nix`.
