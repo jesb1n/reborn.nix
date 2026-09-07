@@ -17,7 +17,7 @@
 # Reuse steps 1-6 whenever the session needs renewal.
 #
 # NOTE: keep nodeSelector in sync with deployment.yaml. Default pins to
-# oracle-eu-arm1; to run on hp348 change the value to "hp348".
+# oracle-eu-arm1; to run on nuc7i3 change the value to "nuc7i3".
 apiVersion: batch/v1
 kind: Job
 metadata:

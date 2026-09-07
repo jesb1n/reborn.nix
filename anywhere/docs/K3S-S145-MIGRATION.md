@@ -15,7 +15,7 @@ to redo any of these steps.
 ## New architecture (at time of this migration)
 
 Only the four hosts below existed at the time of this migration; the
-`oracle-in-*` hosts and `hp348` joined later and are not reflected here — see
+`oracle-in-*` hosts and later on-prem workers joined afterward and are not reflected here — see
 the host table in the repo root `README.md` for current cluster membership.
 
 | Host             | Tailscale IP     | Role                              | Notes                                            |

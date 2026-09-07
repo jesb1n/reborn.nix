@@ -53,12 +53,12 @@ nix eval .#deploy.nodes.oracle-eu-arm1.remoteBuild    # true
 From `pro-darwin`, verify the distributed builder before deploying a micro:
 
 ```bash
-nix store info --store 'ssh-ng://duck@hp348'
+nix store info --store 'ssh-ng://duck@nuc7i3'
 nix config show | grep '^builders ='
 ```
 
 The four micros use `remoteBuild = false`; the Mac evaluates the flake and
-`hp348` builds their `x86_64-linux` closures. Other deploy-rs nodes build on
+`nuc7i3` builds their `x86_64-linux` closures. Other deploy-rs nodes build on
 themselves.
 
 ## Deploy NixOS
@@ -81,7 +81,7 @@ A safe order for input or shared-profile updates is:
 
 1. Tiny workers: `oracle-eu-micro2`, `oracle-eu-micro1`,
    `oracle-in-micro2`, `oracle-in-micro1`
-2. Other agents: `hp348`, `rpi`, `oracle-eu-arm1`, `oracle-in-arm1`
+2. Other agents: `nuc7i3`, `rpi`, `oracle-eu-arm1`, `oracle-in-arm1`
 3. Control plane: `s145`
 
 After each batch, verify the target generation and cluster health:

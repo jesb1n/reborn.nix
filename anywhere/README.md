@@ -32,16 +32,15 @@ model.
 | Host | Platform | Role | Build placement |
 | --- | --- | --- | --- |
 | `s145` | `x86_64-linux` | k3s server, durable storage, Garage | target host |
-| `hp348` | `x86_64-linux` | k3s agent, distributed Nix builder | target host |
-| `nuc7i3` | `x86_64-linux` | k3s agent, general-purpose server | target host |
+| `nuc7i3` | `x86_64-linux` | k3s agent, distributed Nix builder | target host |
 | `oracle-eu-arm1` | `aarch64-linux` | k3s agent, Hermes Agent | target host |
 | `oracle-in-arm1` | `aarch64-linux` | k3s agent, monitoring | target host |
-| four Oracle micro nodes | `x86_64-linux` | resource-limited k3s agents | `hp348` for Mac-initiated builds |
+| four Oracle micro nodes | `x86_64-linux` | resource-limited k3s agents | `nuc7i3` for Mac-initiated builds |
 | `rpi` | `aarch64-linux` | k3s agent | target host |
 | `pro-darwin` | `aarch64-darwin` | operator workstation | local Mac |
 
 The four micro deploy entries use `remoteBuild = false`. From `pro-darwin`, Nix
-sends their `x86_64-linux` builds to the configured `hp348` builder. All other
+sends their `x86_64-linux` builds to the configured `nuc7i3` builder. All other
 deploy-rs nodes use `remoteBuild = true`.
 
 ## Management shell

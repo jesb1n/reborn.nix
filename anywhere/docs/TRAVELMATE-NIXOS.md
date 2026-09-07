@@ -50,7 +50,7 @@ ssh duck@travelmate \
 ```
 
 Use the current IP instead of `travelmate` until local DNS or Tailscale name
-resolution is available. Do not use `hp348` or another distributed builder for
+resolution is available. Do not use `nuc7i3` or another distributed builder for
 this host. Updating the system profile before activation is required so the
 new generation remains selected after reboot.
 

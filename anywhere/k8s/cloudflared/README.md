@@ -26,7 +26,7 @@ Live cluster (verify with `kubectl get nodes -o custom-columns=NAME:.metadata.na
 
 | Node | Taint |
 |------|-------|
-| `s145`, `hp348`, `oracle-eu-arm1`, `oracle-in-arm1`, `rpi` | none |
+| `s145`, `nuc7i3`, `oracle-eu-arm1`, `oracle-in-arm1`, `rpi` | none |
 | `oracle-eu-micro1`, `oracle-eu-micro2`, `oracle-in-micro1`, `oracle-in-micro2` | `tiny=true:NoSchedule` |
 
 DaemonSet toleration (in `daemonset.yaml`):

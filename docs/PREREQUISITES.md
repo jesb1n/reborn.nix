@@ -94,13 +94,13 @@ A connectivity failure is not a reason to switch to local state. Changing the ba
 - Accept the flake's configured substituters where appropriate.
 - Ensure `duck@<host>` resolves through Tailscale/MagicDNS.
 - Keep the configured SSH key available to the operator.
-- Keep `hp348` reachable for Mac-initiated builds of x86_64 micro-node closures.
+- Keep `nuc7i3` reachable for Mac-initiated builds of x86_64 micro-node closures.
 
 Validate access:
 
 ```bash
 ssh duck@s145 hostname
-ssh duck@hp348 hostname
+ssh duck@nuc7i3 hostname
 cd anywhere && nix flake metadata --no-write-lock-file >/dev/null
 ```
 

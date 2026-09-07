@@ -13,6 +13,7 @@ IaC/terraform.tfvars
 IaC/retry-arm.sh
 *.pem
 *.key
+**/key.txt
 
 # OS files
 .DS_Store

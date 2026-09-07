@@ -191,16 +191,6 @@
         ];
       };
 
-      nixosConfigurations.hp348 = nixpkgs-unstable.lib.nixosSystem {
-        system = "x86_64-linux";
-
-        modules = [
-          disko.nixosModules.disko
-          sops-nix.nixosModules.sops
-          ./hosts/hp348/configuration.nix
-        ];
-      };
-
       nixosConfigurations.nuc7i3 = nixpkgs-unstable.lib.nixosSystem {
         system = "x86_64-linux";
 

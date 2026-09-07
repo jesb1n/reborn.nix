@@ -45,7 +45,7 @@ Disk SMART is host-level `services.smartd` via [`profiles/smartd.nix`](../../pro
 | Host | Status |
 |------|--------|
 | `s145` | Enabled (profile) |
-| `hp348` | Enabled (profile) |
+| `nuc7i3` | Enabled (profile) |
 | `rpi` | Skip (SD card exposes no SMART devices) |
 | `oracle-*` | Skip |
 | `pro-darwin` | Skip (nix-darwin) |

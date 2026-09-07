@@ -20,7 +20,7 @@ affinity:
               operator: In
               values:
                 - s145
-                - hp348
+                - nuc7i3
   podAntiAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       - labelSelector:

@@ -31,7 +31,7 @@ This repository manages a hybrid personal infrastructure platform. OCI supplies 
 | Host | Platform | Architecture | Cluster role | Operational role |
 | --- | --- | --- | --- | --- |
 | `s145` | Home server | x86_64 | k3s server | Control plane, primary local-path storage, Traefik, Garage endpoint |
-| `hp348` | HP laptop | x86_64 | agent | On-prem worker and distributed x86_64 builder for Mac-initiated micro deployments |
+| `nuc7i3` | Intel NUC | x86_64 | agent | On-prem worker and distributed x86_64 builder for Mac-initiated micro deployments |
 | `oracle-eu-arm1` | OCI A1.Flex | aarch64 | agent | General worker and Hermes Agent |
 | `oracle-eu-micro1` | OCI E2.1.Micro | x86_64 | tiny agent | Low-memory Europe worker |
 | `oracle-eu-micro2` | OCI E2.1.Micro | x86_64 | tiny agent | Low-memory Europe worker |
@@ -41,7 +41,7 @@ This repository manages a hybrid personal infrastructure platform. OCI supplies 
 | `rpi` | Raspberry Pi 4 | aarch64 | agent | On-prem ARM worker |
 | `pro-darwin` | Apple Silicon Mac | aarch64-darwin | none | Operator workstation managed by nix-darwin/home-manager |
 
-`anywhere/flake.nix` is authoritative for systems, deploy targets, and build placement. The four micro deploy targets use `remoteBuild = false`; their x86_64 closures are delegated from `pro-darwin` through the configured `hp348` builder. Other NixOS targets build remotely.
+`anywhere/flake.nix` is authoritative for systems, deploy targets, and build placement. The four micro deploy targets use `remoteBuild = false`; their x86_64 closures are delegated from `pro-darwin` through the configured `nuc7i3` builder. Other NixOS targets build remotely.
 
 ## OCI Provisioning
 

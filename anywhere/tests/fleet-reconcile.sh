@@ -51,8 +51,7 @@ write_inventory() {
       "oracle-in-micro2": host("x86_64-linux"; "agent"; "micro"; "workers"; 50; 600; false; true),
       "oracle-in-arm1": host("aarch64-linux"; "agent"; "arm"; "workers"; 60; 600; true; false),
       "rpi": host("aarch64-linux"; "agent"; "rpi"; "workers"; 70; 900; true; false),
-      "hp348": host("x86_64-linux"; "agent"; "on-prem"; "workers"; 80; 600; true; true),
-      "nuc7i3": host("x86_64-linux"; "agent"; "on-prem"; "workers"; 90; 600; true; true),
+      "nuc7i3": host("x86_64-linux"; "agent"; "on-prem"; "workers"; 80; 600; true; true),
       "s145": host("x86_64-linux"; "server"; "on-prem"; "control-plane"; 100; 600; true; false)
     }
   ' >"$file"
@@ -569,9 +568,9 @@ test_rejects_manifest_without_run_identity() {
 test_accepts_store_names_with_nix_special_characters() {
   CASE_DIR=$(create_case store-name-characters)
   jq '
-    .hosts["hp348"].toplevel = "/nix/store/abc?name=1-toplevel" |
-    .hosts["hp348"].activation = "/nix/store/abc?name=1-activation" |
-    .hosts["hp348"].activation_drv = "/nix/store/abc?name=1-activation.drv"
+    .hosts["nuc7i3"].toplevel = "/nix/store/abc?name=1-toplevel" |
+    .hosts["nuc7i3"].activation = "/nix/store/abc?name=1-activation" |
+    .hosts["nuc7i3"].activation_drv = "/nix/store/abc?name=1-activation.drv"
   ' "$CASE_DIR/releases/x86_64-linux/manifest.json" >"$CASE_DIR/manifest.tmp"
   mv -- "$CASE_DIR/manifest.tmp" "$CASE_DIR/releases/x86_64-linux/manifest.json"
   refresh_checksums "$CASE_DIR/releases/x86_64-linux"
@@ -611,30 +610,30 @@ test_shell_quotes_store_paths_for_remote_checks() {
 
 test_rejects_inventory_metadata_mismatch() {
   CASE_DIR=$(create_case inventory-mismatch)
-  jq '.hosts["hp348"].wave = "control-plane"' \
+  jq '.hosts["nuc7i3"].wave = "control-plane"' \
     "$CASE_DIR/releases/x86_64-linux/manifest.json" >"$CASE_DIR/manifest.tmp"
   mv -- "$CASE_DIR/manifest.tmp" "$CASE_DIR/releases/x86_64-linux/manifest.json"
   refresh_checksums "$CASE_DIR/releases/x86_64-linux"
   run_reconciler "$CASE_DIR" --verify-only
   assert_failure
-  assert_contains "$CASE_DIR/stderr" 'release metadata differs for hp348'
+  assert_contains "$CASE_DIR/stderr" 'release metadata differs for nuc7i3'
 }
 
 test_rejects_activation_deriver_mismatch() {
   CASE_DIR=$(create_case deriver-mismatch)
-  jq '.hosts["hp348"].activation_drv = "/nix/store/unrelated-activation.drv"' \
+  jq '.hosts["nuc7i3"].activation_drv = "/nix/store/unrelated-activation.drv"' \
     "$CASE_DIR/releases/x86_64-linux/manifest.json" >"$CASE_DIR/manifest.tmp"
   mv -- "$CASE_DIR/manifest.tmp" "$CASE_DIR/releases/x86_64-linux/manifest.json"
   refresh_checksums "$CASE_DIR/releases/x86_64-linux"
   run_reconciler "$CASE_DIR" --verify-only
   assert_failure
-  assert_contains "$CASE_DIR/stderr" 'activation deriver mismatch for hp348'
+  assert_contains "$CASE_DIR/stderr" 'activation deriver mismatch for nuc7i3'
   [[ ! -e "$CASE_DIR/state/ssh.log" ]]
 }
 
 test_rejects_same_count_archive_path_substitution() {
   CASE_DIR=$(create_case archive-path-substitution)
-  printf '%s\n' '/nix/store/hp348-toplevel' \
+  printf '%s\n' '/nix/store/nuc7i3-toplevel' \
     >"$CASE_DIR/state/archive-drop-x86_64-linux"
   printf '%s\n' '/nix/store/unrelated-extra-path' \
     >"$CASE_DIR/state/archive-extra-x86_64-linux"
@@ -745,14 +744,14 @@ test_control_plane_preflights_all_dependencies() {
   run_reconciler "$CASE_DIR" --known-hosts "$CASE_DIR/known_hosts" --deploy --host s145
   assert_success
   mapfile -t hosts < <(awk -F '\t' '$2 ~ /^set -eu/ {print $1}' "$CASE_DIR/state/ssh.log")
-  expected='oracle-eu-micro2 oracle-eu-arm1 oracle-eu-micro1 oracle-in-micro1 oracle-in-micro2 oracle-in-arm1 rpi hp348 nuc7i3 s145 s145'
+  expected='oracle-eu-micro2 oracle-eu-arm1 oracle-eu-micro1 oracle-in-micro1 oracle-in-micro2 oracle-in-arm1 rpi nuc7i3 s145 s145'
   actual=$(IFS=' '; printf '%s' "${hosts[*]}")
   [[ "$actual" == "$expected" ]] || {
     printf 'unexpected control-plane gate order: %s\n' "$actual" >&2
     return 1
   }
   assert_contains "$CASE_DIR/state/nix.log" 'ssh://duck@s145'
-  assert_not_contains "$CASE_DIR/state/nix.log" 'ssh://duck@hp348'
+  assert_not_contains "$CASE_DIR/state/nix.log" 'ssh://duck@nuc7i3'
 }
 
 test_control_plane_repair_defers_kubernetes_dependency_checks() {

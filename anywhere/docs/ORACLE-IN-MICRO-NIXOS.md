@@ -35,7 +35,7 @@ Do not use `--build-on remote` (builds on the 1 GB target).
   the India micro recipients
 - `deploy.nodes` entries use `sshUser = "duck"`, MagicDNS hostname,
   `remoteBuild = false` (Mac-initiated deploys build the `x86_64-linux`
-  closure through the hp348 distributed builder; see
+  closure through the nuc7i3 distributed builder; see
   `.github/instructions/nixos.instructions.md`)
 
 Tailscale auth key in SOPS must be **reusable**. A single-use key is consumed by
