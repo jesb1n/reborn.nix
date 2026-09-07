@@ -80,6 +80,7 @@
       "loom"
       "maccy"
       "netbirdio/tap/netbird-ui"
+      "tabby"
       "tailscale-app"
       "visual-studio-code"
       "warp"
