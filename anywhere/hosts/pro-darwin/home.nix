@@ -130,7 +130,6 @@
     cloudflared
     k9s
     code-cursor
-    discord
     firefox
     slack
     google-cloud-sdk

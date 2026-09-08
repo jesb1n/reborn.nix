@@ -83,7 +83,6 @@ The iCloud path (`/Users/jesbin/Library/Mobile Documents/com~apple~CloudDocs/Doc
 `nixpkgs.config.allowUnfreePredicate` currently allows:
 - `1password` (1Password GUI)
 - `cursor` (Cursor editor)
-- `discord` (Discord desktop client)
 - `slack` (Slack)
 - `spotify` (Spotify)
 
@@ -105,6 +104,8 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | `warp` | Marked broken in nixpkgs. |
 | `maccy` | Not in nixpkgs. Configured via `defaults write org.p0deje.Maccy ...`. |
 | `docker-desktop` | Requires macOS system extensions; Docker Desktop is not available in nixpkgs. (Cask was renamed from `docker`.) |
+| `discord` | The Nix app is rejected by Gatekeeper when launched through mac-app-util's Home Manager trampoline; use the official signed cask. |
+| `microsoft-teams` | The Nix app is rejected by Gatekeeper when launched through mac-app-util's Home Manager trampoline; use Microsoft's official signed cask. |
 | `whatsapp` | macOS app not in nixpkgs. |
 | `handy` | Not in nixpkgs. GUI speech-to-text app; needs macOS Accessibility, Microphone, and Input Monitoring entitlements (granted manually in System Settings after first launch). |
 | `loom` | Not in nixpkgs. Proprietary screen-recording app; needs macOS Screen Recording, Microphone, and Camera entitlements (granted manually in System Settings after first launch). |
@@ -131,7 +132,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 ### Nix (home.packages)
 
 CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `pre-commit`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `tailscale` (CLI), `cloudflared`, `k9s`, `google-cloud-sdk`, `opentofu`, `awscli2`, `oci-cli`, `sops`, `ffmpeg`, `k6`
-GUI: `code-cursor`, `discord`, `firefox`, `iterm2`, `slack`, `spotify`
+GUI: `code-cursor`, `firefox`, `iterm2`, `slack`, `spotify`
 
 ### Homebrew tap bundles
 
@@ -212,7 +213,7 @@ sudo darwin-rebuild switch --flake .#pro-darwin
 - **Do not** try to install blocked gcloud components (`gke-gcloud-auth-plugin`, `cloud-run-proxy`, ...) via `gcloud components install` — it is blocked by both Nix and Homebrew SDK installations. Add another `install_gcloud_component` call inside `postActivation.text` instead.
 - **Do not** add `system.activationScripts.<customName>.text = "..."` expecting it to run — only `preActivation` / `extraActivation` / `postActivation` execute; custom names are silently ignored. Merge new activation code into `postActivation.text`.
 - **Do not** reintroduce `defaultbrowser` activation or PlistBuddy default-browser hacks.
-- **Do not** move `anydesk`, `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker-desktop`, `whatsapp`, `handy`, `hermes-desktop`, `loom`, `visual-studio-code`, `github-copilot-app`, `lens`, or `zen` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
+- **Do not** move `anydesk`, `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker-desktop`, `discord`, `microsoft-teams`, `whatsapp`, `handy`, `hermes-desktop`, `loom`, `visual-studio-code`, `github-copilot-app`, `lens`, or `zen` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
 - **Do not** reinstall `opencode`, `ripgrep`, `ffmpeg`, or `k6` via Homebrew — they are managed by Nix in `home.packages`. Brew copies shadow Nix because `sessionPath` prepends `/opt/homebrew/bin`.
 - **Do not** add `wireguard-tools` back to `home.packages` — WireGuard is managed via the Mac App Store GUI app.
 - **Do not** hardcode `user.name`/`user.email` via `git config --global` — use `programs.git.settings` in `home.nix`.

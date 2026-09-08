@@ -19,7 +19,6 @@
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "1password"
     "cursor"
-    "discord"
     "slack"
     "spotify"
   ];
@@ -73,12 +72,14 @@
       "claude"
       "cloudflare-warp"
       "docker-desktop"
+      "discord"
       "github-copilot-app"
       "handy"
       "hermes-desktop"
       "lens"
       "loom"
       "maccy"
+      "microsoft-teams"
       "netbirdio/tap/netbird-ui"
       "tabby"
       "tailscale-app"
