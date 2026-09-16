@@ -38,25 +38,8 @@ in
   boot.initrd.availableKernelModules = [ "nvme" "xhci_pci" "ahci" "usb_storage" "sd_mod" ];
   boot.kernelModules = [ "kvm-amd" ];
 
-  # 1TB HDD (/dev/sda1, XFS) mounted into duck's home directory.
-  # Not managed by disko — pre-existing filesystem with critical data.
-  # Identified by UUID so SATA/USB enumeration changes don't break the mount.
-  # `nofail` keeps boot resilient if the disk is absent; the empty mountpoint
-  # is intentionally left root-owned so writes fail loudly when unmounted
-  # rather than silently landing on the root filesystem.
-  # In-FS ownership is set once after first mount:
-  #   sudo chown duck:users /home/duck/sda
-  fileSystems."/home/duck/sda" = {
-    device = "/dev/disk/by-uuid/41a4db90-cbd4-490b-a01f-a8925f2b419b";
-    fsType = "xfs";
-    options = [
-      "defaults"
-      "noatime" # avoid an HDD write on every read
-      "nofail" # don't block boot if the disk is missing
-      "x-systemd.device-timeout=30"
-      "x-systemd.mount-timeout=30"
-    ];
-  };
+  # Keep the data SSD mount writable by the primary user.
+  systemd.tmpfiles.rules = [ "d /home/duck/sda 0750 duck users - -" ];
 
   # Keep server workloads running when the laptop lid is closed.
   services.logind.settings.Login = {

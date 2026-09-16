@@ -1,45 +1,63 @@
 # Disko configuration for s145.
-# WARNING: nixos-anywhere will wipe /dev/nvme0n1 and apply this layout.
-# s145 also has a 1TB HDD (/dev/sda) — not managed here.
+# WARNING: applying this layout destroys all data on the GIGABYTE NVMe and WDC data SSD.
+# The layout matches the existing partitions on the SSD moved from hp348.
+# s145 also has a separate 512 GB data SSD.
 {
-  disko.devices = {
-    disk.main = {
-      device = "/dev/nvme0n1";
-      type = "disk";
+  disko.devices.disk.nvme = {
+    device = "/dev/disk/by-id/nvme-GIGABYTE_GP-GSM2NE3256GNTD_SN210408933996";
+    type = "disk";
 
-      content = {
-        type = "gpt";
+    content = {
+      type = "gpt";
 
-        partitions = {
-          esp = {
-            size = "1G";
-            type = "EF00";
-            content = {
-              type = "filesystem";
-              format = "vfat";
-              mountpoint = "/boot";
-              mountOptions = [
-                "umask=0077"
-              ];
-            };
+      partitions = {
+        ESP = {
+          size = "512M";
+          type = "EF00";
+          content = {
+            type = "filesystem";
+            format = "vfat";
+            mountpoint = "/boot";
+            mountOptions = [
+              "umask=0077"
+            ];
           };
+        };
 
-          swap = {
-            size = "6G";
-            content = {
-              type = "swap";
-              resumeDevice = true;
-            };
+        swap = {
+          size = "8G";
+          content = {
+            type = "swap";
+            resumeDevice = true;
           };
+        };
 
-          root = {
-            size = "100%";
-            content = {
-              type = "filesystem";
-              format = "ext4";
-              mountpoint = "/";
-            };
+        root = {
+          size = "100%";
+          content = {
+            type = "filesystem";
+            format = "ext4";
+            mountpoint = "/";
           };
+        };
+      };
+    };
+  };
+
+  disko.devices.disk.data = {
+    device = "/dev/disk/by-id/ata-WDC_WDS500G2B0A_192878801084";
+    type = "disk";
+
+    content = {
+      type = "gpt";
+
+      partitions.data = {
+        size = "100%";
+        content = {
+          type = "filesystem";
+          format = "ext4";
+          mountpoint = "/home/duck/sda";
+          mountOptions = [ "noatime" ];
         };
       };
     };

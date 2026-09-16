@@ -9,11 +9,11 @@
   # /etc/nix/nix.conf already reads this standard builders file.
   nix.enable = false;
   environment.etc."nix/machines".text = ''
-    ssh-ng://duck@nuc7i3?ssh-key=/etc/nix/nuc7i3-builder-key x86_64-linux - 4 2
+    ssh-ng://duck@s145?ssh-key=/etc/nix/s145-builder-key x86_64-linux - 4 2
   '';
-  programs.ssh.knownHosts.nuc7i3 = {
-    hostNames = [ "nuc7i3" ];
-    publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIClVAFhDx8/JTVtA1kVhPAOOdC96f3w7CAvd9ZsAYW4r";
+  programs.ssh.knownHosts.s145 = {
+    hostNames = [ "s145" ];
+    publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP4if+UQEgOtJ2/1hykw2vRtQ8vXj5qgZf5Tl+P7zSe/";
   };
 
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
@@ -102,9 +102,9 @@
   #   https://github.com/nix-darwin/nix-darwin/blob/main/modules/system/activation-scripts.nix
   system.activationScripts.postActivation.text = ''
     # The Nix daemon cannot read keys from a user's home directory. Copy the
-    # existing nuc7i3-authorized key outside the Nix store for daemon-only use.
+    # existing s145-authorized key outside the Nix store for daemon-only use.
     install -m 600 -o root -g wheel \
-      /Users/jesbin/.ssh/id_ed25519 /etc/nix/nuc7i3-builder-key
+      /Users/jesbin/.ssh/id_ed25519 /etc/nix/s145-builder-key
 
     # --- Maccy: 100 ms clipboard poll (default 500 ms) --------------------
     defaults write org.p0deje.Maccy clipboardCheckInterval -float 0.1

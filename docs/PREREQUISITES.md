@@ -94,7 +94,7 @@ A connectivity failure is not a reason to switch to local state. Changing the ba
 - Accept the flake's configured substituters where appropriate.
 - Ensure `duck@<host>` resolves through Tailscale/MagicDNS.
 - Keep the configured SSH key available to the operator.
-- Keep `nuc7i3` reachable for Mac-initiated builds of x86_64 micro-node closures.
+- Keep `s145` reachable for Mac-initiated builds of x86_64 micro-node closures.
 
 Validate access:
 

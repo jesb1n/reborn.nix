@@ -26,10 +26,10 @@ Each host has: `configuration.nix` (main config), `disko-config.nix` (disk layou
 
 ## Build Constraints
 
-- All four Oracle micro nodes use deploy-rs `remoteBuild = false`; Mac-initiated deployments build their `x86_64-linux` closures through the nuc7i3 distributed builder.
+- All four Oracle micro nodes use deploy-rs `remoteBuild = false`; Mac-initiated deployments build their `x86_64-linux` closures through the s145 distributed builder.
 - `oracle-eu-arm1` and `oracle-in-arm1` (aarch64): `remoteBuild = true` — build on the hosts themselves.
 - `s145`, `nuc7i3`, and `rpi`: `remoteBuild = true`.
-- The nuc7i3 builder receives the Mac's local flake inputs through Nix; no repository checkout or synchronization is required on nuc7i3.
+- The s145 builder receives the Mac's local flake inputs through Nix; no repository checkout or synchronization is required on s145.
 
 ## k3s Cluster
 
