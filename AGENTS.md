@@ -16,8 +16,8 @@
 
 | Host | Shape | Arch | Role | Tailscale IP |
 |------|-------|------|------|-------------|
-| `s145` | Home server | x86_64 | **k3s control-plane** | `100.69.231.117` |
-| `nuc7i3` | Intel NUC | x86_64 | k3s agent, distributed builder | `100.119.33.56` |
+| `s145` | Home server | x86_64 | **k3s control-plane**, distributed builder | `100.69.231.117` |
+| `nuc7i3` | Intel NUC | x86_64 | k3s agent | `100.119.33.56` |
 | `oracle-eu-arm1` | A1.Flex | aarch64 | k3s agent | `100.84.230.4` |
 | `oracle-eu-micro1` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | `100.96.237.114` |
 | `oracle-eu-micro2` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | `100.67.95.26` |
@@ -119,7 +119,7 @@ Deploy from `anywhere/`. Prefer workers first, then control-plane.
 - `nix develop -c deploy .`: deploy all hosts.
 
 The four Oracle micro nodes use `remoteBuild = false`; Mac-initiated deployments
-build their `x86_64-linux` closures through the configured `nuc7i3` distributed
+build their `x86_64-linux` closures through the configured `s145` distributed
 builder. Other deploy-rs nodes use `remoteBuild = true`. The separate
 `nixos-anywhere` installation flow for 1 GB x86 micro nodes runs from s145 with
 `--build-on local` so s145 builds the initial closure.
@@ -136,7 +136,7 @@ builder. Other deploy-rs nodes use `remoteBuild = true`. The separate
 - **All NixOS systems use `nixpkgs-unstable`**; the `nixpkgs` input (26.05 stable) is only for devShell/tooling (deploy-rs, disko, sops-nix follow it). Exception: `rpi` is built via `nixos-raspberrypi.lib.nixosSystem` (its own nixpkgs), not `nixpkgs-unstable.lib.nixosSystem`.
 - **New Nix files must be `git add`-ed before eval or deploy.** Flakes only see tracked/staged files; untracked files cause evaluation errors.
 - **Build placement follows `flake.nix`** — all four Oracle micro nodes use
-  `remoteBuild = false` and Mac-initiated builds use `nuc7i3`; the remaining
+  `remoteBuild = false` and Mac-initiated builds use `s145`; the remaining
   deploy-rs nodes use `remoteBuild = true`.
 - **`pro-darwin`** is a `darwinConfigurations` entry, NOT in `deploy.nodes`. Deploy with `sudo darwin-rebuild switch --flake .#pro-darwin` from `anywhere/`.
 - **`nixos-anywhere` is destructive** — reformats the disk via disko. Never use for routine updates; use deploy-rs instead. For 1 GB Oracle micros, run it from **s145**, prep **2G swap** on the Ubuntu target, and use `--build-on local --no-disko-deps --kexec-extra-flags "--kexec-syscall"`. See [anywhere/docs/ORACLE-IN-MICRO-NIXOS.md](anywhere/docs/ORACLE-IN-MICRO-NIXOS.md).

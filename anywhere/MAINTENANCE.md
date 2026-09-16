@@ -53,12 +53,12 @@ nix eval .#deploy.nodes.oracle-eu-arm1.remoteBuild    # true
 From `pro-darwin`, verify the distributed builder before deploying a micro:
 
 ```bash
-nix store info --store 'ssh-ng://duck@nuc7i3'
+nix store info --store 'ssh-ng://duck@s145'
 nix config show | grep '^builders ='
 ```
 
 The four micros use `remoteBuild = false`; the Mac evaluates the flake and
-`nuc7i3` builds their `x86_64-linux` closures. Other deploy-rs nodes build on
+`s145` builds their `x86_64-linux` closures. Other deploy-rs nodes build on
 themselves.
 
 ## Deploy NixOS
