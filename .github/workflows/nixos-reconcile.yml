@@ -1,8 +1,7 @@
 name: NixOS Fleet Reconcile
 
 on:
-  schedule:
-    - cron: "30 20 * * *"
+  # Temporarily pause scheduled fleet builds; keep manual reconciliation available.
   workflow_dispatch:
     inputs:
       mode:

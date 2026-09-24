@@ -1,9 +1,7 @@
 name: NixOS CI
 
 on:
-  pull_request:
-  push:
-    branches: [main]
+  # Temporarily pause automatic fleet builds; keep manual runs available.
   workflow_dispatch:
 
 permissions:
