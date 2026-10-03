@@ -117,6 +117,9 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | `lens` | Lens Kubernetes IDE is proprietary; not packaged usefully in nixpkgs for macOS. |
 | `netbirdio/tap/netbird-ui` | NetBird's macOS UI installs privileged networking components and depends on the vendor's `netbirdio/tap/netbird` formula. Keep the tap, formula, and cask together. |
 | `zen` | Zen Browser is not in nixpkgs for aarch64-darwin; the official Homebrew cask ships a universal macOS build. |
+| `vlc` | nixpkgs `vlc` excludes `aarch64-darwin` from `meta.platforms` — not buildable here. |
+| `libreoffice` | nixpkgs `libreoffice` excludes `aarch64-darwin` from `meta.platforms` — not buildable here. |
+| `cursor-cli` | Cursor's CLI agent is distributed only as a Homebrew cask; nixpkgs `code-cursor` is the GUI editor, not this binary. |
 
 ### Mac App Store (masApps)
 
