@@ -134,12 +134,19 @@ via `fleet.autoUpgrade.enable = true` in `profiles/base.nix`.
   self-selects by `networking.hostName`, so one profile covers the whole fleet.
 - Schedule: `04:30` + up to 45 min jitter, `Persistent = true` (a node that was
   off catches up on next boot).
-- `operation = "switch"` and `allowReboot = false` — new generation goes live
-  immediately, but a kernel change stays staged until a human reboots. These are
-  k3s nodes; unattended reboots drain workloads with no warning.
+- `operation = "switch"` and `allowReboot = true` with a `rebootWindow` of
+  `04:00`–`06:00`. A reboot happens only when the new generation actually needs
+  one (kernel/initrd/systemd change) and the clock is inside that window;
+  otherwise the generation still activates and the reboot defers to a later run.
+  The `04:30` timer + ≤45 min jitter lands at `04:30`–`05:15`, inside the window.
+  Widen with `fleet.autoUpgrade.rebootWindow`, or set it to `null` for any hour.
 - **This never formats anything.** It runs `nixos-rebuild switch`, which builds a
   closure and flips the `/nix/var/nix/profiles/system` symlink. disko and
   `nixos-anywhere` are not involved. Only commits pushed to `main` roll out.
+- **Self-hosted mirror later:** set `fleet.autoUpgrade.flakeRef` in `base.nix`
+  (e.g. `git+https://git.example.com/jesbin/reborn.nix?dir=anywhere`). Nothing
+  else in the profile assumes GitHub, so it's a one-line switch when the mirror
+  exists — and it removes the GitHub API/rate-limit dependency for all 9 nodes.
 
 ```bash
 # Check / drive it on a host

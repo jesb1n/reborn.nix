@@ -9,6 +9,14 @@
 # closure and flips the /nix/var/nix/profiles/system symlink. disko and
 # nixos-anywhere are never invoked, so partitions and data are untouched.
 #
+# Reboots: allowed, but only when the new generation actually requires one
+# (kernel/initrd/systemd change) AND the clock is inside `rebootWindow`.
+# Outside that window the generation still activates; only the reboot defers.
+#
+# Switching to a self-hosted git mirror later is a one-line change — set
+# `fleet.autoUpgrade.flakeRef` (e.g. "git+https://git.jesb.in/jesbin/reborn.nix?dir=anywhere")
+# in base.nix. Nothing else in this profile assumes GitHub.
+#
 # Rollback is the normal NixOS mechanism: pick the previous generation from the
 # bootloader, or `nixos-rebuild switch --rollback`.
 {
@@ -48,6 +56,32 @@ in
         binary caches at the same instant.
       '';
     };
+
+    rebootWindow = lib.mkOption {
+      type = lib.types.nullOr (
+        lib.types.submodule {
+          options = {
+            lower = lib.mkOption {
+              type = lib.types.str;
+              description = "Earliest wall-clock time an unattended reboot may start.";
+            };
+            upper = lib.mkOption {
+              type = lib.types.str;
+              description = "Latest wall-clock time an unattended reboot may start.";
+            };
+          };
+        }
+      );
+      default = {
+        lower = "04:00";
+        upper = "06:00";
+      };
+      description = ''
+        Window in which an unattended reboot is permitted. Outside it the new
+        generation is still built and activated — only the reboot is deferred
+        to a later run. Set to null to permit a reboot at any hour.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -71,10 +105,12 @@ in
 
       inherit (cfg) dates randomizedDelaySec;
 
-      # Never reboot unattended. These are k3s nodes; a surprise reboot drains
-      # workloads with no warning. Kernel changes stay staged until a human
-      # reboots deliberately.
-      allowReboot = false;
+      # Reboot when the new generation needs it (kernel, initrd, or systemd
+      # change) — but only inside rebootWindow. Outside the window the
+      # generation is still activated and the reboot waits for the next run,
+      # so a midday upgrade never yanks k3s workloads out from under you.
+      allowReboot = true;
+      inherit (cfg) rebootWindow;
     };
 
     # nixos-rebuild shells out to git for flake fetching, and the minimal
