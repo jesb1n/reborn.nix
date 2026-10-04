@@ -50,6 +50,13 @@ in
       # full control of the bot; the allowed-users list reveals operator IDs;
       # the Google key authorizes Gemini API usage.
       (lib.mkIf hasHostSecretsFile {
+        # NAR signing key for the self-hosted binary cache (profiles/binary-cache.nix).
+        # Private half — only the public key is committed to lib/binary-caches.nix.
+        "nix-cache-signing-key" = {
+          sopsFile = hostSecretsFile;
+          mode = "0400";
+        };
+
         "hermes/telegram-bot-token" = {
           sopsFile = hostSecretsFile;
         };

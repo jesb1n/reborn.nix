@@ -35,6 +35,29 @@ let
       baseline = false;
       keyMonitor = "manual";
     }
+    # Self-hosted ARM caches on the two Oracle A1.Flex nodes, reachable only
+    # over Tailscale. These exist because `follows`-rebased inputs (deploy-rs,
+    # sops-nix) miss upstream Cachix, and sops-install-secrets has no public
+    # cache at all — without these every aarch64 node recompiles the same Go
+    # and Rust output. Plain http:// is correct here: the tailnet already
+    # provides authenticated transport encryption, and NAR signatures (not TLS)
+    # are what establish trust in cache contents.
+    {
+      name = "oracle-eu-arm1";
+      url = "http://oracle-eu-arm1:5000";
+      publicKey = "oracle-eu-arm1:PLACEHOLDER_REPLACE_WITH_GENERATED_PUBLIC_KEY=";
+      scope = "arm";
+      baseline = false;
+      keyMonitor = "manual";
+    }
+    {
+      name = "oracle-in-arm1";
+      url = "http://oracle-in-arm1:5000";
+      publicKey = "oracle-in-arm1:PLACEHOLDER_REPLACE_WITH_GENERATED_PUBLIC_KEY=";
+      scope = "arm";
+      baseline = false;
+      keyMonitor = "manual";
+    }
   ];
 
   unique = values:
@@ -57,11 +80,16 @@ let
   baselineCaches = builtins.filter (cache: cache.baseline) caches;
   fleetCaches = cachesForScope "fleet";
   rpiCaches = cachesForScope "rpi";
+  armCaches = cachesForScope "arm";
 
-  # Flake-level extras intentionally include every non-baseline cache.  This
-  # lets the Raspberry Pi input use its cache during evaluation while keeping
-  # cache.nixos.org explicit as the baseline supplied by Nix itself.
-  flakeExtraCaches = builtins.filter (cache: !cache.baseline) caches;
+  # Flake-level extras intentionally include every non-baseline *public* cache.
+  # This lets the Raspberry Pi input use its cache during evaluation while
+  # keeping cache.nixos.org explicit as the baseline supplied by Nix itself.
+  # The self-hosted `arm` caches are deliberately EXCLUDED: flake nixConfig is
+  # consulted during evaluation on the operator's Mac, which may be off-tailnet,
+  # and an unreachable substituter there costs a timeout on every eval. They are
+  # applied as host-level nix.settings instead.
+  flakeExtraCaches = builtins.filter (cache: !cache.baseline && cache.scope != "arm") caches;
 
   urls = caches': builtins.map (cache: cache.url) caches';
   publicKeys = caches': builtins.map (cache: cache.publicKey) caches';
@@ -76,6 +104,7 @@ let
 
   fleet = renderScope fleetCaches;
   rpi = renderScope rpiCaches;
+  arm = renderScope armCaches;
   flakeExtras = renderScope flakeExtraCaches;
 
   fleetNixSettings = {
@@ -85,6 +114,10 @@ let
   rpiNixSettings = {
     substituters = rpi.substituters;
     trusted-public-keys = rpi.trustedPublicKeys;
+  };
+  armNixSettings = {
+    substituters = arm.substituters;
+    trusted-public-keys = arm.trustedPublicKeys;
   };
   flakeNixConfig = {
     extra-substituters = flakeExtras.substituters;
@@ -113,10 +146,18 @@ let
       && (suffix == "" || builtins.match "^-[A-Za-z0-9._-]+$" suffix != null);
 
   validUrl = cache:
-    let match = builtins.match "^https://([^/]+)/?$" cache.url;
-    in match != null && builtins.elemAt match 0 == cache.name;
+    let
+      https = builtins.match "^https://([^/]+)/?$" cache.url;
+      # Self-hosted caches are addressed by Tailscale MagicDNS name and port
+      # over plain HTTP — see the `arm` scope note above.
+      http = builtins.match "^http://([^/:]+)(:[0-9]+)?/?$" cache.url;
+    in
+    if cache.scope == "arm" then
+      http != null && builtins.elemAt http 0 == cache.name
+    else
+      https != null && builtins.elemAt https 0 == cache.name;
 
-  scopeNames = [ "fleet" "rpi" ];
+  scopeNames = [ "fleet" "rpi" "arm" ];
   names = builtins.map (cache: cache.name) caches;
   cacheUrls = builtins.map (cache: cache.url) caches;
   cacheKeys = builtins.map (cache: cache.publicKey) caches;
@@ -135,6 +176,8 @@ let
       builtins.length fleet.substituters == builtins.length fleet.trustedPublicKeys;
     one-key-per-rpi-substituter =
       builtins.length rpi.substituters == builtins.length rpi.trustedPublicKeys;
+    one-key-per-arm-substituter =
+      builtins.length arm.substituters == builtins.length arm.trustedPublicKeys;
     one-key-per-flake-substituter =
       builtins.length flakeExtras.substituters == builtins.length flakeExtras.trustedPublicKeys;
     exactly-one-baseline = builtins.length baselineCaches == 1;
@@ -155,25 +198,27 @@ let
   valid = builtins.all (result: result) (builtins.attrValues checks);
 in
 {
-  inherit caches baselineCaches fleetCaches rpiCaches flakeExtraCaches checks valid;
+  inherit caches baselineCaches fleetCaches rpiCaches armCaches flakeExtraCaches checks valid;
 
   # Rendered settings for NixOS modules.  The aliases at the top level make
   # this file easy to consume from small modules without knowing its internals.
-  inherit fleet rpi flakeExtras;
+  inherit fleet rpi arm flakeExtras;
   # Short aliases for consumers that model caches by target surface.
   flake = flakeExtras;
   host = {
-    inherit fleet rpi;
+    inherit fleet rpi arm;
   };
   byScope = {
-    inherit fleet rpi;
+    inherit fleet rpi arm;
   };
   nixSettings = fleetNixSettings;
-  inherit rpiNixSettings;
+  inherit rpiNixSettings armNixSettings;
   substituters = fleet.substituters;
   trustedPublicKeys = fleet.trustedPublicKeys;
   rpiSubstituters = rpi.substituters;
   rpiTrustedPublicKeys = rpi.trustedPublicKeys;
+  armSubstituters = arm.substituters;
+  armTrustedPublicKeys = arm.trustedPublicKeys;
 
   # `nixConfig` deliberately contains only non-baseline caches.  Nix already
   # knows cache.nixos.org, while these entries are needed during flake input
