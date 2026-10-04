@@ -7,6 +7,13 @@ let
   binaryCaches = import ../lib/binary-caches.nix;
 in
 {
+  imports = [ ./auto-upgrade.nix ];
+
+  # Pull-based self-deploy: each host rebuilds itself from the git remote on a
+  # timer using its own CPU. Opt out per host with `fleet.autoUpgrade.enable =
+  # false;`. See profiles/auto-upgrade.nix — this never touches disks.
+  fleet.autoUpgrade.enable = true;
+
   # Nix settings
   nix.settings = {
     trusted-users = [

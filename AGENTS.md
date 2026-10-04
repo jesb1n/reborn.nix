@@ -124,6 +124,38 @@ builder. Other deploy-rs nodes use `remoteBuild = true`. The separate
 `nixos-anywhere` installation flow for 1 GB x86 micro nodes runs from s145 with
 `--build-on local` so s145 builds the initial closure.
 
+### Auto-upgrade (pull-based, `profiles/auto-upgrade.nix`)
+
+Every host also pulls and rebuilds itself from the git remote on a timer, using
+its **own** CPU — the complement to deploy-rs's push model. Enabled fleet-wide
+via `fleet.autoUpgrade.enable = true` in `profiles/base.nix`.
+
+- Target: `github:jesb1n/reborn.nix?dir=anywhere#<hostName>` — each node
+  self-selects by `networking.hostName`, so one profile covers the whole fleet.
+- Schedule: `04:30` + up to 45 min jitter, `Persistent = true` (a node that was
+  off catches up on next boot).
+- `operation = "switch"` and `allowReboot = false` — new generation goes live
+  immediately, but a kernel change stays staged until a human reboots. These are
+  k3s nodes; unattended reboots drain workloads with no warning.
+- **This never formats anything.** It runs `nixos-rebuild switch`, which builds a
+  closure and flips the `/nix/var/nix/profiles/system` symlink. disko and
+  `nixos-anywhere` are not involved. Only commits pushed to `main` roll out.
+
+```bash
+# Check / drive it on a host
+systemctl list-timers nixos-upgrade --all
+journalctl -u nixos-upgrade -n 50 --no-pager
+sudo systemctl start nixos-upgrade      # force a run now
+sudo nixos-rebuild switch --rollback    # undo last auto-upgrade
+```
+
+Opt a host out with `fleet.autoUpgrade.enable = false;` in its
+`hosts/<name>/configuration.nix`. Override cadence with
+`fleet.autoUpgrade.dates`.
+
+Because rollout is now pull-based, **pushing to `main` deploys the fleet.**
+Anything merged there reaches every node within ~24h without a manual deploy.
+
 ### Kubernetes (s145 cluster)
 
 - `KUBECONFIG` is set by `.envrc` to `~/.kube/s145.yaml`.
