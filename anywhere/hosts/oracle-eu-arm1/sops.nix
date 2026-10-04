@@ -45,45 +45,14 @@ in
         };
       })
 
-      # Hermes Agent — Telegram gateway credentials.
-      # The values themselves are tiny but secret-grade (a bot token grants
-      # full control of the bot; the allowed-users list reveals operator IDs;
-      # the Google key authorizes Gemini API usage.
+      # NAR signing key for the self-hosted binary cache (profiles/binary-cache.nix).
+      # Private half — only the public key is committed to lib/binary-caches.nix.
       (lib.mkIf hasHostSecretsFile {
-        # NAR signing key for the self-hosted binary cache (profiles/binary-cache.nix).
-        # Private half — only the public key is committed to lib/binary-caches.nix.
         "nix-cache-signing-key" = {
           sopsFile = hostSecretsFile;
           mode = "0400";
         };
-
-        "hermes/telegram-bot-token" = {
-          sopsFile = hostSecretsFile;
-        };
-
-        "hermes/telegram-allowed-users" = {
-          sopsFile = hostSecretsFile;
-        };
-
-        "hermes/google-api-key" = {
-          sopsFile = hostSecretsFile;
-        };
       })
     ];
-
-    # Compose the SOPS-decrypted values into a KEY=VALUE file that the
-    # hermes-agent module merges into $HERMES_HOME/.env at activation time.
-    templates = lib.mkIf hasHostSecretsFile {
-      "hermes-agent.env" = {
-        owner = "hermes";
-        group = "hermes";
-        mode = "0640";
-        content = ''
-          TELEGRAM_BOT_TOKEN=${config.sops.placeholder."hermes/telegram-bot-token"}
-          TELEGRAM_ALLOWED_USERS=${config.sops.placeholder."hermes/telegram-allowed-users"}
-          GOOGLE_API_KEY=${config.sops.placeholder."hermes/google-api-key"}
-        '';
-      };
-    };
   };
 }

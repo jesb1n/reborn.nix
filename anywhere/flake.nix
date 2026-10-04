@@ -32,12 +32,6 @@
     sops-nix.url = "github:Mic92/sops-nix";
     sops-nix.inputs.nixpkgs.follows = "nixpkgs";
 
-    # Upstream Hermes Agent — provides services.hermes-agent NixOS module.
-    # Pinned to nixpkgs-unstable because hermes-agent's own flake tracks unstable
-    # (uv2nix + recent Python/Node, won't build cleanly against 26.05).
-    hermes-agent.url = "github:NousResearch/hermes-agent";
-    hermes-agent.inputs.nixpkgs.follows = "nixpkgs-unstable";
-
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs-latest";
 
@@ -48,7 +42,7 @@
     mac-app-util.inputs.nixpkgs.follows = "nixpkgs-unstable";
   };
 
-  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-anywhere, nixos-raspberrypi, deploy-rs, disko, sops-nix, hermes-agent, nix-darwin, home-manager, mac-app-util, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-anywhere, nixos-raspberrypi, deploy-rs, disko, sops-nix, nix-darwin, home-manager, mac-app-util, ... }:
     let
       fleet = import ./lib/fleet.nix;
 
@@ -126,7 +120,6 @@
 
         modules = [
           sops-nix.nixosModules.sops
-          hermes-agent.nixosModules.default
           ./hosts/oracle-eu-arm1/configuration.nix
         ];
       };
