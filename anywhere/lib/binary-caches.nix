@@ -45,7 +45,7 @@ let
     {
       name = "oracle-eu-arm1";
       url = "http://oracle-eu-arm1:5000";
-      publicKey = "oracle-eu-arm1:PLACEHOLDER_REPLACE_WITH_GENERATED_PUBLIC_KEY=";
+      publicKey = "oracle-eu-arm1:y98gfZkcDnx4awmq5sPKfL82DFGJV9WMlENNdoJ+ygw=";
       scope = "arm";
       baseline = false;
       keyMonitor = "manual";
