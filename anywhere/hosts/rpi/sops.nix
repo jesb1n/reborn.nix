@@ -37,6 +37,13 @@ in
         "wifi-psk" = {
           sopsFile = hostSecretsFile;
         };
+
+        # Pi-hole dashboard password, cleartext. FTL hashes it at startup from
+        # FTLCONF_webserver_api_password; it must never reach pihole.toml,
+        # which is a world-readable /nix/store path.
+        "pihole-web-password" = {
+          sopsFile = hostSecretsFile;
+        };
       })
     ];
 

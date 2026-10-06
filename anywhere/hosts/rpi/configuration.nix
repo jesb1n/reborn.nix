@@ -15,16 +15,32 @@ in
     ../../profiles/base.nix
     ../../profiles/tailscale.nix
     ../../profiles/k3s-agent.nix
+    ../../profiles/pihole.nix
     ./disko-config.nix
     ./sops.nix
   ];
 
   nixpkgs.hostPlatform = lib.mkDefault "aarch64-linux";
 
-  # Pi-only binary cache (keep out of shared profiles/base.nix)
+  # No unattended reboots: this Pi reports under-voltage (throttled=0x50000)
+  # and boots off an SD card, so a reboot with nobody watching risks coming
+  # back degraded or not at all. Auto-upgrade still runs and activates the new
+  # generation — only the automatic reboot is withheld for a human.
+  fleet.autoUpgrade.allowReboot = false;
+
+  # Pi-only binary cache (keep out of shared profiles/base.nix), plus the
+  # self-hosted ARM cache: rpi is aarch64 and would otherwise rebuild paths
+  # that oracle-eu-arm1 has already built (sops-install-secrets above all).
+  # Both scopes are needed — rpi carries the nixos-raspberrypi Cachix mirror,
+  # arm carries the tailnet cache.
   nix.settings = {
-    substituters = lib.mkAfter binaryCaches.rpiNixSettings.substituters;
-    trusted-public-keys = lib.mkAfter binaryCaches.rpiNixSettings.trusted-public-keys;
+    substituters = lib.mkAfter (
+      binaryCaches.rpiNixSettings.substituters ++ binaryCaches.armNixSettings.substituters
+    );
+    trusted-public-keys = lib.mkAfter (
+      binaryCaches.rpiNixSettings.trusted-public-keys
+      ++ binaryCaches.armNixSettings.trusted-public-keys
+    );
   };
 
   boot.loader.raspberry-pi = {
@@ -130,6 +146,22 @@ in
     "--advertise-exit-node"
     "--advertise-routes=10.0.0.0/24"
   ];
+
+  # Pi-hole — network-wide DNS filtering for the tailnet and the home LAN,
+  # forwarding over DNS-over-TLS to Cloudflare. Gated on the host secrets file
+  # because the dashboard password comes from it; without it the module would
+  # reference a secret sops-nix cannot render.
+  #
+  # After the first deploy, set the tailnet to use it:
+  #   Tailscale admin → DNS → Global nameserver 100.118.166.120
+  #                         → "Override local DNS" on
+  fleet.pihole = lib.mkIf hasHostSecretsFile {
+    enable = true;
+    tailscaleIP = "100.118.166.120";
+    # end0 is down; the Pi is on wi-fi. Change this if it moves to ethernet.
+    lanInterface = "wlan0";
+    webPort = 8081;
+  };
 
   # k3s — worker in the s145-rooted cluster.
   services.k3s.nodeName = "rpi";
