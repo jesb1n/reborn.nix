@@ -99,6 +99,10 @@ in
 
   # Tailscale — host identity + exit node
   services.tailscale.useRoutingFeatures = "server"; # handles ip_forward sysctls
+  # --port is pinned so the Asianet router's static UDP forward (41641 ->
+  # 192.168.1.42) always lands on the live socket. The upstream ONT is a
+  # symmetric NAT, so without a fixed port + forward, peers fall back to DERP.
+  services.tailscale.port = 41641;
   services.tailscale.extraUpFlags = lib.mkIf hasTailscaleSecretsFile [
     "--hostname=s145"
     "--accept-dns=false"

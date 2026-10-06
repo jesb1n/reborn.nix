@@ -56,6 +56,9 @@ in
 
   services = {
     fstrim.enable = true;
+    # Pinned to match the Asianet router's static UDP forward
+    # (41642 -> 192.168.1.41); see s145 for the rationale.
+    tailscale.port = 41642;
     tailscale.extraUpFlags = lib.mkIf hasTailscaleSecretsFile [
       "--hostname=nuc7i3"
       "--accept-dns=false"
