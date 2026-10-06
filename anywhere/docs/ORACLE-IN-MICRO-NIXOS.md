@@ -244,7 +244,8 @@ Then update SOPS with a **reusable** auth key for future installs.
 1. First kexec without swap → OOM kill of `kexec`; Ubuntu stayed up. 2G swap fixed it.
 2. Single-use Tailscale auth key → micro2 joined, micro1 autoconnect failed until
    interactive `tailscale up`.
-3. Mac must not be the builder; s145 must be. Do not expect to copy flake edits
+3. Mac must not be the builder; `s145` (x86_64) or `oracle-eu-arm1` (aarch64)
+   must be. Do not expect to copy flake edits
    back from s145 — edit on Mac, re-sync only if reinstalling.
 4. `accept-flake-config` (user `nix.conf` or `profiles/base.nix`) avoids ignored
    flake substituters / from-source builds on Nix 2.34+.

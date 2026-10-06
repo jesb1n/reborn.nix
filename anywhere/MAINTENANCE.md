@@ -47,19 +47,29 @@ Confirm deploy-rs placement when changing build topology:
 ```bash
 nix eval .#deploy.nodes.oracle-eu-micro1.remoteBuild  # false
 nix eval .#deploy.nodes.oracle-in-micro2.remoteBuild  # false
-nix eval .#deploy.nodes.oracle-eu-arm1.remoteBuild    # true
+nix eval .#deploy.nodes.oracle-in-arm1.remoteBuild    # false
+nix eval .#deploy.nodes.rpi.remoteBuild               # false
+nix eval .#deploy.nodes.oracle-eu-arm1.remoteBuild    # true (is the aarch64 builder)
 ```
 
-From `pro-darwin`, verify the distributed builder before deploying a micro:
+From `pro-darwin`, verify the relevant distributed builder before deploying:
 
 ```bash
-nix store info --store 'ssh-ng://duck@s145'
+nix store info --store 'ssh-ng://duck@s145'            # x86_64 builder
+nix store info --store 'ssh-ng://duck@oracle-eu-arm1'  # aarch64 builder
 nix config show | grep '^builders ='
+cat /etc/nix/machines
 ```
 
-The four micros use `remoteBuild = false`; the Mac evaluates the flake and
-`s145` builds their `x86_64-linux` closures. Other deploy-rs nodes build on
-themselves.
+Both should report `Trusted: 1`. If offload fails with "Host key verification
+failed", the system-wide `/etc/ssh/ssh_known_hosts` is missing an entry — the
+nix-daemon runs as root and does not read your `~/.ssh/known_hosts`. Fix it in
+`programs.ssh.knownHosts` in `hosts/pro-darwin/darwin-configuration.nix`, not by
+sshing manually to accept the key.
+
+The four micros use `remoteBuild = false` and build on `s145`; `oracle-in-arm1`
+and `rpi` use `remoteBuild = false` and build on `oracle-eu-arm1`. The two
+builder hosts and `nuc7i3` build on themselves.
 
 ## Deploy NixOS
 

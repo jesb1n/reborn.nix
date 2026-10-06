@@ -31,17 +31,26 @@ model.
 
 | Host | Platform | Role | Build placement |
 | --- | --- | --- | --- |
-| `s145` | `x86_64-linux` | k3s server, durable storage, Garage, distributed Nix builder | target host |
+| `s145` | `x86_64-linux` | k3s server, durable storage, Garage, distributed x86_64 Nix builder | target host |
 | `nuc7i3` | `x86_64-linux` | k3s agent, general-purpose server | target host |
-| `oracle-eu-arm1` | `aarch64-linux` | k3s agent, Hermes Agent | target host |
-| `oracle-in-arm1` | `aarch64-linux` | k3s agent, monitoring | target host |
+| `oracle-eu-arm1` | `aarch64-linux` | k3s agent, Hermes Agent, distributed aarch64 Nix builder | target host (is the builder) |
+| `oracle-in-arm1` | `aarch64-linux` | k3s agent, monitoring | `oracle-eu-arm1` for Mac-initiated builds |
 | four Oracle micro nodes | `x86_64-linux` | resource-limited k3s agents | `s145` for Mac-initiated builds |
-| `rpi` | `aarch64-linux` | k3s agent | target host |
+| `rpi` | `aarch64-linux` | k3s agent | `oracle-eu-arm1` for Mac-initiated builds |
 | `pro-darwin` | `aarch64-darwin` | operator workstation | local Mac |
 
-The four micro deploy entries use `remoteBuild = false`. From `pro-darwin`, Nix
-sends their `x86_64-linux` builds to the configured `s145` builder. All other
-deploy-rs nodes use `remoteBuild = true`.
+Two distributed builders are registered on `pro-darwin`, one per Linux
+architecture: `s145` for `x86_64-linux` and `oracle-eu-arm1` for
+`aarch64-linux`. The four micro nodes, `oracle-in-arm1`, and `rpi` use
+`remoteBuild = false`, so `pro-darwin` evaluates the flake and the matching
+builder compiles the closure.
+
+`s145` and `oracle-eu-arm1` keep `remoteBuild = true` because each is itself a
+registered builder — building on the target is building on the builder.
+Flipping either to `false` would make Nix offload to that host, fetch the
+outputs back to the Mac, then push the same closure back again.
+`tests/fleet-invariants.nix` asserts this and fails `nix flake check` otherwise.
+`nuc7i3` also builds on itself; it is a capable on-prem box.
 
 ## Management shell
 

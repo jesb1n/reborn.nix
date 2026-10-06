@@ -16,7 +16,7 @@
 
 | Host | Shape | Arch | Role | Tailscale IP |
 |------|-------|------|------|-------------|
-| `s145` | Home server | x86_64 | **k3s control-plane**, distributed builder | `100.69.231.117` |
+| `s145` | Home server | x86_64 | **k3s control-plane**, distributed x86_64 builder | `100.69.231.117` |
 | `nuc7i3` | Intel NUC | x86_64 | k3s agent | `100.119.33.56` |
 | `oracle-eu-arm1` | A1.Flex | aarch64 | k3s agent | `100.84.230.4` |
 | `oracle-eu-micro1` | E2.1.Micro | x86_64 | k3s agent (tainted `tiny`) | `100.96.237.114` |
@@ -118,11 +118,13 @@ Deploy from `anywhere/`. Prefer workers first, then control-plane.
 - `nix develop -c deploy --targets .#oracle-eu-micro1 .#oracle-eu-micro2`: deploy multiple hosts.
 - `nix develop -c deploy .`: deploy all hosts.
 
-The four Oracle micro nodes use `remoteBuild = false`; Mac-initiated deployments
-build their `x86_64-linux` closures through the configured `s145` distributed
-builder. Other deploy-rs nodes use `remoteBuild = true`. The separate
-`nixos-anywhere` installation flow for 1 GB x86 micro nodes runs from s145 with
-`--build-on local` so s145 builds the initial closure.
+Two distributed builders are registered on `pro-darwin`, one per Linux
+architecture: `s145` (x86_64-linux) and `oracle-eu-arm1` (aarch64-linux). The
+four Oracle micro nodes build on `s145`; `oracle-in-arm1` and `rpi` build on
+`oracle-eu-arm1`. All six use `remoteBuild = false`. The two builder hosts and
+`nuc7i3` use `remoteBuild = true`. The separate `nixos-anywhere` installation
+flow for 1 GB x86 micro nodes runs from s145 with `--build-on local` so s145
+builds the initial closure.
 
 ### Auto-upgrade (pull-based, `profiles/auto-upgrade.nix`)
 
@@ -174,16 +176,29 @@ Anything merged there reaches every node within ~24h without a manual deploy.
 
 - **All NixOS systems use `nixpkgs-unstable`**; the `nixpkgs` input (26.05 stable) is only for devShell/tooling (deploy-rs, disko, sops-nix follow it). Exception: `rpi` is built via `nixos-raspberrypi.lib.nixosSystem` (its own nixpkgs), not `nixpkgs-unstable.lib.nixosSystem`.
 - **New Nix files must be `git add`-ed before eval or deploy.** Flakes only see tracked/staged files; untracked files cause evaluation errors.
-- **Build placement follows `flake.nix`** — all four Oracle micro nodes use
-  `remoteBuild = false` and Mac-initiated builds use `s145`; the remaining
-  deploy-rs nodes use `remoteBuild = true`.
+- **Build placement follows `lib/fleet.nix`** — `pro-darwin` registers two
+  distributed builders, `s145` (x86_64-linux) and `oracle-eu-arm1`
+  (aarch64-linux). The four micro nodes plus `oracle-in-arm1` and `rpi` use
+  `remoteBuild = false` and build on the matching builder; the two builder hosts
+  and `nuc7i3` use `remoteBuild = true`.
+- **A host that is itself a registered builder keeps `remoteBuild = true`.**
+  Setting `false` makes Nix offload to that very host, copy the outputs back to
+  the Mac, then have deploy-rs push the same closure back. `tests/fleet-invariants.nix`
+  enforces this for `s145` and `oracle-eu-arm1`; keep its `builderHosts` list in
+  sync with `/etc/nix/machines`.
+- **The nix-daemon offloads as root**, so it reads `/etc/ssh/ssh_known_hosts`,
+  not your `~/.ssh/known_hosts`. A new builder needs a `programs.ssh.knownHosts`
+  entry or offload fails with "Host key verification failed". All builders share
+  one key, `/etc/nix/fleet-builder-key`, installed by `postActivation` — it is a
+  copy of the maintainer's `~/.ssh/id_ed25519`, which `profiles/base.nix`
+  authorizes for `duck` fleet-wide. Rotating that key breaks every builder at once.
 - **`pro-darwin`** is a `darwinConfigurations` entry, NOT in `deploy.nodes`. Deploy with `sudo darwin-rebuild switch --flake .#pro-darwin` from `anywhere/`.
 - **`nixos-anywhere` is destructive** — reformats the disk via disko. Never use for routine updates; use deploy-rs instead. For 1 GB Oracle micros, run it from **s145**, prep **2G swap** on the Ubuntu target, and use `--build-on local --no-disko-deps --kexec-extra-flags "--kexec-syscall"`. See [anywhere/docs/ORACLE-IN-MICRO-NIXOS.md](anywhere/docs/ORACLE-IN-MICRO-NIXOS.md).
 - **`--elevate=sudo`** (not `--use-remote-sudo`) is the correct flag for `nixos-rebuild` remote activation.
 - **`s145` overrides GRUB** with systemd-boot (`lib.mkForce`). All other OCI hosts use GRUB from `profiles/server.nix`.
 - **Deploy order for input updates**: workers (`oracle-eu-micro2` → `oracle-eu-micro1`) → ARM agents → control-plane (`s145`) last.
-- **`rpi` has a 900s activation timeout** (vs 600s for all others) due to slower Raspberry Pi hardware — deploys to rpi take longer.
-- **ARM hosts build remotely** (`remoteBuild = true`) since the primary operator machine (s145) is x86. First deploy of `oracle-eu-arm1` is slow.
+- **`rpi` has a 900s activation timeout** (vs 600s for all others) due to slower Raspberry Pi hardware. This covers activation only, not the build — the closure is built on `oracle-eu-arm1`.
+- **ARM targets build on `oracle-eu-arm1`**, the registered aarch64-linux builder, since the operator machine `pro-darwin` is aarch64-**darwin** and cannot build Linux derivations. `oracle-eu-arm1` itself still builds on-target.
 - **Micro instances have only 1 GB RAM** — zramSwap at 50%, max-pods=10; don't schedule heavy workloads. Tiny taint (`tiny=true:NoSchedule`) is applied out-of-band after node registration.
 - **s145 holds critical data** (1 TB XFS at `/home/duck/sda`). Oracle VMs are disposable; loss of any one degrades capacity but not data.
 - **Traefik is the only ingress controller** with Cloudflare DNS-01 ACME. No cert-manager. HTTP → HTTPS redirect is global at the Traefik entrypoint.

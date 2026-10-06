@@ -82,7 +82,7 @@ nix develop -c deploy .#oracle-eu-arm1
 nix develop -c deploy .#s145
 ```
 
-For shared input updates, deploy workers first and `s145` last. The four micro targets build through the configured `s145` builder when deployed from the Apple Silicon workstation; other nodes use remote builds.
+For shared input updates, deploy workers first and `s145` last. When deploying from the Apple Silicon workstation, the four micro targets build through the `s145` builder and `oracle-in-arm1`/`rpi` through the `oracle-eu-arm1` builder; the two builder hosts and `nuc7i3` build on the target.
 
 Do not use `nixos-anywhere` for routine updates. It runs Disko and can erase the target disk. Follow a host-specific reinstall runbook only when a destructive reinstall is intended.
 
@@ -129,7 +129,7 @@ Confirm `SOPS_AGE_KEY_FILE`, file permissions, and that the encrypted file conta
 
 ### A micro-node build fails locally
 
-Confirm `s145` is online, reachable over SSH, and still configured as the x86_64 distributed builder for `pro-darwin`.
+Confirm `s145` is online, reachable over SSH, and still configured as the x86_64 distributed builder for `pro-darwin`. For an ARM target (`oracle-in-arm1`, `rpi`), confirm `oracle-eu-arm1` the same way — `nix store info --store 'ssh-ng://duck@oracle-eu-arm1'` should report `Trusted: 1`.
 
 ### A k3s agent does not join
 

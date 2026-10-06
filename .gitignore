@@ -30,3 +30,4 @@ anywhere/result
 .gemini/
 .github/hooks/
 .opencode/plugins/
+.worktrees/

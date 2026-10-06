@@ -41,7 +41,7 @@ This repository manages a hybrid personal infrastructure platform. OCI supplies 
 | `rpi` | Raspberry Pi 4 | aarch64 | agent | On-prem ARM worker |
 | `pro-darwin` | Apple Silicon Mac | aarch64-darwin | none | Operator workstation managed by nix-darwin/home-manager |
 
-`anywhere/flake.nix` is authoritative for systems, deploy targets, and build placement. The four micro deploy targets use `remoteBuild = false`; their x86_64 closures are delegated from `pro-darwin` through the configured `s145` builder. Other NixOS targets build remotely.
+`anywhere/flake.nix` is authoritative for systems, deploy targets, and build placement. Two distributed builders are registered on `pro-darwin`, one per Linux architecture: `s145` (x86_64-linux) and `oracle-eu-arm1` (aarch64-linux). The four micro targets, `oracle-in-arm1`, and `rpi` use `remoteBuild = false` and have their closures delegated from `pro-darwin` to the matching builder. The two builder hosts themselves and `nuc7i3` build on the target.
 
 ## OCI Provisioning
 
