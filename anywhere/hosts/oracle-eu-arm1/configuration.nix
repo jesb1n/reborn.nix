@@ -27,6 +27,9 @@ in
   # Native aarch64 build host + binary cache for the ARM nodes (rpi, in-arm1).
   # Gated on host secrets because the NAR signing key is sops-managed.
   fleet.binaryCache.enable = hasHostSecretsFile;
+  # Must match this host's nodeIP / Tailscale address so tailnet peers can
+  # reach the cache; see profiles/binary-cache.nix.
+  fleet.binaryCache.bindAddress = "100.84.230.4";
 
   # Consume the *other* ARM cache so the two nodes share build output both
   # ways; a path built here is served to in-arm1 and vice versa.

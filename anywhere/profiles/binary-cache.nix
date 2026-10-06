@@ -42,6 +42,18 @@ in
       description = "Port nix-serve listens on (tailnet-only).";
     };
 
+    bindAddress = lib.mkOption {
+      type = lib.types.str;
+      default = "127.0.0.1";
+      example = "100.84.230.4";
+      description = ''
+        Address nix-serve binds. Set this to the host's own Tailscale IP so
+        peers can reach it; loopback is unreachable from the tailnet no
+        matter how the firewall is configured. Do not set 0.0.0.0 — these
+        nodes have public OCI interfaces.
+      '';
+    };
+
     secretName = lib.mkOption {
       type = lib.types.str;
       default = "nix-cache-signing-key";
@@ -55,17 +67,32 @@ in
   config = lib.mkIf cfg.enable {
     services.nix-serve = {
       enable = true;
-      # nix-serve-ng: Haskell rewrite of nix-serve. Same protocol, far lower
-      # memory and much faster narinfo lookups — matters on a shared ARM node
-      # that is also running k3s workloads.
-      package = pkgs.nix-serve-ng;
+      # Upstream Perl nix-serve, deliberately NOT the nix-serve-ng rewrite.
+      #
+      # nix-serve-ng is unbuildable on aarch64 here, in two layers:
+      #   1. It defaults to Lix, whose pkg-config file requires libcpuid —
+      #      an x86/i686-only package, so configure fails outright with
+      #      "Package 'libcpuid', required by 'lix', not found".
+      #   2. Overriding to CppNix and disabling the `lix` cabal flag gets
+      #      past that, but its C++ shim targets an older libnixstore API
+      #      (initLibStore, openStore, settings, Signature->std::string) and
+      #      does not compile against nix 2.35.
+      # Pinning an older CppNix to satisfy (2) would mean building Nix itself
+      # from source on a shared k3s node every rebuild.
+      #
+      # The Perl implementation shells out to nix-store rather than linking
+      # against libnixstore, so it has no such version coupling, and it is
+      # prebuilt for aarch64 on cache.nixos.org — it substitutes rather than
+      # compiles. Same protocol, same narinfo/NAR endpoints.
+      package = pkgs.nix-serve;
 
       inherit (cfg) port;
 
-      # Bind loopback: Tailscale reaches it via the tailnet address, and
-      # nothing is exposed on the OCI public interface even if the firewall
-      # were misconfigured.
-      bindAddress = "127.0.0.1";
+      # Bind the node's own Tailscale address, not 127.0.0.1: loopback is
+      # unreachable from peers no matter what the firewall says. tailscale0
+      # carries only tailnet traffic, so this is not exposed on the OCI
+      # public interface — and it is never bound to 0.0.0.0.
+      bindAddress = cfg.bindAddress;
 
       secretKeyFile = config.sops.secrets.${cfg.secretName}.path;
     };
@@ -87,11 +114,23 @@ in
 
     # nix-serve reads the signing key at startup; without this ordering it can
     # race sops-nix on boot and come up unable to sign.
+    #
+    # It also binds a tailscale0 address, which does not exist until tailscaled
+    # has brought the interface up — without this the service fails at boot
+    # with "Cannot assign requested address".
+    #
+    # Restart policy is intentionally left entirely to the upstream nix-serve
+    # module (Restart="always", RestartSec="5s") — already correct for a cache
+    # that other nodes block on, so overriding it only creates conflicts.
     systemd.services.nix-serve = {
-      after = [ "sops-install-secrets.service" ];
-      wants = [ "sops-install-secrets.service" ];
-      serviceConfig.Restart = "on-failure";
-      serviceConfig.RestartSec = "10s";
+      after = [
+        "sops-install-secrets.service"
+        "tailscaled.service"
+      ];
+      wants = [
+        "sops-install-secrets.service"
+        "tailscaled.service"
+      ];
     };
   };
 }

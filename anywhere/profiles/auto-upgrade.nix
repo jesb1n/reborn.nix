@@ -57,6 +57,22 @@ in
       '';
     };
 
+    allowReboot = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Whether an unattended upgrade may reboot the host when the new
+        generation requires it (kernel, initrd or systemd change). When false
+        the generation still activates and the reboot is left for a human.
+
+        Set false for hosts where an unsupervised reboot is risky — e.g. rpi,
+        which runs off an SD card and has a marginal PSU, so a reboot nobody
+        is watching can leave it down.
+
+        Not the same as rebootWindow = null, which permits reboots at ANY hour.
+      '';
+    };
+
     rebootWindow = lib.mkOption {
       type = lib.types.nullOr (
         lib.types.submodule {
@@ -109,8 +125,11 @@ in
       # change) — but only inside rebootWindow. Outside the window the
       # generation is still activated and the reboot waits for the next run,
       # so a midday upgrade never yanks k3s workloads out from under you.
-      allowReboot = true;
-      inherit (cfg) rebootWindow;
+      #
+      # Hosts that must never reboot unattended set allowReboot = false; note
+      # that rebootWindow = null does NOT mean "no reboots", it means "any
+      # hour", so the two options are not interchangeable.
+      inherit (cfg) allowReboot rebootWindow;
     };
 
     # nixos-rebuild shells out to git for flake fetching, and the minimal

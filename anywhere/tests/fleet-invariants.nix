@@ -10,6 +10,10 @@
 let
   binaryCaches = import ../lib/binary-caches.nix;
   fleetHosts = builtins.attrNames fleet;
+  # Hosts registered as distributed Nix builders on pro-darwin, one per Linux
+  # architecture. Mirrors environment.etc."nix/machines" in
+  # hosts/pro-darwin/darwin-configuration.nix.
+  builderHosts = [ "s145" "oracle-eu-arm1" ];
   configurationHosts = builtins.attrNames nixosConfigurations;
   deployHosts = builtins.attrNames deploy.nodes;
   ciDeployHosts = builtins.attrNames ciDeploy.nodes;
@@ -125,6 +129,15 @@ let
     {
       assertion = builtins.length fleetHosts == 9;
       message = "fleet inventory must contain exactly nine hosts";
+    }
+    # A host registered as a distributed builder in
+    # hosts/pro-darwin/darwin-configuration.nix must keep remoteBuild = true.
+    # With `false`, Nix offloads the build to that very host, copies the outputs
+    # back to the Mac, and deploy-rs then pushes the same closure back — a
+    # pointless WAN round-trip. Keep this list in sync with /etc/nix/machines.
+    {
+      assertion = builtins.all (host: (fleet.${host}).remoteBuild == true) builderHosts;
+      message = "distributed builder hosts (${lib.concatStringsSep ", " builderHosts}) must keep remoteBuild = true";
     }
   ];
 

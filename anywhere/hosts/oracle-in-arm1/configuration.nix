@@ -24,6 +24,9 @@ in
   # Native aarch64 build host + binary cache for the ARM nodes (rpi, eu-arm1).
   # Stays off until secrets/oracle-in-arm1/secrets.yaml carries the signing key.
   fleet.binaryCache.enable = hasHostSecretsFile;
+  # Must match this host's nodeIP / Tailscale address so tailnet peers can
+  # reach the cache; see profiles/binary-cache.nix.
+  fleet.binaryCache.bindAddress = "100.117.227.112";
 
   # Consume the *other* ARM cache so build output is shared both ways.
   nix.settings = {

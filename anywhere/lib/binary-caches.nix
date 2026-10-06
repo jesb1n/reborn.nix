@@ -42,22 +42,30 @@ let
     # and Rust output. Plain http:// is correct here: the tailnet already
     # provides authenticated transport encryption, and NAR signatures (not TLS)
     # are what establish trust in cache contents.
+    # Addressed by Tailscale IP, not hostname: MagicDNS is not reliably
+    # resolvable on every node (rpi has no DNS resolution for tailnet names),
+    # and a substituter that fails to resolve is silently skipped — the cache
+    # would look configured while never being used. The IP is stable, being
+    # pinned by the host's nodeIP / tailscale extraUpFlags.
     {
       name = "oracle-eu-arm1";
-      url = "http://oracle-eu-arm1:5000";
+      url = "http://100.84.230.4:5000";
       publicKey = "oracle-eu-arm1:y98gfZkcDnx4awmq5sPKfL82DFGJV9WMlENNdoJ+ygw=";
       scope = "arm";
       baseline = false;
       keyMonitor = "manual";
     }
-    {
-      name = "oracle-in-arm1";
-      url = "http://oracle-in-arm1:5000";
-      publicKey = "oracle-in-arm1:PLACEHOLDER_REPLACE_WITH_GENERATED_PUBLIC_KEY=";
-      scope = "arm";
-      baseline = false;
-      keyMonitor = "manual";
-    }
+    # oracle-in-arm1 is intentionally NOT listed yet. Its signing keypair has
+    # not been generated, and a placeholder public key is not inert: once a
+    # substituter entry is live, Nix parses trusted-public-keys as real Base64
+    # and the whole evaluation fails with
+    #   error: invalid character in Base64 string: ''
+    # Re-add the entry here, with the real key, after running on that host:
+    #   sudo sh -c "umask 077; nix key generate-secret \
+    #     --key-name oracle-in-arm1 > /var/lib/nix-cache/key.sec"
+    #   sudo sh -c "nix key convert-secret-to-public < /var/lib/nix-cache/key.sec"
+    # then store the private half in secrets/oracle-in-arm1/secrets.yaml,
+    # which is also what flips fleet.binaryCache.enable on for that host.
   ];
 
   unique = values:
@@ -148,12 +156,15 @@ let
   validUrl = cache:
     let
       https = builtins.match "^https://([^/]+)/?$" cache.url;
-      # Self-hosted caches are addressed by Tailscale MagicDNS name and port
-      # over plain HTTP — see the `arm` scope note above.
-      http = builtins.match "^http://([^/:]+)(:[0-9]+)?/?$" cache.url;
+      # Self-hosted caches are addressed by Tailscale IP and port over plain
+      # HTTP — see the `arm` scope note above. The host part must be a
+      # 100.64.0.0/10 CGNAT address, which is the range Tailscale assigns:
+      # that keeps these URLs provably tailnet-internal, so plain HTTP never
+      # silently points at the public internet.
+      http = builtins.match "^http://(100\\.[0-9]+\\.[0-9]+\\.[0-9]+)(:[0-9]+)?/?$" cache.url;
     in
     if cache.scope == "arm" then
-      http != null && builtins.elemAt http 0 == cache.name
+      http != null
     else
       https != null && builtins.elemAt https 0 == cache.name;
 
