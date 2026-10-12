@@ -92,7 +92,6 @@ The old `~/Documents/oracle-cloud-free-tier/` and iCloud paths are **deprecated*
 `nixpkgs.config.allowUnfreePredicate` currently allows:
 - `cursor` (Cursor editor)
 - `slack` (Slack)
-- `spotify` (Spotify)
 
 If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree = true` globally.
 (Note: `vscode` was removed from this list because it is now installed via Homebrew cask — see "Must be Homebrew" table.)
@@ -110,7 +109,8 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | `arc` | Removed from nixpkgs (unmaintained). |
 | `cloudflare-warp` | Needs macOS Network Extension entitlements — cannot ship via Nix. |
 | `tailscale-app` | Needs macOS Network Extension entitlements. The app installs its own matching `tailscale` CLI at `/usr/local/bin/tailscale`; do NOT add nixpkgs `tailscale` to home.packages — a second CLI can drift out of version with the app's daemon. |
-| `warp` | Marked broken in nixpkgs. |
+| `warp` | Self-updating app. nixpkgs `warp-terminal` builds but lags upstream and cannot self-update (downgrade risk, as with 1Password). The cask is currently commented out: its sha256 is stale upstream. |
+| `spotify` | nixpkgs fetches the dmg from a web.archive.org snapshot (~70 KB/s) and cannot self-update; the cask downloads from Spotify's CDN and auto-updates. |
 | `maccy` | Not in nixpkgs. Preferences set manually (sandboxed app — see Maccy section). |
 | `docker-desktop` | Requires macOS system extensions; Docker Desktop is not available in nixpkgs. (Cask was renamed from `docker`.) |
 | `discord` | The Nix app was rejected by Gatekeeper when launched through mac-app-util's trampoline (pre-copyApps); use the official signed cask. |
@@ -140,7 +140,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 ### Nix (home.packages)
 
 CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `pre-commit`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `cloudflared`, `k9s`, `google-cloud-sdk`, `opentofu`, `awscli2`, `oci-cli`, `sops`, `ffmpeg`, `k6`
-GUI: `code-cursor`, `firefox`, `iterm2`, `slack`, `spotify`
+GUI: `code-cursor`, `firefox`, `iterm2`, `slack`
 
 ### Homebrew tap bundles
 
@@ -237,7 +237,7 @@ sudo darwin-rebuild switch --flake .#pro-darwin
 - **Do not** try to install blocked gcloud components (`gke-gcloud-auth-plugin`, `cloud-run-proxy`, ...) via `gcloud components install` — it is blocked by both Nix and Homebrew SDK installations. Add another `install_gcloud_component` call inside `postActivation.text` instead.
 - **Do not** add `system.activationScripts.<customName>.text = "..."` expecting it to run — only `preActivation` / `extraActivation` / `postActivation` execute; custom names are silently ignored. Merge new activation code into `postActivation.text`.
 - **Do not** reintroduce `defaultbrowser` activation or PlistBuddy default-browser hacks.
-- **Do not** move `1password`, `anydesk`, `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker-desktop`, `discord`, `microsoft-teams`, `whatsapp`, `handy`, `hermes-desktop`, `loom`, `visual-studio-code`, `github-copilot-app`, `lens`, or `zen` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
+- **Do not** move `1password`, `spotify`, `anydesk`, `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker-desktop`, `discord`, `microsoft-teams`, `whatsapp`, `handy`, `hermes-desktop`, `loom`, `visual-studio-code`, `github-copilot-app`, `lens`, or `zen` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
 - **Do not** reinstall `opencode`, `ripgrep`, `ffmpeg`, or `k6` via Homebrew — they are managed by Nix in `home.packages`. Brew copies shadow Nix because `sessionPath` prepends `/opt/homebrew/bin`.
 - **Do not** add `nodejs` to `home.packages` — `~/.local/bin/node` (Hermes's bundled node) comes first on PATH and shadows it.
 - **Do not** add `wireguard-tools` back to `home.packages` — WireGuard is managed via the Mac App Store GUI app.

@@ -180,7 +180,6 @@
     oci-cli
     sops
     iterm2
-    # spotify # TEMP: nixpkgs fetches the dmg from web.archive.org at ~70 KB/s (2026-10-12)
     ffmpeg
     k6
   ];
