@@ -19,29 +19,38 @@ Read this file **before** making any changes to `darwin-configuration.nix` or `h
 
 ## Repository Location
 
-**Use `/Users/jesbin/Documents/oracle-cloud-free-tier/`** — this is the authoritative working copy.
+**Use `/Users/jesbin/Projects/reborn.nix/`** (remote `github.com/jesb1n/reborn.nix`) — this is the authoritative working copy.
 
-The iCloud path (`/Users/jesbin/Library/Mobile Documents/com~apple~CloudDocs/Documents/oracle-cloud-free-tier/`) exists but is **deprecated**. Do not commit from it. If you find yourself there, rsync to the local path first.
+The old `~/Documents/oracle-cloud-free-tier/` and iCloud paths are **deprecated**. Do not commit from them.
 
 ## Stack
 
 - **nix-darwin** — system-level macOS configuration
 - **home-manager** (as nix-darwin module) — user-level dotfiles/packages
 - **Homebrew** (managed by nix-darwin) — only for packages that Nix cannot handle
-- **mac-app-util** — creates Spotlight/Launchpad trampolines for Nix-installed `.app` bundles
-- **Determinate Nix** — provides the Nix daemon and store
+- **home-manager `targets.darwin.copyApps`** — copies Nix `.app` bundles into `~/Applications/Home Manager Apps` so Spotlight/Launchpad index them (replaced mac-app-util; `linkApps` is disabled)
+- **Determinate Nix** + **`determinate.darwinModules.default`** — provides the Nix daemon/store; the module manages Nix settings
+- **nix-homebrew** — pins Homebrew itself and its taps as flake inputs
+- **nix-index-database** — prebuilt index for command-not-found and `,` (comma)
+- **sops-nix** (`darwinModules.sops`) — Mac-side secrets; inactive until `secrets/pro-darwin/secrets.yaml` exists and the age key is at `~/.config/sops/age/keys.txt`
 
 ## Critical Quirks (READ CAREFULLY)
 
 ### Determinate Nix
 
-- **`nix.enable = false`** is REQUIRED in `darwin-configuration.nix`. Determinate manages nixd itself; letting nix-darwin manage it will conflict.
-- Custom Nix settings go in `/etc/nix/nix.custom.conf`, NOT via `nix.settings` in the flake. The standard `/etc/nix/machines` remote-builder file may be managed with `environment.etc`.
+- The Determinate module sets `nix.enable = false` (forced). Do not set `nix.*` options — `nix.settings`, `nix.gc`, `nix.optimise` all assert `nix.enable`.
+- Custom Nix settings go in **`determinateNix.customSettings`**, which writes `/etc/nix/nix.custom.conf`. Never edit that file by hand. Don't duplicate settings already in Determinate's `/etc/nix/nix.conf` (e.g. `extra-substituters = https://install.determinate.systems/`).
+- `trusted-users = [ "root" "jesbin" ]` is set there.
+- Store GC: `determinateNix.determinateNixd.garbageCollector.strategy = "automatic"` (writes `/etc/determinate/config.json`).
+- The standard `/etc/nix/machines` remote-builder file is still managed with `environment.etc` (tests/fleet-invariants.nix mirrors it). `determinateNix.buildMachines` is unused.
 
 ### Homebrew — DANGER
 
 - **`onActivation.cleanup = "none"`** — MUST stay `"none"`. Setting it to `"zap"` **destroys** any brew-installed package not listed in the Brewfile. This previously wiped the user's entire shell environment (uninstalled zsh plugins, tools, etc.). Do not change this without explicit user confirmation.
 - **`onActivation.autoUpdate = false`** — skips `brew update` during rebuild for speed.
+- **`greedyCasks = true`** — `brew upgrade` also upgrades self-updating casks. Run the `brewup` alias (`brew update && brew upgrade --greedy`) occasionally; rebuilds never upgrade.
+- **nix-homebrew with `mutableTaps = false`**: taps come from flake inputs (`homebrew-core`, `homebrew-cask`, `homebrew-netbird`). `brew tap` does not work — to add a tap, add a `flake = false` input and a `nix-homebrew.taps` entry, and keep `homebrew.taps` in sync. Bump taps with `nix flake update homebrew-core homebrew-cask homebrew-netbird`.
+- First migration of an existing `/opt/homebrew` fails with "An existing /opt/homebrew/Library/Taps is in the way" — move `Library/Taps` aside and rerun (done once on 2026-10-13; old copy at `Library/Taps.before-nix-homebrew`).
 
 ### Timezone
 
@@ -49,7 +58,7 @@ The iCloud path (`/Users/jesbin/Library/Mobile Documents/com~apple~CloudDocs/Doc
 
 ### Touch ID sudo
 
-- `security.pam.services.sudo_local.touchIdAuth = true` — enables Touch ID for `sudo`.
+- `security.pam.services.sudo_local.touchIdAuth = true` — enables Touch ID for `sudo`. `reattach = true` adds `pam_reattach` so it also works inside tmux/screen.
 - **Only works when the MacBook lid is open.** Physically doesn't work with lid closed (no fingerprint sensor exposed).
 - Requires logout/reboot to take effect after first enabling.
 
@@ -104,8 +113,8 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | `warp` | Marked broken in nixpkgs. |
 | `maccy` | Not in nixpkgs. Preferences set manually (sandboxed app — see Maccy section). |
 | `docker-desktop` | Requires macOS system extensions; Docker Desktop is not available in nixpkgs. (Cask was renamed from `docker`.) |
-| `discord` | The Nix app is rejected by Gatekeeper when launched through mac-app-util's Home Manager trampoline; use the official signed cask. |
-| `microsoft-teams` | The Nix app is rejected by Gatekeeper when launched through mac-app-util's Home Manager trampoline; use Microsoft's official signed cask. |
+| `discord` | The Nix app was rejected by Gatekeeper when launched through mac-app-util's trampoline (pre-copyApps); use the official signed cask. |
+| `microsoft-teams` | The Nix app was rejected by Gatekeeper when launched through mac-app-util's trampoline (pre-copyApps); use Microsoft's official signed cask. |
 | `whatsapp` | macOS app not in nixpkgs. |
 | `handy` | Not in nixpkgs. GUI speech-to-text app; needs macOS Accessibility, Microphone, and Input Monitoring entitlements (granted manually in System Settings after first launch). |
 | `loom` | Not in nixpkgs. Proprietary screen-recording app; needs macOS Screen Recording, Microphone, and Camera entitlements (granted manually in System Settings after first launch). |
@@ -178,6 +187,7 @@ Verify a change actually runs by looking for its output in `sudo darwin-rebuild 
 
 - Dracula theme + JetBrainsMonoNerdFont, defined in `home.nix` via `programs.iterm2.dynamicProfiles`.
 - Requires iTerm2 to be installed (currently via Nix `pkgs.iterm2`).
+- The font comes from `fonts.packages = [ pkgs.nerd-fonts.jetbrains-mono ]` in `darwin-configuration.nix` (installed to `/Library/Fonts/Nix Fonts`).
 
 ## Shell Aliases and Functions
 
@@ -189,10 +199,22 @@ Defined in `home.nix` under `programs.zsh`:
 
 When adding new aliases or functions, keep them in the same section for discoverability.
 
+## pre-commit (global hook template)
+
+- `pre-commit` is in `home.packages`; git's `init.templateDir = ~/.git-template` (in `programs.git.settings`) gives every new clone/`git init` the hook.
+- The hook is written by `home.activation.preCommitTemplate` as a **real file** (`install -m 0755`), calling `/etc/profiles/per-user/jesbin/bin/pre-commit`. Do not convert it to `home.file` or reference a `/nix/store` path: git copies template files — symlinks included — into each repo, so those would dangle after GC.
+- Repos without `.pre-commit-config.yaml` are skipped (`--skip-on-missing-config`). For existing repos run `git init` (safe) or `pre-commit install` once.
+
+## Networking, firewall, SSH
+
+- `networking.hostName`/`computerName`/`localHostName` = `pro-darwin`.
+- `networking.applicationFirewall` enabled with stealth mode.
+- SSH uses the 1Password agent: `programs.ssh.settings."*".IdentityAgent` in `home.nix` (enable it in 1Password → Settings → Developer). `~/.ssh/config` is Home Manager-managed. The nix-daemon's builder offload uses `/etc/nix/fleet-builder-key` as root and is unaffected.
+
 ## Deploy Workflow
 
 ```bash
-cd /Users/jesbin/Documents/oracle-cloud-free-tier/anywhere
+cd /Users/jesbin/Projects/reborn.nix/anywhere
 
 # Validate (always run before rebuild)
 nix flake check
@@ -209,7 +231,9 @@ sudo darwin-rebuild switch --flake .#pro-darwin
 ## Do NOT
 
 - **Do not** set `homebrew.onActivation.cleanup = "zap"`. It will destroy the user's shell setup.
-- **Do not** re-enable `nix.enable` — Determinate Nix owns the daemon.
+- **Do not** re-enable `nix.enable` or set `nix.*` options — Determinate Nix owns the daemon; use `determinateNix.*`.
+- **Do not** re-add mac-app-util or enable `targets.darwin.linkApps` — `copyApps` and `linkApps` conflict.
+- **Do not** run `brew tap` / set `mutableTaps = true` to add a tap — add a flake input instead.
 - **Do not** try to install blocked gcloud components (`gke-gcloud-auth-plugin`, `cloud-run-proxy`, ...) via `gcloud components install` — it is blocked by both Nix and Homebrew SDK installations. Add another `install_gcloud_component` call inside `postActivation.text` instead.
 - **Do not** add `system.activationScripts.<customName>.text = "..."` expecting it to run — only `preActivation` / `extraActivation` / `postActivation` execute; custom names are silently ignored. Merge new activation code into `postActivation.text`.
 - **Do not** reintroduce `defaultbrowser` activation or PlistBuddy default-browser hacks.
@@ -218,7 +242,7 @@ sudo darwin-rebuild switch --flake .#pro-darwin
 - **Do not** add `nodejs` to `home.packages` — `~/.local/bin/node` (Hermes's bundled node) comes first on PATH and shadows it.
 - **Do not** add `wireguard-tools` back to `home.packages` — WireGuard is managed via the Mac App Store GUI app.
 - **Do not** hardcode `user.name`/`user.email` via `git config --global` — use `programs.git.settings` in `home.nix`.
-- **Do not** commit from the iCloud path — use `/Users/jesbin/Documents/oracle-cloud-free-tier/`.
+- **Do not** commit from the old `~/Documents/oracle-cloud-free-tier/` or iCloud paths — use `/Users/jesbin/Projects/reborn.nix/`.
 - **Do not** commit `anywhere/result` (Nix build symlink) — should be gitignored.
 
 ## Files in this folder
