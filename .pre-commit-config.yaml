@@ -1,0 +1,74 @@
+# pre-commit hooks for reborn.nix. Installed automatically on clone via the
+# global git template on pro-darwin; elsewhere run `pre-commit install`.
+#
+# SOPS-encrypted files are excluded from every fixer: their MAC covers the
+# exact bytes, so even a whitespace "fix" would make them undecryptable.
+#
+# Not enabled yet (the current tree would fail): nixfmt (14 files unformatted),
+# statix (55 warnings), deadnix. Add them after a one-off cleanup commit.
+
+exclude: |
+  (?x)^(
+    anywhere/flake\.lock
+  )$
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: &sops_files '^(anywhere/secrets/.*\.yaml|anywhere/k8s/.*secret\.yaml|IaC/[^/]*\.tfvars|IaC/secrets/.*\.env)$'
+      - id: end-of-file-fixer
+        exclude: *sops_files
+      - id: mixed-line-ending
+        args: [--fix=lf]
+        exclude: *sops_files
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
+        exclude: ^anywhere/tests/ssh-access\.nix$ # throwaway key for the NixOS VM test
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: sops-encrypted
+        name: SOPS-managed files are encrypted
+        description: Files matched by the .sops.yaml creation_rules must carry SOPS metadata.
+        language: pygrep
+        entry: '(^sops:|^sops_version=|"sops":)'
+        args: [--negate]
+        files: *sops_files
+
+      - id: no-age-private-key
+        name: No AGE private keys
+        language: pygrep
+        entry: 'AGE-SECRET-KEY-1[0-9A-Z]{20,}'
+
+      - id: no-nix-result-link
+        name: No nix build result symlink
+        language: fail
+        entry: 'Remove the `result` symlink left by `nix build`.'
+        files: (^|/)result(-[a-z0-9]+)?$
+
+      - id: nix-parse
+        name: Nix files parse
+        language: system
+        entry: nix-instantiate --parse
+        files: \.nix$
+        # nix-instantiate --parse prints the AST; silence it but keep errors.
+        args: [--quiet]
+        verbose: false
+
+      - id: tofu-fmt
+        name: OpenTofu fmt
+        language: system
+        entry: tofu fmt -check -diff
+        files: ^IaC/.*\.tf$

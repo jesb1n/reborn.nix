@@ -1,0 +1,10 @@
+# Extends gitleaks' default rules (used by the pre-commit hook).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known non-secrets"
+paths = [
+  # Throwaway SSH key generated for the NixOS VM test; never used on a real host.
+  '''anywhere/tests/ssh-access\.nix''',
+]
