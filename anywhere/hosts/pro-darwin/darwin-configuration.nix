@@ -36,7 +36,6 @@
   };
 
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
-    "1password"
     "cursor"
     "slack"
     "spotify"
@@ -85,6 +84,7 @@
       "Bitwarden" = 1352778147;
     };
     casks = [
+      "1password"
       "anydesk"
       "arc"
       "chatgpt"
@@ -113,8 +113,6 @@
   };
 
   security.pam.services.sudo_local.touchIdAuth = true;
-
-  environment.systemPackages = [ pkgs._1password-gui ];
 
   # nix-darwin ≥ 26.05 only runs three shell-code slots on activation:
   # `preActivation.text`, `extraActivation.text`, `postActivation.text`.

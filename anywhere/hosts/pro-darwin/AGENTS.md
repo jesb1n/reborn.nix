@@ -81,7 +81,6 @@ The iCloud path (`/Users/jesbin/Library/Mobile Documents/com~apple~CloudDocs/Doc
 ## Unfree Packages
 
 `nixpkgs.config.allowUnfreePredicate` currently allows:
-- `1password` (1Password GUI)
 - `cursor` (Cursor editor)
 - `slack` (Slack)
 - `spotify` (Spotify)
@@ -97,6 +96,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 
 | Package | Reason |
 |---------|--------|
+| `1password` | The app self-updates and migrates its local data forward. The nixpkgs `_1password-gui` lives in the read-only store, cannot self-update, and lags upstream — once a newer build has touched the data, the Nix copy refuses to open it ("saved data appears to be newer than this version"). Use the official auto-updating cask. |
 | `anydesk` | Remote-control app requiring preserved macOS signing plus Accessibility and Screen Recording permissions; use the current official Homebrew cask. |
 | `arc` | Removed from nixpkgs (unmaintained). |
 | `cloudflare-warp` | Needs macOS Network Extension entitlements — cannot ship via Nix. |
@@ -127,10 +127,6 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 |-----|--------|--------|
 | `WireGuard` | `1451685025` | GUI VPN client. `wireguard-tools` (CLI) was removed since the MAS app covers the use case. |
 | `Bitwarden` | `1352778147` | Password manager. nixpkgs `bitwarden-desktop` uses EOL electron (insecure) — MAS version is safe and auto-updates. |
-
-### Nix (system — environment.systemPackages)
-
-- `_1password-gui` — 1Password GUI app (system-installed for proper macOS integration)
 
 ### Nix (home.packages)
 
@@ -217,7 +213,7 @@ sudo darwin-rebuild switch --flake .#pro-darwin
 - **Do not** try to install blocked gcloud components (`gke-gcloud-auth-plugin`, `cloud-run-proxy`, ...) via `gcloud components install` — it is blocked by both Nix and Homebrew SDK installations. Add another `install_gcloud_component` call inside `postActivation.text` instead.
 - **Do not** add `system.activationScripts.<customName>.text = "..."` expecting it to run — only `preActivation` / `extraActivation` / `postActivation` execute; custom names are silently ignored. Merge new activation code into `postActivation.text`.
 - **Do not** reintroduce `defaultbrowser` activation or PlistBuddy default-browser hacks.
-- **Do not** move `anydesk`, `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker-desktop`, `discord`, `microsoft-teams`, `whatsapp`, `handy`, `hermes-desktop`, `loom`, `visual-studio-code`, `github-copilot-app`, `lens`, or `zen` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
+- **Do not** move `1password`, `anydesk`, `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker-desktop`, `discord`, `microsoft-teams`, `whatsapp`, `handy`, `hermes-desktop`, `loom`, `visual-studio-code`, `github-copilot-app`, `lens`, or `zen` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
 - **Do not** reinstall `opencode`, `ripgrep`, `ffmpeg`, or `k6` via Homebrew — they are managed by Nix in `home.packages`. Brew copies shadow Nix because `sessionPath` prepends `/opt/homebrew/bin`.
 - **Do not** add `wireguard-tools` back to `home.packages` — WireGuard is managed via the Mac App Store GUI app.
 - **Do not** hardcode `user.name`/`user.email` via `git config --global` — use `programs.git.settings` in `home.nix`.
