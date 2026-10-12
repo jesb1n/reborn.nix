@@ -2,12 +2,24 @@
 #
 # Managed by nix-darwin + Determinate Nix. Rebuild with:
 #   darwin-rebuild switch --flake .#pro-darwin
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, inputs, ... }:
 
 {
-  # Determinate Nix manages the Nix installation, daemon, and settings.
+  # Determinate Nix manages the Nix installation and daemon. Its nix-darwin
+  # module (imported in flake.nix) sets nix.enable = false and writes
+  # /etc/nix/nix.custom.conf from determinateNix.customSettings — never edit
+  # that file by hand.
+  determinateNix = {
+    enable = true;
+    customSettings = {
+      # Lets `jesbin` use flake-declared caches without sudo prompts.
+      trusted-users = [ "root" "jesbin" ];
+    };
+    # nix.gc asserts nix.enable, so store GC is delegated to determinate-nixd.
+    determinateNixd.garbageCollector.strategy = "automatic";
+  };
+
   # /etc/nix/nix.conf already reads this standard builders file.
-  nix.enable = false;
   # Two distributed builders, one per Linux architecture. Fields are
   # positional: URI, systems, ssh-key (unused — given in the URI), maxJobs,
   # speedFactor, supportedFeatures, mandatoryFeatures. Because the aarch64
@@ -41,6 +53,32 @@
     "spotify"
   ];
 
+  # Pinned Homebrew + immutable taps. autoMigrate adopts the existing
+  # /opt/homebrew install (keeps installed packages).
+  nix-homebrew = {
+    enable = true;
+    user = "jesbin";
+    autoMigrate = true;
+    mutableTaps = false;
+    taps = {
+      "homebrew/homebrew-core" = inputs.homebrew-core;
+      "homebrew/homebrew-cask" = inputs.homebrew-cask;
+      "netbirdio/homebrew-tap" = inputs.homebrew-netbird;
+    };
+  };
+
+  # Prebuilt nix-index DB: command-not-found suggestions and `, <cmd>`.
+  programs.nix-index.enable = true;
+  programs.nix-index-database.comma.enable = true;
+
+  # sops-nix for Mac-side secrets. Decrypts with the pro_darwin age key from
+  # .sops.yaml; secrets activate only once secrets/pro-darwin/secrets.yaml exists.
+  sops = {
+    age.keyFile = "/Users/jesbin/.config/sops/age/keys.txt";
+    defaultSopsFile = lib.mkIf (builtins.pathExists ../../secrets/pro-darwin/secrets.yaml)
+      ../../secrets/pro-darwin/secrets.yaml;
+  };
+
   documentation.enable = false;
   documentation.doc.enable = false;
   documentation.man.enable = false;
@@ -72,6 +110,8 @@
     enable = true;
     onActivation.cleanup = "none";
     onActivation.autoUpdate = false;
+    # Self-updating casks are upgraded by `brew upgrade` too (alias `brewup`).
+    greedyCasks = true;
     taps = [
       {
         name = "netbirdio/tap";

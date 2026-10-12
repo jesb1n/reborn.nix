@@ -38,11 +38,30 @@
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs-unstable";
 
-    mac-app-util.url = "github:hraban/mac-app-util";
-    mac-app-util.inputs.nixpkgs.follows = "nixpkgs-unstable";
+    # pro-darwin only. Determinate's module manages nix.custom.conf and
+    # determinate-nixd; it must not follow our nixpkgs.
+    determinate.url = "https://flakehub.com/f/DeterminateSystems/determinate/3";
+
+    nix-index-database.url = "github:nix-community/nix-index-database";
+    nix-index-database.inputs.nixpkgs.follows = "nixpkgs-latest";
+
+    # Pins Homebrew itself and its taps; taps are immutable (mutableTaps = false).
+    nix-homebrew.url = "github:zhaofengli/nix-homebrew";
+    homebrew-core = {
+      url = "github:homebrew/homebrew-core";
+      flake = false;
+    };
+    homebrew-cask = {
+      url = "github:homebrew/homebrew-cask";
+      flake = false;
+    };
+    homebrew-netbird = {
+      url = "github:netbirdio/homebrew-tap";
+      flake = false;
+    };
   };
 
-  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-anywhere, nixos-raspberrypi, deploy-rs, disko, sops-nix, nix-darwin, home-manager, mac-app-util, ... }:
+  outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-anywhere, nixos-raspberrypi, deploy-rs, disko, sops-nix, nix-darwin, home-manager, ... }:
     let
       fleet = import ./lib/fleet.nix;
 
@@ -216,14 +235,22 @@
 
       darwinConfigurations.pro-darwin = nix-darwin.lib.darwinSystem {
         system = "aarch64-darwin";
+        specialArgs = { inherit inputs; };
         modules = [
           ./hosts/pro-darwin/darwin-configuration.nix
+          inputs.determinate.darwinModules.default
+          inputs.nix-homebrew.darwinModules.nix-homebrew
+          inputs.nix-index-database.darwinModules.nix-index
+          sops-nix.darwinModules.sops
           home-manager.darwinModules.home-manager
-          mac-app-util.darwinModules.default
           {
+            # Shows the deployed commit in `darwin-version`.
+            system.configurationRevision = self.rev or self.dirtyRev or null;
+
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
-            home-manager.sharedModules = [ mac-app-util.homeManagerModules.default ];
+            # Back up pre-existing dotfiles instead of failing activation.
+            home-manager.backupFileExtension = "hm-bak";
             home-manager.users.jesbin = import ./hosts/pro-darwin/home.nix;
           }
         ];

@@ -30,6 +30,8 @@
         gl = "git log --oneline -20";
         k = "kubectl";
         kx = "kubectx";
+        # Occasional cask/formula refresh; greedy also covers self-updating casks.
+        brewup = "brew update && brew upgrade --greedy";
       };
       initContent = ''
         # kubectl-aliases (https://github.com/ahmetb/kubectl-aliases)
@@ -112,6 +114,11 @@
     jq.enable = true;
     htop.enable = true;
   };
+
+  # Real app bundles in ~/Applications/Home Manager Apps so Spotlight/Launchpad
+  # index them (replaces mac-app-util's trampolines).
+  targets.darwin.linkApps.enable = false;
+  targets.darwin.copyApps.enable = true;
 
   home.packages = with pkgs; [
     fd
