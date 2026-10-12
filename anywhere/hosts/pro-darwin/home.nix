@@ -111,6 +111,15 @@
       enableZshIntegration = true;
     };
 
+    # SSH keys come from the 1Password agent (Settings → Developer → "Use the
+    # SSH agent"). Key files in ~/.ssh still work as a fallback.
+    ssh = {
+      enable = true;
+      enableDefaultConfig = false;
+      settings."*".IdentityAgent =
+        ''"~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"'';
+    };
+
     jq.enable = true;
     htop.enable = true;
   };
