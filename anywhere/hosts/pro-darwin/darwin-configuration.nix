@@ -53,6 +53,16 @@
     "spotify"
   ];
 
+  networking = {
+    hostName = "pro-darwin";
+    computerName = "pro-darwin";
+    localHostName = "pro-darwin";
+    applicationFirewall = {
+      enable = true;
+      enableStealthMode = true;
+    };
+  };
+
   # Pinned Homebrew + immutable taps. autoMigrate adopts the existing
   # /opt/homebrew install (keeps installed packages).
   nix-homebrew = {
@@ -97,6 +107,10 @@
       AppleShowAllExtensions = true;
       FXPreferredViewStyle = "Nlsv";
       ShowPathbar = true;
+    };
+    screensaver = {
+      askForPassword = true;
+      askForPasswordDelay = 0;
     };
     NSGlobalDomain = {
       AppleShowAllExtensions = true;
@@ -152,7 +166,10 @@
     ];
   };
 
-  security.pam.services.sudo_local.touchIdAuth = true;
+  security.pam.services.sudo_local = {
+    touchIdAuth = true;
+    reattach = true; # Touch ID inside tmux/screen
+  };
 
   # nix-darwin ≥ 26.05 only runs three shell-code slots on activation:
   # `preActivation.text`, `extraActivation.text`, `postActivation.text`.
