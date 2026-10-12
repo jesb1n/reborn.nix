@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__terminal__read_terminal",
+      "Bash(brew list)",
+      "Bash(brew list *)",
+      "Bash(defaults read *)",
+      "Bash(darwin-version)",
+      "Bash(darwin-version *)",
+      "Bash(scutil --get *)",
+      "Bash(brew info *)",
+      "Bash(git merge-base *)",
+      "Bash(nix-store -q *)",
+      "Bash(brew leaves)",
+      "mcp__mcp-registry__search_mcp_registry"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/nix-check.sh",
+            "timeout": 180,
+            "statusMessage": "Checking Nix…"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -304,6 +304,9 @@ flux reconcile kustomization immich -n flux-system --with-source
 
 ## Validation Checklist (before proposing changes)
 
+- **pre-commit**: `.pre-commit-config.yaml` runs on every commit (hygiene, gitleaks, SOPS-encryption guard, AGE key guard, `nix-instantiate --parse`, `tofu fmt`). Run all: `pre-commit run --all-files`. SOPS files are excluded from fixers — never let a tool rewrite them.
+- **Claude Code hook**: `.claude/hooks/nix-check.sh` (PostToolUse) parses every edited `.nix` file and evaluates `darwinConfigurations.pro-darwin` when pro-darwin files or `anywhere/flake.nix` change.
+
 - **Terraform**: `make -C IaC fmt && tofu -chdir=IaC validate`
 - **Nix**: `nix flake check` (from `anywhere/`)
 - **New Nix files**: `git add <file>` before any `nix eval` or deploy
