@@ -137,9 +137,6 @@
     rm -f /etc/nix/s145-builder-key /etc/nix/hp348-builder-key \
           /etc/nix/nuc7i3-builder-key
 
-    # --- Maccy: 100 ms clipboard poll (default 500 ms) --------------------
-    defaults write org.p0deje.Maccy clipboardCheckInterval -float 0.1
-
     # --- Blocked gcloud components ----------------------------------------
     # `google-cloud-sdk` from nixpkgs / Homebrew rejects
     # `gcloud components install` ("managed by an external package manager").

@@ -146,14 +146,15 @@
 
   # iTerm2 Dynamic Profile — Dracula theme + JetBrains Mono
   home.file.".kubectl_aliases".source = builtins.fetchurl {
-    url = "https://raw.githubusercontent.com/ahmetb/kubectl-aliases/master/.kubectl_aliases";
+    # Pinned to a commit: a branch URL breaks the fixed hash whenever upstream changes.
+    url = "https://raw.githubusercontent.com/ahmetb/kubectl-aliases/7549fa45bbde7499b927c74cae13bfb9169c9497/.kubectl_aliases";
     sha256 = "sha256:1acyhhhbfxz17ch77nf26x0cj4immsl6drcpwwbklrl49n9gm9ia";
   };
 
   # oh-my-zsh git plugin — lightweight, single file, no full framework
   home.file.".oh-my-zsh/plugins/git/git.plugin.zsh".source = builtins.fetchurl {
-    url = "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/plugins/git/git.plugin.zsh";
-    sha256 = "sha256:1al099fsaa9n620zaa82d4ragq87xvp76q6s389bcw92ibqr19ax";
+    url = "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/083c339e0622bfc144b66ebf1a2e8dbe7d2ada0d/plugins/git/git.plugin.zsh";
+    sha256 = "sha256:1l8kn2q9lc5jm552j08h821jyw4apysdywr30p2ganbq7dhnhig6";
   };
 
   home.file."Library/Application Support/iTerm2/DynamicProfiles/Nix.json".text = builtins.toJSON {

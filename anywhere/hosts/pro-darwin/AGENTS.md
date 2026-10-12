@@ -102,7 +102,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | `cloudflare-warp` | Needs macOS Network Extension entitlements — cannot ship via Nix. |
 | `tailscale-app` | Needs macOS Network Extension entitlements. (The `tailscale` CLI IS installed via Nix in home.packages — separate from the GUI app.) |
 | `warp` | Marked broken in nixpkgs. |
-| `maccy` | Not in nixpkgs. Configured via `defaults write org.p0deje.Maccy ...`. |
+| `maccy` | Not in nixpkgs. Preferences set manually (sandboxed app — see Maccy section). |
 | `docker-desktop` | Requires macOS system extensions; Docker Desktop is not available in nixpkgs. (Cask was renamed from `docker`.) |
 | `discord` | The Nix app is rejected by Gatekeeper when launched through mac-app-util's Home Manager trampoline; use the official signed cask. |
 | `microsoft-teams` | The Nix app is rejected by Gatekeeper when launched through mac-app-util's Home Manager trampoline; use Microsoft's official signed cask. |
@@ -161,7 +161,7 @@ nix-darwin (≥ 26.05) only runs three shell-code slots on activation:
 
 Any other name (e.g. `system.activationScripts.installGkePlugin.text`, `.setBrowser.text`, `.configureMaccy.text`) is **silently ignored as far as execution is concerned** — it only produces a dead file derivation. This is different from NixOS, and different from older nix-darwin. The `postUserActivation`/`preUserActivation` slots have also been removed (activation is now always root; assertions will fire if you use them).
 
-**Rule**: put all custom activation shell code inside `system.activationScripts.postActivation.text`. `pro-darwin`'s single `postActivation` block contains: Maccy `defaults write`, and the `install_gcloud_component` helper + its calls.
+**Rule**: put all custom activation shell code inside `system.activationScripts.postActivation.text`. `pro-darwin`'s single `postActivation` block contains: the fleet builder key copy, and the `install_gcloud_component` helper + its calls. Activation runs as root, so never use a bare `defaults write` here for user preferences — it writes root's domain. Use `system.defaults.CustomUserPreferences` for non-sandboxed apps.
 
 Verify a change actually runs by looking for its output in `sudo darwin-rebuild switch --flake .#pro-darwin` output, or by grepping the built activate script: `grep -c '<marker>' /run/current-system/activate`.
 
@@ -173,7 +173,8 @@ Verify a change actually runs by looking for its output in `sudo darwin-rebuild 
 ## Maccy (Clipboard Manager)
 
 - Installed via Homebrew cask `maccy`.
-- Configured via activation script using `defaults write org.p0deje.Maccy ...`.
+- **Preferences are NOT managed by Nix.** Maccy is sandboxed, so its domain lives in `~/Library/Containers/org.p0deje.Maccy/`. macOS blocks other processes from writing there, so `system.defaults.CustomUserPreferences` aborts activation ("Could not write domain …"), and a `defaults write` in `postActivation` runs as root and writes root's domain instead. Set it once by hand from a terminal and allow the "access data from other apps" prompt:
+  `defaults write org.p0deje.Maccy clipboardCheckInterval -float 0.1`
 - Current settings: `clipboardCheckInterval = 0.1` (100ms; default is 500ms).
 - Other useful keys from README: `ignoreEvents`, `showFooter`. See https://github.com/p0deje/Maccy for full list.
 
