@@ -125,7 +125,7 @@
     kubectl
     kubectx
     kubernetes-helm
-    opencode
+    # opencode # TEMP: 1.18.4 not cached; local build's smoke test is SIGKILLed on macOS 27 (2026-10-12)
     tailscale
     cloudflared
     k9s
@@ -139,7 +139,7 @@
     oci-cli
     sops
     iterm2
-    spotify
+    # spotify # TEMP: nixpkgs fetches the dmg from web.archive.org at ~70 KB/s (2026-10-12)
     ffmpeg
     k6
   ];

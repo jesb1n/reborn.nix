@@ -106,7 +106,7 @@
       "tailscale-app"
       "visual-studio-code"
       "vlc"
-      "warp"
+      # "warp" # TEMP: upstream cask checksum mismatch (2026-10-12); re-enable once fixed
       "whatsapp"
       "zen"
     ];
