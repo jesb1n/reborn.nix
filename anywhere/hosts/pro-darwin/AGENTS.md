@@ -205,6 +205,19 @@ When adding new aliases or functions, keep them in the same section for discover
 - The hook is written by `home.activation.preCommitTemplate` as a **real file** (`install -m 0755`), calling `/etc/profiles/per-user/jesbin/bin/pre-commit`. Do not convert it to `home.file` or reference a `/nix/store` path: git copies template files — symlinks included — into each repo, so those would dangle after GC.
 - Repos without `.pre-commit-config.yaml` are skipped (`--skip-on-missing-config`). For existing repos run `git init` (safe) or `pre-commit install` once.
 
+## Claude Code MCP servers
+
+Registered at user scope (`~/.claude.json`, mutable state — not Nix-managed) with:
+
+```bash
+claude mcp add --scope user github -- /etc/profiles/per-user/jesbin/bin/github-mcp
+claude mcp add --scope user kubernetes -- /opt/homebrew/bin/kubernetes-mcp-server --config /Users/jesbin/.config/kubernetes-mcp-server/config.toml
+```
+
+- **github**: `github-mcp` (home.nix `writeShellApplication`) reads the PAT with `op read` from `op://Private/GitHub MCP/token` (override: `GITHUB_MCP_OP_REF`) and execs `github-mcp-server stdio`. Needs 1Password → Settings → Developer → "Integrate with 1Password CLI". Use a fine-grained PAT scoped to the repos you want Claude to touch.
+- **kubernetes**: Homebrew formula (not in nixpkgs). `config.toml` pins `kubeconfig = ~/.kube/s145.yaml`, `read_only = true`; it must never fall back to `~/.kube/config` (GKE work contexts). Fetch `s145.yaml` from s145 once SSH works.
+- `_1password-cli` is unfree → listed in `allowUnfreePredicate` as `1password-cli`.
+
 ## Networking, firewall, SSH
 
 - `networking.hostName`/`computerName`/`localHostName` = `pro-darwin`.

@@ -50,6 +50,7 @@
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "cursor"
     "slack"
+    "1password-cli" # op, used by the github-mcp launcher (home.nix)
   ];
 
   networking = {
@@ -147,7 +148,12 @@
         trusted = true;
       }
     ];
-    brews = [ "netbirdio/tap/netbird" ];
+    brews = [
+      "netbirdio/tap/netbird"
+      # Kubernetes MCP server for Claude Code; not in nixpkgs. Config is
+      # ~/.config/kubernetes-mcp-server/config.toml (home.nix).
+      "kubernetes-mcp-server"
+    ];
     masApps = {
       "WireGuard" = 1451685025;
       "Bitwarden" = 1352778147;

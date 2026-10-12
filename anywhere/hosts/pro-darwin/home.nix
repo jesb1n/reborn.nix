@@ -153,6 +153,14 @@
       run install -D -m 0755 ${hook} "$HOME/.git-template/hooks/pre-commit"
     '';
 
+  # Kubernetes MCP server (Homebrew formula): read-only, s145 cluster only.
+  # It never falls back to ~/.kube/config, which holds the GKE work contexts.
+  xdg.configFile."kubernetes-mcp-server/config.toml".text = ''
+    kubeconfig = "${config.home.homeDirectory}/.kube/s145.yaml"
+    read_only = true
+    toolsets = ["core", "config", "helm"]
+  '';
+
   # Target of system.defaults.screencapture.location.
   home.file."Pictures/Screenshots/.keep".text = "";
 
@@ -182,6 +190,21 @@
     iterm2
     ffmpeg
     k6
+    _1password-cli
+    github-mcp-server
+    # GitHub MCP server for Claude Code. The token never touches disk: `op read`
+    # fetches it from 1Password (Touch ID) at launch. Override the item with
+    # GITHUB_MCP_OP_REF if it lives elsewhere.
+    (writeShellApplication {
+      name = "github-mcp";
+      runtimeInputs = [ _1password-cli github-mcp-server ];
+      text = ''
+        ref="''${GITHUB_MCP_OP_REF:-op://Private/GitHub MCP/token}"
+        GITHUB_PERSONAL_ACCESS_TOKEN="$(op read "$ref")"
+        export GITHUB_PERSONAL_ACCESS_TOKEN
+        exec github-mcp-server stdio "$@"
+      '';
+    })
   ];
 
   # iTerm2 Dynamic Profile — Dracula theme + JetBrains Mono
