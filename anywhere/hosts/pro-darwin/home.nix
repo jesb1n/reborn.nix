@@ -120,13 +120,11 @@
     tree
     gh
     tmux
-    nodejs
     pre-commit
     kubectl
     kubectx
     kubernetes-helm
     # opencode # TEMP: 1.18.4 not cached; local build's smoke test is SIGKILLed on macOS 27 (2026-10-12)
-    tailscale
     cloudflared
     k9s
     code-cursor

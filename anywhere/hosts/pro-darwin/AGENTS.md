@@ -100,7 +100,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | `anydesk` | Remote-control app requiring preserved macOS signing plus Accessibility and Screen Recording permissions; use the current official Homebrew cask. |
 | `arc` | Removed from nixpkgs (unmaintained). |
 | `cloudflare-warp` | Needs macOS Network Extension entitlements — cannot ship via Nix. |
-| `tailscale-app` | Needs macOS Network Extension entitlements. (The `tailscale` CLI IS installed via Nix in home.packages — separate from the GUI app.) |
+| `tailscale-app` | Needs macOS Network Extension entitlements. The app installs its own matching `tailscale` CLI at `/usr/local/bin/tailscale`; do NOT add nixpkgs `tailscale` to home.packages — a second CLI can drift out of version with the app's daemon. |
 | `warp` | Marked broken in nixpkgs. |
 | `maccy` | Not in nixpkgs. Preferences set manually (sandboxed app — see Maccy section). |
 | `docker-desktop` | Requires macOS system extensions; Docker Desktop is not available in nixpkgs. (Cask was renamed from `docker`.) |
@@ -130,7 +130,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 
 ### Nix (home.packages)
 
-CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `pre-commit`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `tailscale` (CLI), `cloudflared`, `k9s`, `google-cloud-sdk`, `opentofu`, `awscli2`, `oci-cli`, `sops`, `ffmpeg`, `k6`
+CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `pre-commit`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `cloudflared`, `k9s`, `google-cloud-sdk`, `opentofu`, `awscli2`, `oci-cli`, `sops`, `ffmpeg`, `k6`
 GUI: `code-cursor`, `firefox`, `iterm2`, `slack`, `spotify`
 
 ### Homebrew tap bundles
@@ -215,6 +215,7 @@ sudo darwin-rebuild switch --flake .#pro-darwin
 - **Do not** reintroduce `defaultbrowser` activation or PlistBuddy default-browser hacks.
 - **Do not** move `1password`, `anydesk`, `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker-desktop`, `discord`, `microsoft-teams`, `whatsapp`, `handy`, `hermes-desktop`, `loom`, `visual-studio-code`, `github-copilot-app`, `lens`, or `zen` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
 - **Do not** reinstall `opencode`, `ripgrep`, `ffmpeg`, or `k6` via Homebrew — they are managed by Nix in `home.packages`. Brew copies shadow Nix because `sessionPath` prepends `/opt/homebrew/bin`.
+- **Do not** add `nodejs` to `home.packages` — `~/.local/bin/node` (Hermes's bundled node) comes first on PATH and shadows it.
 - **Do not** add `wireguard-tools` back to `home.packages` — WireGuard is managed via the Mac App Store GUI app.
 - **Do not** hardcode `user.name`/`user.email` via `git config --global` — use `programs.git.settings` in `home.nix`.
 - **Do not** commit from the iCloud path — use `/Users/jesbin/Documents/oracle-cloud-free-tier/`.
