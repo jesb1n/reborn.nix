@@ -120,6 +120,9 @@
   targets.darwin.linkApps.enable = false;
   targets.darwin.copyApps.enable = true;
 
+  # Target of system.defaults.screencapture.location.
+  home.file."Pictures/Screenshots/.keep".text = "";
+
   home.packages = with pkgs; [
     fd
     ripgrep

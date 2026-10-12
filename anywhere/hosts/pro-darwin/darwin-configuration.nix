@@ -63,6 +63,9 @@
     };
   };
 
+  # Used by the iTerm2 dynamic profile and starship glyphs (home.nix).
+  fonts.packages = [ pkgs.nerd-fonts.jetbrains-mono ];
+
   # Pinned Homebrew + immutable taps. autoMigrate adopts the existing
   # /opt/homebrew install (keeps installed packages).
   nix-homebrew = {
@@ -107,16 +110,29 @@
       AppleShowAllExtensions = true;
       FXPreferredViewStyle = "Nlsv";
       ShowPathbar = true;
+      ShowStatusBar = true;
+      _FXShowPosixPathInTitle = true;
+      _FXSortFoldersFirst = true;
+      FXDefaultSearchScope = "SCcf"; # search the current folder
+      FXEnableExtensionChangeWarning = false;
+    };
+    trackpad.Clicking = true; # tap to click
+    screencapture = {
+      location = "/Users/jesbin/Pictures/Screenshots"; # created in home.nix
+      type = "png";
     };
     screensaver = {
       askForPassword = true;
       askForPasswordDelay = 0;
     };
+    # Clicking the wallpaper must not hide every window (Sonoma+ default).
+    WindowManager.EnableStandardClickToShowDesktop = false;
     NSGlobalDomain = {
       AppleShowAllExtensions = true;
       InitialKeyRepeat = 15;
       KeyRepeat = 2;
       NSAutomaticSpellingCorrectionEnabled = false;
+      NSDocumentSaveNewDocumentsToCloud = false;
     };
   };
 
