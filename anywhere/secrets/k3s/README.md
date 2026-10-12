@@ -19,4 +19,3 @@ Generate a token locally with:
 ```bash
 openssl rand -base64 48
 ```
-
