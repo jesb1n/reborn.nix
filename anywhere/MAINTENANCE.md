@@ -8,6 +8,9 @@ checks for the systems defined in `anywhere/flake.nix`. Run commands from
 
 - Review `git status --short` and the relevant diff before every operation.
 - Use deploy-rs for routine NixOS updates; do not use `nixos-anywhere`.
+- Every host also pulls and rebuilds itself from `main` nightly
+  (`profiles/auto-upgrade.nix`), so **pushing to `main` deploys the fleet**
+  within about a day even without a manual deploy.
 - Deploy workers first and `s145` last for fleet-wide changes.
 - Keep at least one known-good generation until the cluster is stable.
 - Never write decrypted SOPS data to the repository.
@@ -147,47 +150,27 @@ sudo darwin-rebuild switch --flake .#pro-darwin
 
 Preserve the host invariants documented in `hosts/pro-darwin/AGENTS.md`.
 
-## Hermes Agent
+## ARM binary cache (oracle-eu-arm1)
 
-`oracle-eu-arm1` runs Hermes Agent with OpenAI Codex as the default model,
-Google Gemini as an alternative provider, and Telegram as its messaging
-gateway. The service is enabled only when
-`secrets/oracle-eu-arm1/secrets.yaml` exists. That encrypted file supplies:
+`oracle-eu-arm1` serves a self-hosted Nix binary cache (`nix-serve`, see
+`profiles/binary-cache.nix`) to the other aarch64 nodes over Tailscale at
+`http://100.84.230.4:5000`. It is enabled only when
+`secrets/oracle-eu-arm1/secrets.yaml` exists, because the NAR signing key
+(`nix-cache-signing-key`) comes from it. The matching public key is committed
+in `lib/binary-caches.nix` under the `arm` scope; `rpi` and `oracle-in-arm1`
+consume it.
 
-- `hermes/telegram-bot-token`
-- `hermes/telegram-allowed-users`
-- `hermes/google-api-key`
-
-After the first deployment, bootstrap ChatGPT OAuth interactively on the host:
-
-```bash
-ssh duck@oracle-eu-arm1
-hermes auth add codex-oauth
-sudo systemctl restart hermes-agent
-```
-
-The command starts a device-code flow. Open only the URL it prints, authenticate
-with the intended ChatGPT account, and never paste the resulting credentials
-into Git or chat. Hermes stores its persistent state under
-`/var/lib/hermes/.hermes/`.
-
-Check the gateway and provider configuration with:
+Check the cache from the operator machine or any tailnet host:
 
 ```bash
 ssh duck@oracle-eu-arm1 \
-  'systemctl status hermes-agent --no-pager; journalctl -u hermes-agent -n 50 --no-pager'
-ssh duck@oracle-eu-arm1 'hermes doctor'
+  'systemctl status nix-serve --no-pager; journalctl -u nix-serve -n 50 --no-pager'
+curl -fsS http://100.84.230.4:5000/nix-cache-info
 ```
 
-Security boundaries:
-
-- Keep `TELEGRAM_ALLOWED_USERS` restricted to explicitly approved numeric user
-  IDs; never enable `TELEGRAM_ALLOW_ALL_USERS`.
-- The hardened systemd unit limits filesystem access, but Hermes can execute
-  shell commands as the `hermes` user. Treat every approved Telegram user as
-  having shell access to that account.
-- Rotate the bot token, Google API key, or OAuth grant immediately if exposed,
-  then restart `hermes-agent` and verify it with `hermes doctor`.
+Hermes Agent no longer runs on any NixOS host (removed in commit `6b6690a`);
+the `hermes/*` entries still present in `secrets/oracle-eu-arm1/secrets.yaml`
+are legacy and have no declarations in `hosts/oracle-eu-arm1/sops.nix`.
 
 ## SOPS operations
 

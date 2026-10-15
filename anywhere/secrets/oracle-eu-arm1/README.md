@@ -1,6 +1,6 @@
 # oracle-eu-arm1 host secrets
 
-Host-specific SOPS secrets for this ARM k3s agent (Hermes Agent gateway).
+Host-specific SOPS secrets for this ARM k3s agent and aarch64 binary cache.
 Encrypted with the host age key (see `.sops.yaml`) and decrypted at
 activation time into `/run/secrets/`.
 
@@ -9,24 +9,25 @@ Shared k3s credentials live in `secrets/k3s/secrets.yaml`.
 
 ## `secrets.yaml`
 
-Hermes Agent Telegram-gateway credentials. Create with:
-
-```bash
-cd ~/oracle-cloud-free-tier/anywhere
-sops secrets/oracle-eu-arm1/secrets.yaml
-```
-
-Required keys:
+Expected plaintext shape while editing with `sops`:
 
 ```yaml
-hermes:
-  telegram-bot-token: "123456789:AA..."           # from @BotFather
-  telegram-allowed-users: "12345678,87654321"     # numeric IDs from @userinfobot
-  google-api-key: "AIza..."                       # Google AI Studio / Gemini API key
+nix-cache-signing-key: "reborn-arm-1:<base64 private key>"
 ```
 
-These are surfaced to the gateway via a SOPS template that produces
-`/run/secrets/rendered/hermes-agent.env` (see `hosts/oracle-eu-arm1/sops.nix`).
+`nix-cache-signing-key` is the private NAR signing key for the self-hosted
+binary cache (`profiles/binary-cache.nix`). Only the public half is committed,
+in `lib/binary-caches.nix`. Generate a new pair with:
 
-Until this file exists, `services.hermes-agent` stays disabled — the rest of
-the host config (k3s, Tailscale) deploys normally.
+```bash
+nix key generate-secret --key-name <name> > cache-priv.pem
+nix key convert-secret-to-public < cache-priv.pem   # -> lib/binary-caches.nix
+sops secrets/oracle-eu-arm1/secrets.yaml             # paste the private half
+```
+
+While this file is absent, `fleet.binaryCache` stays disabled and the rest of
+the host (k3s, Tailscale) deploys normally.
+
+The file may still contain legacy `hermes/*` keys from the removed Hermes
+Agent gateway (commit `6b6690a`). Nothing declares them in
+`hosts/oracle-eu-arm1/sops.nix`; they can be deleted on the next edit.

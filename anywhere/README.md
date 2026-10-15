@@ -4,7 +4,9 @@
 NixOS hosts, the `pro-darwin` operator machine, and the Kubernetes resources
 running on the `s145` k3s cluster.
 
-- Routine NixOS updates use deploy-rs.
+- Routine NixOS updates use deploy-rs. Every fleet host also rebuilds itself
+  from `main` nightly via `profiles/auto-upgrade.nix`, so a push to `main`
+  reaches the fleet without a manual deploy.
 - `pro-darwin` uses `darwin-rebuild`, not deploy-rs.
 - New installations may use `nixos-anywhere`; it is destructive and is never a
   routine update command.
@@ -19,12 +21,15 @@ model.
 | Path | Purpose |
 | --- | --- |
 | `flake.nix` | Inputs, host outputs, dev shells, and deploy-rs nodes |
-| `profiles/` | Shared NixOS behavior for base, server, Tailscale, and k3s roles |
+| `lib/` | `fleet.nix` host inventory and `binary-caches.nix` cache trust inventory |
+| `profiles/` | Shared NixOS behavior: base, server, Tailscale, k3s roles, auto-upgrade, binary cache, Pi-hole, smartd |
 | `hosts/<name>/` | Host identity, disks, hardware overrides, and secret declarations |
 | `secrets/` | SOPS-encrypted host and shared credentials |
 | `operator/` | Flux Operator `FluxInstance` configuration |
 | `clusters/s145/` | Flux `Kustomization` registrations |
 | `k8s/` | Kubernetes resources consumed by those registrations |
+| `scripts/` | `fleet-release` and `fleet-reconcile` used by the GitHub Actions NixOS workflows |
+| `tests/` | Fleet invariants, the SSH-access VM test, and the reconciler shell test |
 | `docs/` | Installation, migration, and technical runbooks |
 
 ## Host outputs
@@ -33,10 +38,11 @@ model.
 | --- | --- | --- | --- |
 | `s145` | `x86_64-linux` | k3s server, durable storage, Garage, distributed x86_64 Nix builder | target host |
 | `nuc7i3` | `x86_64-linux` | k3s agent, general-purpose server | target host |
-| `oracle-eu-arm1` | `aarch64-linux` | k3s agent, Hermes Agent, distributed aarch64 Nix builder | target host (is the builder) |
+| `oracle-eu-arm1` | `aarch64-linux` | k3s agent, ARM binary cache (`nix-serve`), distributed aarch64 Nix builder | target host (is the builder) |
 | `oracle-in-arm1` | `aarch64-linux` | k3s agent, monitoring | `oracle-eu-arm1` for Mac-initiated builds |
 | four Oracle micro nodes | `x86_64-linux` | resource-limited k3s agents | `s145` for Mac-initiated builds |
-| `rpi` | `aarch64-linux` | k3s agent | `oracle-eu-arm1` for Mac-initiated builds |
+| `rpi` | `aarch64-linux` | k3s agent, Pi-hole DNS, exit node and LAN subnet router | `oracle-eu-arm1` for Mac-initiated builds |
+| `travelmate` | `x86_64-linux` | standalone Plasma laptop; not in the fleet, not a deploy-rs node | local |
 | `pro-darwin` | `aarch64-darwin` | operator workstation | local Mac |
 
 Two distributed builders are registered on `pro-darwin`, one per Linux

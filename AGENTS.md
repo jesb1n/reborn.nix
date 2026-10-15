@@ -31,13 +31,16 @@ The `anywhere/` directory is a standalone Nix flake that manages NixOS configura
 ```
 anywhere/
 ├── flake.nix              # Inputs, deploy-rs nodes, NixOS configs
-├── profiles/              # Shared NixOS modules (base, server, tailscale, k3s-*, hermes-agent)
+├── lib/                   # fleet.nix (host inventory) and binary-caches.nix (cache trust inventory)
+├── profiles/              # Shared NixOS modules (base, server, tailscale, k3s-*, auto-upgrade, binary-cache, pihole, smartd)
 ├── hosts/<hostname>/      # Per-host: configuration.nix, disko-config.nix, sops.nix
 ├── secrets/<hostname>/    # SOPS-encrypted host secrets (decrypted at activation)
 ├── clusters/s145/         # Flux Operator GitOps manifests (Kustomizations for apps)
-├── k8s/                   # Kubernetes resources (mostly reconciled by Flux)
+├── k8s/                   # Kubernetes resources (all reconciled by Flux)
 ├── operator/              # Flux Operator FluxInstance CR
-├── docs/                  # Planning/runbooks (GATEWAY-NLB-PLAN, K3S-S145-MIGRATION, ORACLE-IN-MICRO-NIXOS, RPI4-KEXEC-FIX)
+├── scripts/               # fleet-release / fleet-reconcile (GitHub Actions release + reconcile pipeline)
+├── tests/                 # fleet-invariants.nix, ssh-access.nix (VM test), fleet-reconcile.sh
+├── docs/                  # Planning/runbooks (GATEWAY-NLB-PLAN, K3S-S145-MIGRATION, MCP-VIEWER-PLAN, OPENWRT-BRIDGE-PLAN, ORACLE-IN-MICRO-NIXOS, RPI4-KEXEC-FIX, TRAVELMATE-NIXOS)
 ├── .sops.yaml             # SOPS creation rules — maps age keys to secret paths
 ├── .envrc                 # direnv: sets KUBECONFIG + SOPS_AGE_KEY_FILE
 ├── MAINTENANCE.md         # Runbook for routine ops
@@ -55,7 +58,9 @@ Host configs import reusable profiles from `anywhere/profiles/`. Shared settings
 | Tailscale enable/openFirewall settings | `profiles/tailscale.nix` |
 | k3s server flags, disabled components | `profiles/k3s-server.nix` |
 | k3s agent flags, taints, labels, zramSwap | `profiles/k3s-agent.nix` or `profiles/k3s-agent-tiny.nix` |
-| Hermes Agent gateway config | `profiles/hermes-agent.nix` |
+| Pull-based auto-upgrade schedule/reboot policy | `profiles/auto-upgrade.nix` (`fleet.autoUpgrade.*`) |
+| Self-hosted Nix binary cache (nix-serve) | `profiles/binary-cache.nix` (`fleet.binaryCache.*`) + `lib/binary-caches.nix` |
+| Pi-hole DNS (rpi) | `profiles/pihole.nix` (`fleet.pihole.*`) |
 | Hostname, node IP, Tailscale extra flags | `hosts/<name>/configuration.nix` |
 | Disk layout | `hosts/<name>/disko-config.nix` |
 | SOPS secret declarations | `hosts/<name>/sops.nix` |
@@ -168,9 +173,8 @@ Anything merged there reaches every node within ~24h without a manual deploy.
 ### Kubernetes (s145 cluster)
 
 - `KUBECONFIG` is set by `.envrc` to `~/.kube/s145.yaml`.
-- **Flux-managed apps**: push to `anywhere/clusters/s145/`, then `flux reconcile kustomization <name> -n flux-system --with-source`.
-- **Manual apps**: `kubectl apply -f anywhere/k8s/<app>/`. Stateful workloads pin to `s145` via `nodeSelector` so PVCs land on the HDD.
-- **From s145 directly** (no kubeconfig): `ssh duck@s145 'sudo k3s kubectl apply -f -' < file.yaml`.
+- **All apps under `anywhere/k8s/` are Flux-managed**: commit and push to `main`, then `flux reconcile kustomization <name> -n flux-system --with-source`. Do not `kubectl apply` Flux-owned resources; Flux restores Git state. Stateful workloads pin to `s145` via `nodeSelector` so PVCs land on the HDD.
+- **From s145 directly** (no kubeconfig, for one-off non-Flux resources only): `ssh duck@s145 'sudo k3s kubectl apply -f -' < file.yaml`.
 
 ### Critical NixOS quirks
 
@@ -214,7 +218,9 @@ base.nix          ← users (duck), weekly GC, minimal footprint
 + k3s-server.nix  ← s145 only
   OR k3s-agent.nix          ← arm + rpi + nuc7i3
   OR k3s-agent-tiny.nix     ← micro nodes (adds zramSwap 50%, max-pods=10)
-+ hermes-agent.nix          ← oracle-eu-arm1 only
++ binary-cache.nix          ← oracle-eu-arm1 only (self-hosted nix-serve for ARM nodes)
++ pihole.nix                ← rpi only
++ smartd.nix                ← bare metal only (s145, nuc7i3)
 + disko-config.nix          ← all except oracle-eu-arm1 (has hardware-configuration.nix)
 + sops.nix                  ← per-host secret declarations
 ```
@@ -277,11 +283,12 @@ ssh duck@s145 'sudo k3s kubectl get pods -A'
 export KUBECONFIG=~/.kube/s145.yaml
 kubectl get nodes
 
-# Apply k8s manifests (NOT auto-deployed — manual only)
-kubectl apply -f anywhere/k8s/_infra/
-kubectl apply -f anywhere/k8s/vaultwarden/
+# Validate manifests without touching the cluster
+kubectl kustomize anywhere/k8s/<app>
+kubectl apply --dry-run=client -f anywhere/clusters/s145/<app>.yaml
 
-# Flux reconcile
+# Flux reconcile (after commit + push to main)
+flux get kustomizations -n flux-system
 flux reconcile kustomization immich -n flux-system --with-source
 ```
 
@@ -295,7 +302,7 @@ flux reconcile kustomization immich -n flux-system --with-source
   ssh duck@s145 'sudo k3s kubectl taint node oracle-in-micro2 tiny=true:NoSchedule --overwrite'
   ```
 - **`k3s serverAddr` is hardcoded** to `https://100.69.231.117:6443` (s145's Tailscale IP) in `profiles/k3s-agent.nix`. If s145's Tailscale IP changes, update this file and redeploy all agents.
-- **k8s manifests in `anywhere/k8s/` are NOT auto-deployed.** They are not in k3s's auto-deploy directory. Only Traefik's HelmChartConfig and Cloudflare secret are placed there by NixOS activation via s145's `sops.nix` + `traefik.nix`. `k8s/garage/` (the self-hosted Garage backend for IaC state) and `k8s/immich/` are Flux-managed via `clusters/s145/*.yaml`; their secrets are sops-encrypted files (`k8s/garage/garage-secret.yaml`, `k8s/immich/immich-secret.yaml`). See `anywhere/k8s/README.md` for conventions.
+- **Every directory in `anywhere/k8s/` is Flux-managed** through a registration in `anywhere/clusters/s145/<app>.yaml` (`infra`, `cloudflared`, `garage`, `immich`, `immich-public-proxy`, `litellm`, `monitoring`, `omniroute`, `vaultwarden`). A new directory deploys nothing until registered. Nothing in `k8s/` is in k3s's auto-deploy directory; only Traefik's HelmChartConfig and the Cloudflare ACME secret get there, via NixOS activation from s145's `sops.nix` + `traefik.nix`. In-cluster secrets are sops-encrypted manifests (`k8s/<app>/*secret.yaml`) keyed to the `s145_cluster` recipient, each with its own `.sops.yaml` creation rule. See `anywhere/k8s/README.md` for conventions.
 - **Traefik Middleware is namespace-scoped.** App IngressRoutes reference `security-headers` in their own namespace, not `kube-system/security-headers`.
 - **All stateful workloads pin `nodeSelector: kubernetes.io/hostname: s145`** because PVCs use `local-path` storage backed by s145's 1 TB HDD.
 - **Flux GitOps** syncs `github.com/jesb1n/reborn.nix@main` → `anywhere/clusters/s145/` via `FluxInstance` in `anywhere/operator/flux-instance.yaml`.
@@ -314,7 +321,9 @@ flux reconcile kustomization immich -n flux-system --with-source
 
 ## CI (GitHub Actions)
 
-Both workflows (`apply.yml`, `destroy.yml`) are **manual-only** (`workflow_dispatch`). They use OpenTofu 1.9.1 on `ubuntu-latest`, write S3 backend creds from GitHub Secrets, and run the standard init → plan → apply/destroy flow. If `apply` fails, it pushes `errored.tfstate` to the backend for recovery.
+The OpenTofu workflows (`apply.yml`, `destroy.yml`) are **manual-only** (`workflow_dispatch`). They use OpenTofu 1.9.1 on `ubuntu-latest`, write S3 backend creds from GitHub Secrets, and run the standard init → plan → apply/destroy flow. If `apply` fails, it pushes `errored.tfstate` to the backend for recovery.
+
+Three NixOS workflows also exist: `nixos-ci.yml` (fleet checks, SSH VM test, native x86/ARM closure release via `anywhere/scripts/fleet-release`), `nixos-reconcile.yml` (rebuilds an exact `main` SHA and activates selected hosts via `anywhere/scripts/fleet-reconcile`, check-only by default), and `nix-cache-keys.yml` (validates `lib/binary-caches.nix`; never rotates keys). `nixos-ci` and `nixos-reconcile` are currently **`workflow_dispatch`-only** — automatic PR/push/schedule triggers are paused even though `docs/CICD.md` still describes them. See `CLAUDE.md` and `docs/CICD.md`.
 
 ## What Not to Commit
 
@@ -333,7 +342,7 @@ separate rotation/removal and must not be copied as a pattern for new hosts.
 - [docs/SETUP.md](docs/SETUP.md) — step-by-step provisioning guide
 - [docs/PREREQUISITES.md](docs/PREREQUISITES.md) — required tools, accounts, credentials
 - [docs/CICD.md](docs/CICD.md) — GitHub Actions secrets and workflow details
-- [anywhere/MAINTENANCE.md](anywhere/MAINTENANCE.md) — NixOS host operations runbook (daily checks, rollback, GC, Hermes)
+- [anywhere/MAINTENANCE.md](anywhere/MAINTENANCE.md) — NixOS host operations runbook (daily checks, rollback, GC, ARM binary cache)
 - [anywhere/README.md](anywhere/README.md) — host management, Tailscale setup, nixos-anywhere install
 - [anywhere/docs/ORACLE-IN-MICRO-NIXOS.md](anywhere/docs/ORACLE-IN-MICRO-NIXOS.md) — India E2.1.Micro Ubuntu → NixOS via nixos-anywhere (s145 builder, swap prep)
 - [.github/instructions/nixos.instructions.md](.github/instructions/nixos.instructions.md) — NixOS deployment rules for GitHub Copilot
