@@ -50,6 +50,11 @@ jobs:
             --expr '(import ./lib/binary-caches.nix).valid' | grep -qx true
           nix eval --json --no-write-lock-file --impure \
             --expr '(import ./lib/binary-caches.nix).caches' | jq --sort-keys . > "$RUNNER_TEMP/cache-inventory.json"
+          # These rules restate lib/binary-caches.nix (`validUrl`, `scopeNames`):
+          # public caches are https:// by hostname; `arm`-scope caches are the
+          # self-hosted nix-serve instances, addressed by Tailscale CGNAT IP over
+          # plain http (the tailnet provides transport security; NAR signatures
+          # provide trust). Keep the two in sync when adding a scope.
           jq -e '
             length > 0 and
             ([.[].name] | length == (unique | length)) and
@@ -57,10 +62,12 @@ jobs:
             ([.[].publicKey] | length == (unique | length)) and
             ([.[] | select(.baseline == true)] | length == 1) and
             all(.[];
-              (.url | test("^https://[^/]+/?$")) and
               (.publicKey | test("^[^:]+:[A-Za-z0-9+/=]+$")) and
-              (.scope == "fleet" or .scope == "rpi") and
-              (.keyMonitor == "manual" or .keyMonitor == "nix-cache-info"))
+              (.keyMonitor == "manual" or .keyMonitor == "nix-cache-info") and
+              (
+                ((.scope == "fleet" or .scope == "rpi") and (.url | test("^https://[^/]+/?$"))) or
+                (.scope == "arm" and (.url | test("^http://100\\.[0-9]+\\.[0-9]+\\.[0-9]+(:[0-9]+)?/?$")))
+              ))
           ' "$RUNNER_TEMP/cache-inventory.json"
 
       - name: Check cache reachability
@@ -110,14 +117,21 @@ jobs:
               printf '%s\t%s\t%s\t%s\n' \
                 "$name" "$endpoint" "$old_fp" 'manual-review-required' >> "$report"
             fi
-          done < <(jq -r '.[] | [.name, .url, .publicKey, .keyMonitor] | @tsv' "$inventory")
+          done < <(jq -r '.[] | select(.scope != "arm") | [.name, .url, .publicKey, .keyMonitor] | @tsv' "$inventory")
+          # Tailnet-only caches are unreachable from a GitHub runner by design;
+          # list them so the report stays complete, without probing them.
+          while IFS=$'\t' read -r name url expected; do
+            old_fp="$(printf '%s' "$expected" | sha256sum | awk '{print $1}')"
+            printf '%s\t%s\t%s\t%s\n' \
+              "$name" "${url%/}/nix-cache-info" "$old_fp" 'tailnet-only-not-probed' >> "$report"
+          done < <(jq -r '.[] | select(.scope == "arm") | [.name, .url, .publicKey] | @tsv' "$inventory")
           echo '::warning title=Manual Nix cache key review required::The binary-cache protocol has no portable signing-key discovery endpoint. Verify rotations through an independent official upstream channel.'
           {
             echo 'The Nix binary-cache protocol does not publish signing keys through a portable endpoint for caches marked manual. Reachability was checked, but key rotation requires independent upstream verification and a reviewed manual change.'
             echo
             echo '| Cache | Endpoint | Committed key SHA-256 | Rotation check |'
             echo '| --- | --- | --- | --- |'
-            awk -F'\t' '{printf "| %s | %s | %s | %s |\\n", $1, $2, $3, $4}' "$report"
+            awk -F'\t' '{printf "| %s | %s | %s | %s |\n", $1, $2, $3, $4}' "$report"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload public inventory evidence
