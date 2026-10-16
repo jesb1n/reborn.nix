@@ -6,8 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `AGENTS.md` (imported above) is the primary rulebook: host table, profile
 composition, IaC/SOPS/k3s quirks, validation checklist. This file only adds
-what it does not cover. `anywhere/hosts/pro-darwin/AGENTS.md` still applies to
-that host and overrides general NixOS conventions.
+what it does not cover. `anywhere/hosts/pro-darwin/AGENTS.md` and
+`anywhere/hosts/air-darwin/AGENTS.md` still apply to those hosts and override
+general NixOS conventions.
 
 ## Environment
 
@@ -44,8 +45,9 @@ nix eval --json --impure --expr '(import ./lib/binary-caches.nix).valid'
 bash -n scripts/fleet-release scripts/fleet-reconcile scripts/release.sh scripts/reconcile.sh
 FLEET_RECONCILE_RETRY_BASE_SECONDS=0 FLEET_RECONCILE_RETRY_JITTER_SECONDS=0 bash tests/fleet-reconcile.sh
 
-# Evaluate (not build) pro-darwin — what .claude/hooks/nix-check.sh runs after edits
+# Evaluate (not build) a Mac host — what .claude/hooks/nix-check.sh runs after edits
 nix eval --raw .#darwinConfigurations.pro-darwin.system.drvPath
+nix eval --raw .#darwinConfigurations.air-darwin.system.drvPath
 
 # Fleet inventory as JSON (used by CI to order hosts)
 nix eval --json .#fleet
@@ -80,7 +82,7 @@ to `fleet.nix`.
 
 ### Three rollout paths
 
-1. **deploy-rs from pro-darwin** (`deploy.nodes`, `remoteBuild` per `fleet.nix`) — the supervised path; see AGENTS.md.
+1. **deploy-rs from a Mac** (`pro-darwin` or `air-darwin`; `deploy.nodes`, `remoteBuild` per `fleet.nix`) — the supervised path; see AGENTS.md.
 2. **Pull-based auto-upgrade** (`profiles/auto-upgrade.nix`, `fleet.autoUpgrade.*`) — every host rebuilds itself from `main` nightly. `rpi` sets `allowReboot = false` (SD card, under-voltage).
 3. **GitHub Actions release + reconcile** — `nixos-ci.yml` runs `scripts/fleet-release` on native x86/ARM runners to export one union closure per arch (`closure.nar.zst` + `manifest.json` + `SHA256SUMS`); `nixos-reconcile.yml` runs `scripts/fleet-reconcile`, which verifies/imports the archives, preflights each host over strict SSH, then activates via a generated deploy-rs definition (`ciDeploy`, `remoteBuild = false`, substitution disabled) canary → workers → control-plane with per-host rollback. `scripts/release.sh` and `scripts/reconcile.sh` are thin wrappers. **Both NixOS workflows are currently `workflow_dispatch`-only** (automatic triggers paused), even though `docs/CICD.md` still describes PR/push/schedule triggers.
 

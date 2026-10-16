@@ -139,16 +139,17 @@ nix run nixpkgs#nixos-rebuild -- \
 
 The supported privilege flag is `--elevate=sudo`, not `--use-remote-sudo`.
 
-## pro-darwin
+## pro-darwin and air-darwin
 
-`pro-darwin` is not a deploy-rs node. Build before switching:
+Neither Mac is a deploy-rs node. Build before switching:
 
 ```bash
-sudo darwin-rebuild build --flake .#pro-darwin
-sudo darwin-rebuild switch --flake .#pro-darwin
+sudo darwin-rebuild build --flake .#pro-darwin   # or .#air-darwin
+sudo darwin-rebuild switch --flake .#pro-darwin  # or .#air-darwin
 ```
 
-Preserve the host invariants documented in `hosts/pro-darwin/AGENTS.md`.
+Preserve the host invariants documented in `hosts/pro-darwin/AGENTS.md` and
+`hosts/air-darwin/AGENTS.md`.
 
 ## ARM binary cache (oracle-eu-arm1)
 

@@ -1,13 +1,13 @@
 # Fleet and cluster configuration
 
 `anywhere/` is the standalone Nix flake that configures the repository's ten
-NixOS hosts, the `pro-darwin` operator machine, and the Kubernetes resources
-running on the `s145` k3s cluster.
+NixOS hosts, the `pro-darwin` and `air-darwin` operator Macs, and the
+Kubernetes resources running on the `s145` k3s cluster.
 
 - Routine NixOS updates use deploy-rs. Every fleet host also rebuilds itself
   from `main` nightly via `profiles/auto-upgrade.nix`, so a push to `main`
   reaches the fleet without a manual deploy.
-- `pro-darwin` uses `darwin-rebuild`, not deploy-rs.
+- `pro-darwin` and `air-darwin` use `darwin-rebuild`, not deploy-rs.
 - New installations may use `nixos-anywhere`; it is destructive and is never a
   routine update command.
 - Cluster applications registered in `clusters/s145/` are reconciled by Flux.
@@ -43,12 +43,13 @@ model.
 | four Oracle micro nodes | `x86_64-linux` | resource-limited k3s agents | `s145` for Mac-initiated builds |
 | `rpi` | `aarch64-linux` | k3s agent, Pi-hole DNS, exit node and LAN subnet router | `oracle-eu-arm1` for Mac-initiated builds |
 | `travelmate` | `x86_64-linux` | standalone Plasma laptop; not in the fleet, not a deploy-rs node | local |
-| `pro-darwin` | `aarch64-darwin` | operator workstation | local Mac |
+| `pro-darwin` | `aarch64-darwin` | operator workstation (MacBook Pro) | local Mac |
+| `air-darwin` | `aarch64-darwin` | operator workstation (MacBook Air) | local Mac |
 
-Two distributed builders are registered on `pro-darwin`, one per Linux
+Two distributed builders are registered on each Mac, one per Linux
 architecture: `s145` for `x86_64-linux` and `oracle-eu-arm1` for
 `aarch64-linux`. The four micro nodes, `oracle-in-arm1`, and `rpi` use
-`remoteBuild = false`, so `pro-darwin` evaluates the flake and the matching
+`remoteBuild = false`, so the Mac evaluates the flake and the matching
 builder compiles the closure.
 
 `s145` and `oracle-eu-arm1` keep `remoteBuild = true` because each is itself a
@@ -107,11 +108,11 @@ nix develop -c deploy .#s145
 Deploying `.#s145` should normally be last. Use `nix develop -c deploy .` only
 when a fleet-wide activation is intentional.
 
-`pro-darwin` is a separate nix-darwin output:
+`pro-darwin` and `air-darwin` are separate nix-darwin outputs:
 
 ```bash
-sudo darwin-rebuild build --flake .#pro-darwin
-sudo darwin-rebuild switch --flake .#pro-darwin
+sudo darwin-rebuild build --flake .#pro-darwin   # or .#air-darwin
+sudo darwin-rebuild switch --flake .#pro-darwin  # or .#air-darwin
 ```
 
 ## Secrets

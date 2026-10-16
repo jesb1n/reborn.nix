@@ -10,7 +10,8 @@
 - `IaC/` — OpenTofu/Terraform; provisions OCI VCN, subnets, and instances.
 - `anywhere/` — Standalone Nix flake; manages NixOS configs for all hosts via deploy-rs.
 - `docs/` — Architecture, setup, prerequisites, CI/CD docs.
-- `anywhere/hosts/pro-darwin/` — nix-darwin config for the maintainer's MacBook (Apple Silicon). Deployed with `darwin-rebuild`, not deploy-rs. **Read `anywhere/hosts/pro-darwin/AGENTS.md` before touching it** — it has host-specific rules (Determinate Nix, Homebrew cleanup=`none`, `Asia/Calcutta` TZ, etc.).
+- `anywhere/hosts/pro-darwin/` — nix-darwin config for the maintainer's MacBook Pro (Apple Silicon). Deployed with `darwin-rebuild`, not deploy-rs. **Read `anywhere/hosts/pro-darwin/AGENTS.md` before touching it** — it has host-specific rules (Determinate Nix, Homebrew cleanup=`none`, `Asia/Calcutta` TZ, etc.).
+- `anywhere/hosts/air-darwin/` — nix-darwin config for the MacBook Air (M4, user `duck`). Same stack and rules as pro-darwin (Determinate Nix, Homebrew cleanup=`none`); **read `anywhere/hosts/air-darwin/AGENTS.md`** for its differences (Powerlevel10k, Warp, `Asia/Kolkata`, holds the `mark` age key, fresh-install bootstrap).
 
 ### Hosts (current state)
 
@@ -196,7 +197,7 @@ Anything merged there reaches every node within ~24h without a manual deploy.
   one key, `/etc/nix/fleet-builder-key`, installed by `postActivation` — it is a
   copy of the maintainer's `~/.ssh/id_ed25519`, which `profiles/base.nix`
   authorizes for `duck` fleet-wide. Rotating that key breaks every builder at once.
-- **`pro-darwin`** is a `darwinConfigurations` entry, NOT in `deploy.nodes`. Deploy with `sudo darwin-rebuild switch --flake .#pro-darwin` from `anywhere/`.
+- **`pro-darwin` and `air-darwin`** are `darwinConfigurations` entries, NOT in `deploy.nodes`. Deploy with `sudo darwin-rebuild switch --flake .#pro-darwin` (or `.#air-darwin`) from `anywhere/`. Both register the same two distributed builders.
 - **`nixos-anywhere` is destructive** — reformats the disk via disko. Never use for routine updates; use deploy-rs instead. For 1 GB Oracle micros, run it from **s145**, prep **2G swap** on the Ubuntu target, and use `--build-on local --no-disko-deps --kexec-extra-flags "--kexec-syscall"`. See [anywhere/docs/ORACLE-IN-MICRO-NIXOS.md](anywhere/docs/ORACLE-IN-MICRO-NIXOS.md).
 - **`--elevate=sudo`** (not `--use-remote-sudo`) is the correct flag for `nixos-rebuild` remote activation.
 - **`s145` overrides GRUB** with systemd-boot (`lib.mkForce`). All other OCI hosts use GRUB from `profiles/server.nix`.
@@ -269,7 +270,7 @@ sudo age-keygen -y /var/lib/sops-nix/key.txt  # → add public key to .sops.yaml
 ```
 
 - `sops.age.generateKey = false` on all hosts — keys must be pre-provisioned.
-- Shared secrets (`k3s/`, `tailscale/`) are decryptable by all host keys; per-host secrets only by that host + pro_darwin/mark.
+- Shared secrets (`k3s/`, `tailscale/`) are decryptable by all host keys; per-host secrets only by that host + pro_darwin/mark. The `mark` key lives on `air-darwin` (`~/.config/sops/age/keys.txt`).
 - **IaC secrets (`IaC/*.tfvars`, `IaC/secrets/*.env`) are encrypted only to `mark` + `pro_darwin`** — the `master` key is retired and appears nowhere in the repo. Both machines can decrypt; neither is required.
 
 ## k3s / Kubernetes
@@ -312,7 +313,7 @@ flux reconcile kustomization immich -n flux-system --with-source
 ## Validation Checklist (before proposing changes)
 
 - **pre-commit**: `.pre-commit-config.yaml` runs on every commit (hygiene, gitleaks, SOPS-encryption guard, AGE key guard, `nix-instantiate --parse`, `tofu fmt`). Run all: `pre-commit run --all-files`. SOPS files are excluded from fixers — never let a tool rewrite them.
-- **Claude Code hook**: `.claude/hooks/nix-check.sh` (PostToolUse) parses every edited `.nix` file and evaluates `darwinConfigurations.pro-darwin` when pro-darwin files or `anywhere/flake.nix` change.
+- **Claude Code hook**: `.claude/hooks/nix-check.sh` (PostToolUse) parses every edited `.nix` file and evaluates the matching `darwinConfigurations.<host>` when `hosts/pro-darwin/` or `hosts/air-darwin/` files change (both hosts when `anywhere/flake.nix` changes).
 
 - **Terraform**: `make -C IaC fmt && tofu -chdir=IaC validate`
 - **Nix**: `nix flake check` (from `anywhere/`)

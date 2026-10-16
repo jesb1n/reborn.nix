@@ -2,7 +2,7 @@
 #
 # This mirrors the retire.nix pattern:
 # - pro_darwin key: lives on your Mac and can edit/decrypt all secrets
-# - mark key: lives on the admin machine and can edit/decrypt all secrets
+# - mark key: lives on air-darwin (the MacBook Air) and can edit/decrypt all secrets
 # - host key: lives on oracle-eu-arm1 at /var/lib/sops-nix/key.txt and can decrypt
 #   only this host's secrets during NixOS activation
 

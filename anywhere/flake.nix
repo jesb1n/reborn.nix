@@ -38,7 +38,7 @@
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs-unstable";
 
-    # pro-darwin only. Determinate's module manages nix.custom.conf and
+    # Mac hosts only. Determinate's module manages nix.custom.conf and
     # determinate-nixd; it must not follow our nixpkgs.
     determinate.url = "https://flakehub.com/f/DeterminateSystems/determinate/3";
 
@@ -256,6 +256,27 @@
             # Back up pre-existing dotfiles instead of failing activation.
             home-manager.backupFileExtension = "hm-bak";
             home-manager.users.jesbin = import ./hosts/pro-darwin/home.nix;
+          }
+        ];
+      };
+
+      # MacBook Air (M4), same stack as pro-darwin: Determinate Nix owns the
+      # daemon, nix-darwin + home-manager own everything else.
+      darwinConfigurations.air-darwin = nix-darwin.lib.darwinSystem {
+        system = "aarch64-darwin";
+        specialArgs = { inherit inputs; };
+        modules = [
+          ./hosts/air-darwin/darwin-configuration.nix
+          inputs.determinate.darwinModules.default
+          inputs.nix-homebrew.darwinModules.nix-homebrew
+          home-manager.darwinModules.home-manager
+          {
+            system.configurationRevision = self.rev or self.dirtyRev or null;
+
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.backupFileExtension = "hm-bak";
+            home-manager.users.duck = import ./hosts/air-darwin/home.nix;
           }
         ];
       };

@@ -26,11 +26,12 @@ Raspberry Pi ───────────┘                         │
                                                    └── workloads across NixOS agents
 
 pro-darwin ── OpenTofu / deploy-rs / kubectl / SOPS operator workstation
+air-darwin ── second operator Mac (same tooling, holds the `mark` SOPS key)
 ```
 
 - `s145` is the single k3s control plane and primary durable-storage host.
 - OCI A1 and E2.1.Micro instances are disposable worker capacity in India and Europe.
-- `nuc7i3` and `rpi` are on-premises workers; `pro-darwin` is managed separately with nix-darwin.
+- `nuc7i3` and `rpi` are on-premises workers; `pro-darwin` and `air-darwin` are managed separately with nix-darwin.
 - Cluster networking and management traffic use Tailscale. Traefik and Cloudflare Tunnel provide application ingress.
 - OpenTofu state is stored in the Garage S3-compatible service at `s145`, not in OCI Object Storage or a local state file.
 

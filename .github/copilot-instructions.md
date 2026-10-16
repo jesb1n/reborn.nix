@@ -45,9 +45,9 @@ nix build -L .#nixosConfigurations.<host>.config.system.build.toplevel
 # Routine deployment; state-changing, so require confirmation
 nix develop -c deploy .#<host>
 
-# pro-darwin is not a deploy-rs node
-sudo darwin-rebuild build --flake .#pro-darwin
-sudo darwin-rebuild switch --flake .#pro-darwin
+# pro-darwin / air-darwin are not deploy-rs nodes
+sudo darwin-rebuild build --flake .#pro-darwin   # or .#air-darwin
+sudo darwin-rebuild switch --flake .#pro-darwin  # or .#air-darwin
 ```
 
 - Stage newly created Nix files before flake evaluation because flakes do not see untracked files.
@@ -81,7 +81,7 @@ flux reconcile kustomization <app> -n flux-system --with-source
 - `s145` is the sole k3s control-plane and durable storage node. All cluster networking uses Tailscale, and agents join `https://100.69.231.117:6443` with flannel on `tailscale0`.
 - Flux Operator syncs `main` into the `s145` cluster. `anywhere/operator/` defines the Flux instance, `anywhere/clusters/s145/` registers applications, and `anywhere/k8s/` holds their resources.
 - Traefik is the only ingress controller and performs Cloudflare DNS-01 ACME plus global HTTP-to-HTTPS redirect. There is no cert-manager.
-- `pro-darwin` is a separate nix-darwin/home-manager output and must never be treated as a NixOS deploy-rs node.
+- `pro-darwin` and `air-darwin` are separate nix-darwin/home-manager outputs and must never be treated as NixOS deploy-rs nodes.
 
 ## Repository conventions
 
@@ -92,3 +92,4 @@ flux reconcile kustomization <app> -n flux-system --with-source
 - Traefik Middleware is namespace-scoped. Public routes use a same-namespace `security-headers` middleware; do not reference `kube-system/security-headers` or add per-app HTTPS redirects.
 - Terraform deliberately ignores instance `availability_domain` drift and micro `metadata["user_data"]` changes. Micro cloud-init is one-shot; changing it does not update existing instances.
 - Keep `pro-darwin` invariants: Determinate Nix requires `nix.enable = false`, Homebrew cleanup stays `"none"`, timezone stays `Asia/Calcutta`, and custom activation code belongs in `system.activationScripts.postActivation.text`.
+- `air-darwin` follows the same invariants (Determinate Nix, cleanup `"none"`, `postActivation` only) but uses `Asia/Kolkata` and holds the `mark` SOPS age key. See `anywhere/hosts/air-darwin/AGENTS.md`.
