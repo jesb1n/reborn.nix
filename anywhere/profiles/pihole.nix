@@ -222,21 +222,37 @@ in
     '';
 
     systemd.services.pihole-ftl = {
-      # tailscale0 must exist before the dashboard tries to bind it, and the
-      # password file must exist before FTL reads its environment. Ordering
-      # only — the upstream module's restart policy is left untouched.
+      # The dashboard binds the tailnet address, which tailscaled assigns only
+      # once it reaches state Running — i.e. when tailscaled-autoconnect.service
+      # reports ready — not when tailscaled.service itself has started. Ordering
+      # on tailscaled.service alone raced that (2026-10-16: "cannot bind to
+      # 100.118.166.120:8081o: Cannot assign requested address"); with the `o`
+      # flag FTL carries on without a webserver, so DNS works but the
+      # dashboard and the API-driven adlist setup silently do not.
+      # The password file needs no ordering: sops-nix renders templates from
+      # the activation script, before any unit starts. Ordering only — the
+      # upstream module's restart policy is left untouched.
       after = [
-        "sops-install-secrets.service"
         "tailscaled.service"
+        "tailscaled-autoconnect.service"
         "stubby.service"
       ];
       wants = [
-        "sops-install-secrets.service"
         "tailscaled.service"
+        "tailscaled-autoconnect.service"
         "stubby.service"
       ];
       serviceConfig.EnvironmentFile = [ config.sops.templates."pihole-web.env".path ];
     };
+
+    # The upstream module's setup unit re-POSTs every entry of `lists` to the
+    # API on each start. Once a list is in gravity.db FTL answers
+    # "database_error: The item is already present", the script records a
+    # failure, still runs `pihole -g` successfully, and exits 1 — so the unit
+    # shows as failed on every boot after the first (observed 2026-10-16).
+    # Treat that exit status as success; genuine problems still surface in
+    # the journal and in FTL itself.
+    systemd.services.pihole-ftl-setup.serviceConfig.SuccessExitStatus = [ 1 ];
 
     # -------------------------------------------------------------- firewall
     # Port 53 on the tailnet and the named LAN interface only. An open resolver
@@ -269,6 +285,11 @@ in
     # they query FTL directly and simply get no answer if it is down.
     networking.nameservers = [ "127.0.0.1" "1.1.1.1" ];
     networking.networkmanager.dns = "none";
+    # openresolv drops every non-local nameserver as soon as a 127.* entry is
+    # present (`resolv_conf_local_only=YES` is its default), which silently
+    # discarded the 1.1.1.1 fallback above — resolv.conf held only 127.0.0.1
+    # (observed 2026-10-16). Keep both so the fallback is real.
+    networking.resolvconf.extraConfig = "resolv_conf_local_only=NO";
 
     environment.systemPackages = [ pkgs.dig ];
   };

@@ -225,6 +225,10 @@
       };
 
       nixosConfigurations.rpi = nixos-raspberrypi.lib.nixosSystem {
+        # The Pi cachix is already declared (with its key) through
+        # lib/binary-caches.nix in hosts/rpi/configuration.nix; the wrapper's
+        # own copy would only duplicate the substituter entry.
+        trustCaches = false;
         modules = [
           nixos-raspberrypi.nixosModules.raspberry-pi-4.base
           disko.nixosModules.disko
@@ -285,6 +289,7 @@
               inherit (nixpkgs) lib;
               inherit fleet;
               inherit (self) nixosConfigurations deploy ciDeploy;
+              nixosRaspberrypi = nixos-raspberrypi;
             };
 
             ssh-access = import ./tests/ssh-access.nix {

@@ -112,10 +112,11 @@ in
     nix.settings.keep-outputs = true;
     nix.settings.keep-derivations = true;
 
-    # nix-serve reads the signing key at startup; without this ordering it can
-    # race sops-nix on boot and come up unable to sign.
+    # nix-serve reads the signing key at startup; sops-nix writes it from the
+    # activation script before any unit starts, so no ordering is needed for
+    # that (there is no sops-install-secrets.service to order against).
     #
-    # It also binds a tailscale0 address, which does not exist until tailscaled
+    # It binds a tailscale0 address, which does not exist until tailscaled
     # has brought the interface up — without this the service fails at boot
     # with "Cannot assign requested address".
     #
@@ -123,14 +124,8 @@ in
     # module (Restart="always", RestartSec="5s") — already correct for a cache
     # that other nodes block on, so overriding it only creates conflicts.
     systemd.services.nix-serve = {
-      after = [
-        "sops-install-secrets.service"
-        "tailscaled.service"
-      ];
-      wants = [
-        "sops-install-secrets.service"
-        "tailscaled.service"
-      ];
+      after = [ "tailscaled.service" ];
+      wants = [ "tailscaled.service" ];
     };
   };
 }

@@ -91,7 +91,10 @@
     # even though the build now happens on oracle-eu-arm1. With remoteBuild =
     # false the Pi may also substitute paths before activation starts.
     activationTimeout = 900;
-    confirmTimeout = 60;
+    # After activation NetworkManager restarts and wlan0 must reassociate,
+    # get DHCP and re-establish the Tailscale path before deploy-rs can
+    # confirm; 60 s is enough on a good day only.
+    confirmTimeout = 180;
     # Slowest CPU in the fleet, SD-card store, and reports under-voltage
     # throttling — build on oracle-eu-arm1 instead. fastConnection = false is
     # important here: the Pi is Wi-Fi-only, so let it substitute what it can

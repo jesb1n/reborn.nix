@@ -5,6 +5,7 @@
   nixosConfigurations,
   deploy,
   ciDeploy,
+  nixosRaspberrypi,
 }:
 
 let
@@ -17,6 +18,17 @@ let
   configurationHosts = builtins.attrNames nixosConfigurations;
   deployHosts = builtins.attrNames deploy.nodes;
   ciDeployHosts = builtins.attrNames ciDeploy.nodes;
+
+  # rpi's vendor kernel is only on nixos-raspberrypi.cachix.org for the
+  # nixpkgs revision pinned in THAT flake's own flake.lock. A plain
+  # `nix flake update` re-locks the nested input independently; after that
+  # the Pi has to compile the kernel itself, which does not finish inside
+  # the nightly upgrade's 3 h timeout. Re-lock with
+  # `nix flake update nixos-raspberrypi` to restore parity.
+  rpiUpstreamLock = builtins.fromJSON (builtins.readFile "${nixosRaspberrypi}/flake.lock");
+  rpiUpstreamNixpkgsRev =
+    rpiUpstreamLock.nodes.${rpiUpstreamLock.nodes.${rpiUpstreamLock.root}.inputs.nixpkgs}.locked.rev;
+  rpiLockedNixpkgsRev = nixosRaspberrypi.inputs.nixpkgs.rev;
 
   check = host: description: assertion: {
     inherit assertion;
@@ -129,6 +141,10 @@ let
     {
       assertion = builtins.length fleetHosts == 9;
       message = "fleet inventory must contain exactly nine hosts";
+    }
+    {
+      assertion = rpiLockedNixpkgsRev == rpiUpstreamNixpkgsRev;
+      message = "nixos-raspberrypi's nested nixpkgs (${rpiLockedNixpkgsRev}) must match its upstream flake.lock (${rpiUpstreamNixpkgsRev}); run `nix flake update nixos-raspberrypi`";
     }
     # A host registered as a distributed builder in
     # hosts/pro-darwin/darwin-configuration.nix must keep remoteBuild = true.

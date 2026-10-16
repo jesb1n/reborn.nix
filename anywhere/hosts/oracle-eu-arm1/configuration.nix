@@ -33,9 +33,20 @@ in
 
   # Consume the *other* ARM cache so the two nodes share build output both
   # ways; a path built here is served to in-arm1 and vice versa.
+  #
+  # Also trust the Raspberry Pi cachix: this host is the aarch64 builder for
+  # rpi, and substitution for an offloaded build uses the BUILDER's
+  # substituters, not the operator's. Without this entry every rpi build here
+  # recompiled the vendor kernel on two cores (observed 2026-10-16) instead
+  # of fetching it from nixos-raspberrypi.cachix.org.
   nix.settings = {
-    substituters = lib.mkAfter binaryCaches.armNixSettings.substituters;
-    trusted-public-keys = lib.mkAfter binaryCaches.armNixSettings.trusted-public-keys;
+    substituters = lib.mkAfter (
+      binaryCaches.armNixSettings.substituters ++ binaryCaches.rpiNixSettings.substituters
+    );
+    trusted-public-keys = lib.mkAfter (
+      binaryCaches.armNixSettings.trusted-public-keys
+      ++ binaryCaches.rpiNixSettings.trusted-public-keys
+    );
   };
 
   # Tailscale — exit node + server routing

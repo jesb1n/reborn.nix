@@ -8,7 +8,18 @@ This host is wired into the flake as:
 
 The Raspberry Pi board support is provided by
 `github:nvmd/nixos-raspberrypi`, using the `raspberry-pi-4.base` module with
-the Raspberry Pi U-Boot + extlinux boot path.
+`boot.loader.raspberry-pi.bootloader = "kernel"`: the firmware loads the
+kernel directly, no U-Boot. Each generation's kernel, initrd, DTBs and
+overlays are copied to `/boot/firmware/nixos/<generation>/` (about 47 MB
+each, `configurationLimit` of them plus `default/`), and `config.txt` points
+`os_prefix=` at `nixos/default/`. There is no boot menu: to boot an older
+generation, mount the SD card elsewhere and change `os_prefix=` in
+`config.txt` to that generation's directory.
+
+Note that `rpi` is the only fleet host built from nixos-raspberrypi's own
+nixpkgs (the `nixos-26.05` branch), not `nixpkgs-unstable`. The
+`fleet-invariants` check refuses a nested nixpkgs pin that differs from
+upstream's lock, because only that revision's kernel is on the Pi cachix.
 
 **Status: installed.** This host is a running k3s agent (Tailscale IP
 `100.118.166.120`, Wi-Fi-only, `wlan0`) with a 900s deploy-rs activation
@@ -38,8 +49,9 @@ The default Disko target is `/dev/mmcblk0`, which is the usual SD-card disk.
 Change it before install if the Pi boots from USB storage.
 
 The FAT firmware partition is mounted at `/boot/firmware`. This is intentional:
-`nixos-raspberrypi` manages Raspberry Pi firmware there, while U-Boot loads
-the extlinux config from `/boot` on the NixOS root filesystem.
+`nixos-raspberrypi` manages the Raspberry Pi firmware and the per-generation
+kernels there. A stale `/boot/extlinux/` and `u-boot-rpi-arm64.bin` from the
+original U-Boot install are still present and unused.
 
 ## Secrets
 
