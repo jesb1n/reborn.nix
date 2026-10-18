@@ -52,7 +52,7 @@
     };
   };
 
-  time.timeZone = "Asia/Kolkata";
+  time.timeZone = "Asia/Calcutta";
 
   security.pam.services.sudo_local.touchIdAuth = true;
 

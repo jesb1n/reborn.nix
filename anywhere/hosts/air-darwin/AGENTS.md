@@ -19,7 +19,7 @@ Explain decisions here, not in the Nix files.
 | System | `aarch64-darwin` |
 | macOS | 27 |
 | User / home | `duck` / `/Users/duck` |
-| Timezone | `Asia/Kolkata` (pro-darwin uses the legacy `Asia/Calcutta`; both exist on macOS 27) |
+| Timezone | `Asia/Calcutta` — same as pro-darwin. `/usr/share/zoneinfo` has both names, but `systemsetup -listtimezones` (what nix-darwin validates against) lists only `Asia/Calcutta` on macOS 27; `Asia/Kolkata` aborts activation at "configuring time..." before Homebrew, home-manager and the builder key run |
 | Nix flavor | Determinate Nix, via `determinate.darwinModules.default` |
 | SOPS key | `~/.config/sops/age/keys.txt` is the **`mark`** recipient — decrypts every fleet and IaC secret with the `sops` CLI; sops-nix is not wired in because the host has no secrets of its own |
 | SSH key | `~/.ssh/id_ed25519` (`duck@Ducks-MacBook-Air.local`), authorized on every fleet host by `profiles/base.nix` and used as the builder key |
