@@ -65,12 +65,16 @@ Touch ID sudo and the firewall change to take effect.
 - **Containers:** OrbStack cask, which ships its own `docker` and `docker compose`
   CLIs. `homebrew.brews` is absent on purpose.
 - **All CLI tools come from Nix** (`home.packages`). Do not add formulae for
-  tools that nixpkgs provides.
+  tools that nixpkgs provides. `lima`, `qemu` and `wrangler` live here;
+  `wrangler` replaces Homebrew's `cloudflare-wrangler` formula.
+- **Desktop apps:** `aside` and `transmission` are re-added as casks at the
+  owner's request, and `claude` is the Claude desktop app (distinct from the
+  `claude-code` CLI cask).
 
 ## Dropped on purpose (do not re-add without asking)
 
-Casks: `cloudflare-warp`, `cursor`, `hermes-desktop`, `loom`, `transmission`,
-`utm`, `vlc`, `telegram`, `google-chrome`, `handy`, `antigravity`.
+Casks: `cloudflare-warp`, `cursor`, `hermes-desktop`, `loom`, `utm`, `vlc`,
+`telegram`, `google-chrome`, `handy`, `antigravity`.
 Packages: `ripgrep`, `fd`, `yq-go`, `tmux`, `nmap`, `sshpass`, `immich-cli`,
 `iterm2`. These were on the previous install and the owner chose to leave them out.
 
@@ -79,6 +83,9 @@ Settings removed because they equal the default: `homebrew.onActivation.cleanup`
 `onActivation.autoUpdate`, `determinateNix.enable`, `nix-homebrew.autoMigrate`,
 Dock `minimize-to-application` and the Quick Note hot corner, trackpad force
 click, zsh `ignoreDups`/`share`, fzf and direnv zsh integration.
+`homebrew.greedyCasks` is also absent: with `onActivation.upgrade` off,
+activation runs `brew bundle --no-upgrade` and the flag does nothing; the
+`brewup` alias passes `--greedy` itself.
 
 ## Do NOT
 

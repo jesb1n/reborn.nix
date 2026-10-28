@@ -80,12 +80,15 @@
     kubectl
     kubectx
     kubernetes-helm
+    lima
     oci-cli
     opencode
     opentofu
     pre-commit
+    qemu
     sops
     tree
+    wrangler
   ];
 
   home.file = {

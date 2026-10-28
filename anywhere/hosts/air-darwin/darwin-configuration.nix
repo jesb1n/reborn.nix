@@ -29,7 +29,7 @@
 
   programs.ssh.knownHosts = {
     s145 = {
-      hostNames = [ "s145" "s145.panther-company.ts.net" ];
+      hostNames = [ "s145" "s145.panther-company.ts.net" "100.69.231.117" ];
       publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP4if+UQEgOtJ2/1hykw2vRtQ8vXj5qgZf5Tl+P7zSe/";
     };
     oracle-eu-arm1 = {
@@ -82,15 +82,17 @@
 
   homebrew = {
     enable = true;
-    greedyCasks = true;
     casks = [
       "arc"
+      "aside"
       "bitwarden"
+      "claude"
       "claude-code"
       "maccy"
       "orbstack"
       "spotify"
       "tailscale-app"
+      "transmission"
       "visual-studio-code"
       "warp"
       "whatsapp"
