@@ -48,8 +48,8 @@ The old `~/Documents/oracle-cloud-free-tier/` and iCloud paths are **deprecated*
 
 - **`onActivation.cleanup = "none"`** — MUST stay `"none"`. Setting it to `"zap"` **destroys** any brew-installed package not listed in the Brewfile. This previously wiped the user's entire shell environment (uninstalled zsh plugins, tools, etc.). Do not change this without explicit user confirmation.
 - **`onActivation.autoUpdate = false`** — skips `brew update` during rebuild for speed.
-- **`greedyCasks = true`** — `brew upgrade` also upgrades self-updating casks. Run the `brewup` alias (`brew update && brew upgrade --greedy`) occasionally; rebuilds never upgrade.
-- **nix-homebrew with `mutableTaps = false`**: taps come from flake inputs (`homebrew-core`, `homebrew-cask`, `homebrew-netbird`). `brew tap` does not work — to add a tap, add a `flake = false` input and a `nix-homebrew.taps` entry, and keep `homebrew.taps` in sync. Bump taps with `nix flake update homebrew-core homebrew-cask homebrew-netbird`.
+- **`greedyCasks = true`** — `brew upgrade` also upgrades self-updating casks. Run the `brewup` alias (`HOMEBREW_NO_AUTO_UPDATE=1 brew upgrade --greedy`) occasionally; rebuilds never upgrade. **Never run `brew update`** — with `mutableTaps = false` the taps are read-only store paths and it fails with `taps-env/.../.git: Permission denied`; refresh tap metadata with `nix flake update homebrew-core homebrew-cask` and rebuild instead. Do not `sudo brew` either.
+- **nix-homebrew with `mutableTaps = false`**: taps come from flake inputs (`homebrew-core`, `homebrew-cask`). `brew tap` does not work — to add a tap, add a `flake = false` input and a `nix-homebrew.taps` entry, and keep `homebrew.taps` in sync. Bump taps with `nix flake update homebrew-core homebrew-cask`.
 - First migration of an existing `/opt/homebrew` fails with "An existing /opt/homebrew/Library/Taps is in the way" — move `Library/Taps` aside and rerun (done once on 2026-10-13; old copy at `Library/Taps.before-nix-homebrew`).
 
 ### Timezone
@@ -90,8 +90,9 @@ The old `~/Documents/oracle-cloud-free-tier/` and iCloud paths are **deprecated*
 ## Unfree Packages
 
 `nixpkgs.config.allowUnfreePredicate` currently allows:
-- `cursor` (Cursor editor)
 - `slack` (Slack)
+- `1password-cli` (`op`, used by the github-mcp launcher)
+- `claude-code` (Claude Code CLI)
 
 If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree = true` globally.
 (Note: `vscode` was removed from this list because it is now installed via Homebrew cask — see "Must be Homebrew" table.)
@@ -124,11 +125,13 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | `github-copilot-app` | GitHub Copilot desktop app is not in nixpkgs. |
 | `hermes-desktop` | Official Hermes Agent Desktop distribution is provided as a signed Homebrew cask; the upstream Nix flake packages the CLI, not the desktop app. |
 | `lens` | Lens Kubernetes IDE is proprietary; not packaged usefully in nixpkgs for macOS. |
-| `netbirdio/tap/netbird-ui` | NetBird's macOS UI installs privileged networking components and depends on the vendor's `netbirdio/tap/netbird` formula. Keep the tap, formula, and cask together. |
+| `aside` | Not in nixpkgs. |
+| `transmission` | nixpkgs `transmission_4` on `aarch64-darwin` builds only the daemon/CLI, not `Transmission.app`; the cask ships the native GUI. |
 | `zen` | Zen Browser is not in nixpkgs for aarch64-darwin; the official Homebrew cask ships a universal macOS build. |
 | `vlc` | nixpkgs `vlc` excludes `aarch64-darwin` from `meta.platforms` — not buildable here. |
 | `libreoffice` | nixpkgs `libreoffice` excludes `aarch64-darwin` from `meta.platforms` — not buildable here. |
-| `cursor-cli` | Cursor's CLI agent is distributed only as a Homebrew cask; nixpkgs `code-cursor` is the GUI editor, not this binary. |
+| `vagrant` | nixpkgs `vagrant` is not built for `aarch64-darwin`; the cask ships HashiCorp's signed pkg. Used by `~/Projects/rancher-fleet/vm` (Debian test VM for Fleet). The `vagrant-qemu` plugin is installed per-user with `vagrant plugin install` — mutable state in `~/.vagrant.d`, not managed here. |
+| `qemu` (formula) | Kept in Homebrew deliberately so `vagrant-qemu` finds the aarch64 firmware at `$(brew --prefix)/share/qemu` as its README expects. Do not also add nixpkgs `qemu` to pro-darwin `home.packages` — two `qemu-system-aarch64` on PATH is a version-drift trap (air-darwin uses the Nix one; that host has no vagrant). |
 
 ### Mac App Store (masApps)
 
@@ -139,12 +142,13 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 
 ### Nix (home.packages)
 
-CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `pre-commit`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `cloudflared`, `k9s`, `google-cloud-sdk`, `opentofu`, `awscli2`, `oci-cli`, `sops`, `ffmpeg`, `k6`
-GUI: `code-cursor`, `firefox`, `iterm2`, `slack`
+CLI: `fd`, `ripgrep`, `yq-go`, `tree`, `gh`, `pre-commit`, `kubectl`, `kubectx`, `kubernetes-helm`, `opencode`, `cloudflared`, `k9s`, `google-cloud-sdk`, `opentofu`, `awscli2`, `oci-cli`, `sops`, `ffmpeg`, `k6`, `mas` (`masup` alias upgrades `homebrew.masApps`)
+GUI: `firefox`, `iterm2`, `slack`
+Agents: `opencode`, `claude-code` (unfree; nixpkgs tracks upstream closely — do not reinstall the `claude-code` cask, it would shadow the Nix binary via `/opt/homebrew/bin`)
 
 ### Homebrew tap bundles
 
-- NetBird requires all three declarations: trusted tap `netbirdio/tap`, formula `netbirdio/tap/netbird`, and cask `netbirdio/tap/netbird-ui`.
+- No third-party taps are currently declared. If one is needed again, a vendor tap needs all three: a `flake = false` input + `nix-homebrew.taps` entry, a trusted `homebrew.taps` entry, and the formula/cask. NetBird (`netbirdio/tap`) was removed on 2026-10-29.
 
 ### Special case: blocked `gcloud components` (gke-gcloud-auth-plugin, cloud-run-proxy)
 
@@ -192,7 +196,7 @@ Verify a change actually runs by looking for its output in `sudo darwin-rebuild 
 ## Shell Aliases and Functions
 
 Defined in `home.nix` under `programs.zsh`:
-- Aliases: `gs`, `gd`, `gl`, `k` (kubectl), `kx` (kubectx)
+- Aliases: `gs`, `gd`, `gl`, `k` (kubectl), `kx` (kubectx), `brewup`, `masup`
 - Functions (via `initContent`):
   - `gx` — fzf picker to **permanently** switch gcloud project
   - `tgx` — fzf picker to **temporarily** switch gcloud project (session-only via `CLOUDSDK_CORE_PROJECT`)
@@ -251,7 +255,7 @@ sudo darwin-rebuild switch --flake .#pro-darwin
 - **Do not** add `system.activationScripts.<customName>.text = "..."` expecting it to run — only `preActivation` / `extraActivation` / `postActivation` execute; custom names are silently ignored. Merge new activation code into `postActivation.text`.
 - **Do not** reintroduce `defaultbrowser` activation or PlistBuddy default-browser hacks.
 - **Do not** move `1password`, `spotify`, `anydesk`, `arc`, `warp`, `cloudflare-warp`, `tailscale-app`, `maccy`, `docker-desktop`, `discord`, `microsoft-teams`, `whatsapp`, `handy`, `hermes-desktop`, `loom`, `visual-studio-code`, `github-copilot-app`, `lens`, or `zen` from Homebrew to Nix — they cannot work as Nix packages (see reasons above).
-- **Do not** reinstall `opencode`, `ripgrep`, `ffmpeg`, or `k6` via Homebrew — they are managed by Nix in `home.packages`. Brew copies shadow Nix because `sessionPath` prepends `/opt/homebrew/bin`.
+- **Do not** reinstall `opencode`, `claude-code`, `ripgrep`, `ffmpeg`, or `k6` via Homebrew — they are managed by Nix in `home.packages`. Brew copies shadow Nix because `sessionPath` prepends `/opt/homebrew/bin`.
 - **Do not** add `nodejs` to `home.packages` — `~/.local/bin/node` (Hermes's bundled node) comes first on PATH and shadows it.
 - **Do not** add `wireguard-tools` back to `home.packages` — WireGuard is managed via the Mac App Store GUI app.
 - **Do not** hardcode `user.name`/`user.email` via `git config --global` — use `programs.git.settings` in `home.nix`.

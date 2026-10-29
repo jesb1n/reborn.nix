@@ -48,9 +48,9 @@
   };
 
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
-    "cursor"
     "slack"
     "1password-cli" # op, used by the github-mcp launcher (home.nix)
+    "claude-code"
   ];
 
   networking = {
@@ -76,7 +76,6 @@
     taps = {
       "homebrew/homebrew-core" = inputs.homebrew-core;
       "homebrew/homebrew-cask" = inputs.homebrew-cask;
-      "netbirdio/homebrew-tap" = inputs.homebrew-netbird;
     };
   };
 
@@ -142,17 +141,15 @@
     onActivation.autoUpdate = false;
     # Self-updating casks are upgraded by `brew upgrade` too (alias `brewup`).
     greedyCasks = true;
-    taps = [
-      {
-        name = "netbirdio/tap";
-        trusted = true;
-      }
-    ];
+    taps = [ ];
     brews = [
-      "netbirdio/tap/netbird"
       # Kubernetes MCP server for Claude Code; not in nixpkgs. Config is
       # ~/.config/kubernetes-mcp-server/config.toml (home.nix).
       "kubernetes-mcp-server"
+      # Hypervisor for the vagrant-qemu provider (~/Projects/rancher-fleet/vm). The
+      # plugin is tested against Homebrew's qemu layout (firmware under
+      # $(brew --prefix)/share/qemu), so keep it beside the vagrant cask.
+      "qemu"
     ];
     masApps = {
       "WireGuard" = 1451685025;
@@ -162,10 +159,10 @@
       "1password"
       "anydesk"
       "arc"
+      "aside"
       "chatgpt"
       "claude"
       "cloudflare-warp"
-      "cursor-cli"
       "docker-desktop"
       "discord"
       "github-copilot-app"
@@ -176,10 +173,15 @@
       "loom"
       "maccy"
       "microsoft-teams"
-      "netbirdio/tap/netbird-ui"
       "spotify"
       "tabby"
       "tailscale-app"
+      "transmission"
+      # Local test VMs (Fleet/Rancher downstream, ~/Projects/rancher-fleet).
+      # nixpkgs `vagrant` is not built for aarch64-darwin. The vagrant-qemu
+      # plugin itself is mutable state: `vagrant plugin install vagrant-qemu`
+      # (see that repo's Makefile), not managed here.
+      "vagrant"
       "visual-studio-code"
       "vlc"
       # "warp" # TEMP: upstream cask sha256 is stale — warp.dev serves a different dmg for

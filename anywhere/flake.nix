@@ -55,10 +55,6 @@
       url = "github:homebrew/homebrew-cask";
       flake = false;
     };
-    homebrew-netbird = {
-      url = "github:netbirdio/homebrew-tap";
-      flake = false;
-    };
   };
 
   outputs = inputs@{ self, nixpkgs, nixpkgs-unstable, nixos-anywhere, nixos-raspberrypi, deploy-rs, disko, sops-nix, nix-darwin, home-manager, ... }:

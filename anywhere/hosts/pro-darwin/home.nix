@@ -31,7 +31,12 @@
         k = "kubectl";
         kx = "kubectx";
         # Occasional cask/formula refresh; greedy also covers self-updating casks.
-        brewup = "brew update && brew upgrade --greedy";
+        # No `brew update`: taps are read-only Nix store paths (mutableTaps = false),
+        # so tap metadata is refreshed with `nix flake update homebrew-core homebrew-cask`
+        # + darwin-rebuild, not by brew.
+        brewup = "HOMEBREW_NO_AUTO_UPDATE=1 brew upgrade --greedy";
+        # Mac App Store apps declared in homebrew.masApps.
+        masup = "mas upgrade";
       };
       initContent = ''
         # kubectl-aliases (https://github.com/ahmetb/kubectl-aliases)
@@ -176,9 +181,10 @@
     kubectx
     kubernetes-helm
     opencode
+    claude-code
+    mas
     cloudflared
     k9s
-    code-cursor
     firefox
     slack
     google-cloud-sdk
