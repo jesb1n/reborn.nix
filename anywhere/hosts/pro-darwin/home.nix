@@ -45,6 +45,8 @@
         # oh-my-zsh git plugin aliases (https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/git)
         [ -f ~/.oh-my-zsh/plugins/git/git.plugin.zsh ] && source ~/.oh-my-zsh/plugins/git/git.plugin.zsh
 
+        # GitHub Copilot CLI auth, reusing the gh CLI's token
+        export COPILOT_GITHUB_TOKEN="$(gh auth token)"
 
         # gx: permanently switch gcloud project
         gx() {
@@ -225,6 +227,10 @@
     url = "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/083c339e0622bfc144b66ebf1a2e8dbe7d2ada0d/plugins/git/git.plugin.zsh";
     sha256 = "sha256:1l8kn2q9lc5jm552j08h821jyw4apysdywr30p2ganbq7dhnhig6";
   };
+
+  # Hermes gateway runs under launchd (no ~/.zshrc, no Nix profile on PATH) and only
+  # probes PATH, Homebrew and ~/.local/bin for `gh` to get its Copilot token.
+  home.file.".local/bin/gh".source = "${pkgs.gh}/bin/gh";
 
   home.file."Library/Application Support/iTerm2/DynamicProfiles/Nix.json".text = builtins.toJSON {
     Profiles = [
