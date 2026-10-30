@@ -47,6 +47,33 @@
     publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH5SbCYGZ0lxUm7tCJa8eJNtCcTPNZxJRNPFpxaoS37D";
   };
 
+  # --- Local VM networking (vagrant-qemu, ~/Projects/rancher-fleet/vm) ---
+  # Homebrew QEMU cannot use vmnet.framework without root. socket_vmnet holds
+  # the root vmnet membership as a daemon and QEMU connects to its unix socket
+  # as a normal user (same approach as Lima/Colima). The flags are
+  # authoritative for the subnet: static VM IPs in the Vagrantfile must sit in
+  # 192.168.105.0/24 above the DHCP range (.101+).
+  # First activation after adding this: the daemon starts before `brew bundle`
+  # has installed the binary, so launchd retries it until the bundle finishes.
+  # Socket and log live outside /opt/homebrew on purpose: launchd runs this as
+  # root and brew refuses to install into a prefix with root-owned dirs.
+  launchd.daemons.socket_vmnet = {
+    serviceConfig = {
+      Label = "io.github.lima-vm.socket_vmnet";
+      ProgramArguments = [
+        "/opt/homebrew/opt/socket_vmnet/bin/socket_vmnet"
+        "--vmnet-gateway=192.168.105.1"
+        "--vmnet-dhcp-end=192.168.105.100"
+        "--socket-group=staff"
+        "/var/run/socket_vmnet"
+      ];
+      RunAtLoad = true;
+      KeepAlive = true;
+      StandardOutPath = "/var/log/socket_vmnet.log";
+      StandardErrorPath = "/var/log/socket_vmnet.log";
+    };
+  };
+
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "slack"
     "1password-cli" # op, used by the github-mcp launcher (home.nix)
@@ -150,6 +177,9 @@
       # plugin is tested against Homebrew's qemu layout (firmware under
       # $(brew --prefix)/share/qemu), so keep it beside the vagrant cask.
       "qemu"
+      # Rootless vmnet for those VMs; run as a launchd daemon (see
+      # launchd.daemons.socket_vmnet above), not `brew services`.
+      "socket_vmnet"
     ];
     masApps = {
       "WireGuard" = 1451685025;
@@ -204,6 +234,34 @@
   # activation must go here. See:
   #   https://github.com/nix-darwin/nix-darwin/blob/main/modules/system/activation-scripts.nix
   system.activationScripts.postActivation.text = ''
+    # Names for the test VMs. Deliberately NOT environment.etc.hosts: that
+    # symlinks /etc/hosts into the store, and Apple's /usr/bin/ssh resolves via
+    # Network.framework, which ignores a symlinked hosts file even though
+    # ping/nc/curl honour it (nix-darwin/nix-darwin#1351). So install a real
+    # file. Idempotent: copies only when content differs. Rollback leaves the
+    # file in place; the first block is the stock macOS content.
+    hostsSrc=${pkgs.writeText "hosts" ''
+      ##
+      # Host Database
+      #
+      # localhost is used to configure the loopback interface
+      # when the system is booting.  Do not change this entry.
+      ##
+      127.0.0.1	localhost
+      255.255.255.255	broadcasthost
+      ::1             localhost
+
+      # rancher-fleet test VMs (socket_vmnet, ~/Projects/rancher-fleet/vm/Vagrantfile)
+      192.168.105.120 ubuntu2004.vm ubuntu2004
+      192.168.105.122 ubuntu2204.vm ubuntu2204
+      192.168.105.124 ubuntu2404.vm ubuntu2404
+    ''}
+    if ! cmp -s "$hostsSrc" /etc/hosts; then
+      echo "updating /etc/hosts..." >&2
+      rm -f /etc/hosts.before-nix-darwin
+      install -m 0644 -o root -g wheel "$hostsSrc" /etc/hosts
+    fi
+
     # The Nix daemon cannot read keys from a user's home directory. Copy the
     # fleet-authorized key outside the Nix store for daemon-only use. The same
     # key is authorized for `duck` on every host via profiles/base.nix, so one
