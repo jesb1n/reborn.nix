@@ -81,6 +81,7 @@
     kubectx
     kubernetes-helm
     lima
+    nodejs
     oci-cli
     opencode
     opentofu
