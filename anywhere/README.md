@@ -4,9 +4,8 @@
 NixOS hosts, the `pro-darwin` and `air-darwin` operator Macs, and the
 Kubernetes resources running on the `s145` k3s cluster.
 
-- Routine NixOS updates use deploy-rs. Every fleet host also rebuilds itself
-  from `main` nightly via `profiles/auto-upgrade.nix`, so a push to `main`
-  reaches the fleet without a manual deploy.
+- Routine NixOS updates use deploy-rs. Hosts do not upgrade themselves;
+  pushing to `main` changes nothing on a host until it is deployed.
 - `pro-darwin` and `air-darwin` use `darwin-rebuild`, not deploy-rs.
 - New installations may use `nixos-anywhere`; it is destructive and is never a
   routine update command.
@@ -22,7 +21,7 @@ model.
 | --- | --- |
 | `flake.nix` | Inputs, host outputs, dev shells, and deploy-rs nodes |
 | `lib/` | `fleet.nix` host inventory and `binary-caches.nix` cache trust inventory |
-| `profiles/` | Shared NixOS behavior: base, server, Tailscale, k3s roles, auto-upgrade, binary cache, Pi-hole, smartd |
+| `profiles/` | Shared NixOS behavior: base, server, Tailscale, k3s roles, binary cache, Pi-hole, smartd |
 | `hosts/<name>/` | Host identity, disks, hardware overrides, and secret declarations |
 | `secrets/` | SOPS-encrypted host and shared credentials |
 | `operator/` | Flux Operator `FluxInstance` configuration |

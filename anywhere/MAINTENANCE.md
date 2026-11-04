@@ -8,9 +8,6 @@ checks for the systems defined in `anywhere/flake.nix`. Run commands from
 
 - Review `git status --short` and the relevant diff before every operation.
 - Use deploy-rs for routine NixOS updates; do not use `nixos-anywhere`.
-- Every host also pulls and rebuilds itself from `main` nightly
-  (`profiles/auto-upgrade.nix`), so **pushing to `main` deploys the fleet**
-  within about a day even without a manual deploy.
 - Deploy workers first and `s145` last for fleet-wide changes.
 - Keep at least one known-good generation until the cluster is stable.
 - Never write decrypted SOPS data to the repository.

@@ -22,18 +22,6 @@ in
 
   nixpkgs.hostPlatform = lib.mkDefault "aarch64-linux";
 
-  # No unattended reboots: this Pi reports under-voltage (throttled=0x50000)
-  # and boots off an SD card, so a reboot with nobody watching risks coming
-  # back degraded or not at all. Auto-upgrade still runs and activates the new
-  # generation — only the automatic reboot is withheld for a human.
-  fleet.autoUpgrade.allowReboot = false;
-
-  # A Persistent timer that has never fired runs the moment it is started,
-  # i.e. in the middle of the deploy-rs activation that installs it (seen
-  # 2026-10-08: nixos-upgrade started 15 s into the new generation and kept
-  # retrying through the rollback). Wait for the 04:30 slot instead.
-  system.autoUpgrade.persistent = false;
-
   # The running system was installed with dbus-daemon; nixpkgs 26.05 defaults
   # to dbus-broker. Swapping the bus implementation during a live
   # switch-to-configuration hangs the dbus reload for 90 s, returns status 4,
@@ -57,8 +45,8 @@ in
   nix.settings = {
     # The tailnet cache below is unreachable whenever tailscaled or
     # oracle-eu-arm1 is down; Nix skips it after `download-attempts` failed
-    # connects, each waiting `connect-timeout` (15 s × 5 ≈ 80 s observed in
-    # the nixos-upgrade journal). Fail fast instead.
+    # connects, each waiting `connect-timeout` (15 s × 5 ≈ 80 s observed
+    # during rebuilds). Fail fast instead.
     connect-timeout = 5;
     substituters = lib.mkAfter (
       binaryCaches.rpiNixSettings.substituters ++ binaryCaches.armNixSettings.substituters

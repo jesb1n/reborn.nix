@@ -22,8 +22,8 @@ let
   # rpi's vendor kernel is only on nixos-raspberrypi.cachix.org for the
   # nixpkgs revision pinned in THAT flake's own flake.lock. A plain
   # `nix flake update` re-locks the nested input independently; after that
-  # the Pi has to compile the kernel itself, which does not finish inside
-  # the nightly upgrade's 3 h timeout. Re-lock with
+  # oracle-eu-arm1 has to compile the vendor kernel itself, which takes
+  # hours. Re-lock with
   # `nix flake update nixos-raspberrypi` to restore parity.
   rpiUpstreamLock = builtins.fromJSON (builtins.readFile "${nixosRaspberrypi}/flake.lock");
   rpiUpstreamNixpkgsRev =

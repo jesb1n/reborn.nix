@@ -278,8 +278,8 @@ in
     #
     # 1.1.1.1 is a deliberate fallback, not a second opinion: glibc only tries
     # it after 127.0.0.1 fails to answer, i.e. when pihole-ftl is down. Without
-    # it a failed FTL start leaves the Pi with no resolver at all — nightly
-    # `nixos-upgrade` could not reach GitHub to pull the fix that repairs it.
+    # it a failed FTL start leaves the Pi with no resolver at all, so it cannot
+    # reach GitHub or the binary caches to fetch the fix that repairs it.
     # Trade-off: while FTL is down the host's own queries are unfiltered and
     # cleartext (they bypass stubby/DoT). Clients are unaffected either way —
     # they query FTL directly and simply get no answer if it is down.

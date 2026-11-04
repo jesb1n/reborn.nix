@@ -33,7 +33,7 @@ The `anywhere/` directory is a standalone Nix flake that manages NixOS configura
 anywhere/
 ├── flake.nix              # Inputs, deploy-rs nodes, NixOS configs
 ├── lib/                   # fleet.nix (host inventory) and binary-caches.nix (cache trust inventory)
-├── profiles/              # Shared NixOS modules (base, server, tailscale, k3s-*, auto-upgrade, binary-cache, pihole, smartd)
+├── profiles/              # Shared NixOS modules (base, server, tailscale, k3s-*, binary-cache, pihole, smartd)
 ├── hosts/<hostname>/      # Per-host: configuration.nix, disko-config.nix, sops.nix
 ├── secrets/<hostname>/    # SOPS-encrypted host secrets (decrypted at activation)
 ├── clusters/s145/         # Flux Operator GitOps manifests (Kustomizations for apps)
@@ -59,7 +59,6 @@ Host configs import reusable profiles from `anywhere/profiles/`. Shared settings
 | Tailscale enable/openFirewall settings | `profiles/tailscale.nix` |
 | k3s server flags, disabled components | `profiles/k3s-server.nix` |
 | k3s agent flags, taints, labels, zramSwap | `profiles/k3s-agent.nix` or `profiles/k3s-agent-tiny.nix` |
-| Pull-based auto-upgrade schedule/reboot policy | `profiles/auto-upgrade.nix` (`fleet.autoUpgrade.*`) |
 | Self-hosted Nix binary cache (nix-serve) | `profiles/binary-cache.nix` (`fleet.binaryCache.*`) + `lib/binary-caches.nix` |
 | Pi-hole DNS (rpi) | `profiles/pihole.nix` (`fleet.pihole.*`) |
 | Hostname, node IP, Tailscale extra flags | `hosts/<name>/configuration.nix` |
@@ -131,45 +130,6 @@ four Oracle micro nodes build on `s145`; `oracle-in-arm1` and `rpi` build on
 `nuc7i3` use `remoteBuild = true`. The separate `nixos-anywhere` installation
 flow for 1 GB x86 micro nodes runs from s145 with `--build-on local` so s145
 builds the initial closure.
-
-### Auto-upgrade (pull-based, `profiles/auto-upgrade.nix`)
-
-Every host also pulls and rebuilds itself from the git remote on a timer, using
-its **own** CPU — the complement to deploy-rs's push model. Enabled fleet-wide
-via `fleet.autoUpgrade.enable = true` in `profiles/base.nix`.
-
-- Target: `github:jesb1n/reborn.nix?dir=anywhere#<hostName>` — each node
-  self-selects by `networking.hostName`, so one profile covers the whole fleet.
-- Schedule: `04:30` + up to 45 min jitter, `Persistent = true` (a node that was
-  off catches up on next boot).
-- `operation = "switch"` and `allowReboot = true` with a `rebootWindow` of
-  `04:00`–`06:00`. A reboot happens only when the new generation actually needs
-  one (kernel/initrd/systemd change) and the clock is inside that window;
-  otherwise the generation still activates and the reboot defers to a later run.
-  The `04:30` timer + ≤45 min jitter lands at `04:30`–`05:15`, inside the window.
-  Widen with `fleet.autoUpgrade.rebootWindow`, or set it to `null` for any hour.
-- **This never formats anything.** It runs `nixos-rebuild switch`, which builds a
-  closure and flips the `/nix/var/nix/profiles/system` symlink. disko and
-  `nixos-anywhere` are not involved. Only commits pushed to `main` roll out.
-- **Self-hosted mirror later:** set `fleet.autoUpgrade.flakeRef` in `base.nix`
-  (e.g. `git+https://git.example.com/jesbin/reborn.nix?dir=anywhere`). Nothing
-  else in the profile assumes GitHub, so it's a one-line switch when the mirror
-  exists — and it removes the GitHub API/rate-limit dependency for all 9 nodes.
-
-```bash
-# Check / drive it on a host
-systemctl list-timers nixos-upgrade --all
-journalctl -u nixos-upgrade -n 50 --no-pager
-sudo systemctl start nixos-upgrade      # force a run now
-sudo nixos-rebuild switch --rollback    # undo last auto-upgrade
-```
-
-Opt a host out with `fleet.autoUpgrade.enable = false;` in its
-`hosts/<name>/configuration.nix`. Override cadence with
-`fleet.autoUpgrade.dates`.
-
-Because rollout is now pull-based, **pushing to `main` deploys the fleet.**
-Anything merged there reaches every node within ~24h without a manual deploy.
 
 ### Kubernetes (s145 cluster)
 

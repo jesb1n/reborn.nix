@@ -80,11 +80,10 @@ count. `wave` (`x86-canary` = oracle-eu-micro2, `arm-canary` = oracle-eu-arm1,
 laptop on stable `nixpkgs`, no sops, no deploy-rs node, no k3s. Do not add it
 to `fleet.nix`.
 
-### Three rollout paths
+### Two rollout paths
 
 1. **deploy-rs from a Mac** (`pro-darwin` or `air-darwin`; `deploy.nodes`, `remoteBuild` per `fleet.nix`) — the supervised path; see AGENTS.md.
-2. **Pull-based auto-upgrade** (`profiles/auto-upgrade.nix`, `fleet.autoUpgrade.*`) — every host rebuilds itself from `main` nightly. `rpi` sets `allowReboot = false` (SD card, under-voltage).
-3. **GitHub Actions release + reconcile** — `nixos-ci.yml` runs `scripts/fleet-release` on native x86/ARM runners to export one union closure per arch (`closure.nar.zst` + `manifest.json` + `SHA256SUMS`); `nixos-reconcile.yml` runs `scripts/fleet-reconcile`, which verifies/imports the archives, preflights each host over strict SSH, then activates via a generated deploy-rs definition (`ciDeploy`, `remoteBuild = false`, substitution disabled) canary → workers → control-plane with per-host rollback. `scripts/release.sh` and `scripts/reconcile.sh` are thin wrappers. **Both NixOS workflows are currently `workflow_dispatch`-only** (automatic triggers paused), even though `docs/CICD.md` still describes PR/push/schedule triggers.
+2. **GitHub Actions release + reconcile** — `nixos-ci.yml` runs `scripts/fleet-release` on native x86/ARM runners to export one union closure per arch (`closure.nar.zst` + `manifest.json` + `SHA256SUMS`); `nixos-reconcile.yml` runs `scripts/fleet-reconcile`, which verifies/imports the archives, preflights each host over strict SSH, then activates via a generated deploy-rs definition (`ciDeploy`, `remoteBuild = false`, substitution disabled) canary → workers → control-plane with per-host rollback. `scripts/release.sh` and `scripts/reconcile.sh` are thin wrappers. **Both NixOS workflows are currently `workflow_dispatch`-only** (automatic triggers paused), even though `docs/CICD.md` still describes PR/push/schedule triggers.
 
 ### Binary cache trust (`lib/binary-caches.nix`)
 
@@ -100,7 +99,6 @@ changes to these files and never rotates keys automatically.
 
 ### Optional `fleet.*` modules and other profiles
 
-- `fleet.autoUpgrade` — enabled fleet-wide in `profiles/base.nix`.
 - `fleet.binaryCache` — `oracle-eu-arm1` only, gated on its host secrets file.
 - `fleet.pihole` (`profiles/pihole.nix`) — `rpi` only: Pi-hole FTL + stubby DNS-over-TLS, serving the tailnet (`100.118.166.120`) and the home LAN; config is immutable (`misc.readOnly`), password via sops `FTLCONF_*` env.
 - `profiles/k3s-cni.nix` — imported by both k3s profiles; re-links k3s CNI binaries to the active generation on every start.
