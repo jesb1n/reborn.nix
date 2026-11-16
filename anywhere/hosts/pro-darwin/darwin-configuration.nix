@@ -203,6 +203,9 @@
       "loom"
       "maccy"
       "microsoft-teams"
+      # Local-first Logitech Options+ replacement (MX Master 3S). Self-updates;
+      # its settings live in ~/.config/openlogi/config.toml (not Nix-managed).
+      "openlogi"
       "spotify"
       "tabby"
       "tailscale-app"
