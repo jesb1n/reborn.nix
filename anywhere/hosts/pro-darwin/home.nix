@@ -82,6 +82,8 @@
         core.pager = "delta";
         interactive.diffFilter = "delta --color-only";
       };
+      # Global excludes, written to ~/.config/git/ignore (git's default excludesFile).
+      ignores = [ ".DS_Store" ];
     };
 
     bat = {
