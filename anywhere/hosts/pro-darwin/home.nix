@@ -188,6 +188,9 @@
     claude-code
     mas
     cloudflared
+    # Cloudflare CLI (`cf`/`cloudflare`). Do not also install the npm `cf`
+    # package: ~/.local/bin precedes the Nix profile on PATH and would shadow it.
+    cf
     k9s
     firefox
     slack
