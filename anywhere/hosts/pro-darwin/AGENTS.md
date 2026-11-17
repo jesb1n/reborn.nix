@@ -128,6 +128,7 @@ If adding another unfree Nix package, extend this list. Do NOT use `allowUnfree 
 | `aside` | Not in nixpkgs. |
 | `transmission` | nixpkgs `transmission_4` on `aarch64-darwin` builds only the daemon/CLI, not `Transmission.app`; the cask ships the native GUI. |
 | `zen` | Zen Browser is not in nixpkgs for aarch64-darwin; the official Homebrew cask ships a universal macOS build. |
+| `vorssaint` | Not in nixpkgs. Menu bar toolkit (keep-awake, system monitor, volume mixer); the cask self-updates. |
 | `vlc` | nixpkgs `vlc` excludes `aarch64-darwin` from `meta.platforms` — not buildable here. |
 | `libreoffice` | nixpkgs `libreoffice` excludes `aarch64-darwin` from `meta.platforms` — not buildable here. |
 | `vagrant` | nixpkgs `vagrant` is not built for `aarch64-darwin`; the cask ships HashiCorp's signed pkg. Used by `~/Projects/rancher-fleet/vm` (Debian test VM for Fleet). The `vagrant-qemu` plugin is installed per-user with `vagrant plugin install` — mutable state in `~/.vagrant.d`, not managed here. |

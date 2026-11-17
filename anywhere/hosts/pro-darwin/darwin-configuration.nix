@@ -217,6 +217,9 @@
       "vagrant"
       "visual-studio-code"
       "vlc"
+      # Menu bar toolkit (keep-awake, system monitor, volume mixer). Not in
+      # nixpkgs; the cask self-updates.
+      "vorssaint"
       # "warp" # TEMP: upstream cask sha256 is stale — warp.dev serves a different dmg for
       # 0.2026.09.30 (still true 2026-10-13). Warp.app is installed and self-updates;
       # re-enable once Homebrew/homebrew-cask bumps the cask.
