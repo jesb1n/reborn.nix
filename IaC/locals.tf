@@ -26,4 +26,17 @@ locals {
       availability_domain_index = 0
     }
   }
+
+  # IPv6: Oracle allocates the VCN a /56; the public subnet takes the first /64.
+  #
+  # ipv6cidr_blocks is only populated after the VCN update has been applied and
+  # the provider does not mark it unknown at plan time, so this is a two-pass
+  # rollout. Pass 1 must be targeted, otherwise the prefix becomes known mid-apply
+  # and OpenTofu aborts the security list with "inconsistent final plan":
+  #   tofu apply -target=oci_core_vcn.vcn ...
+  # Pass 2 is a normal plan/apply; everything gated on `ipv6_ready` (subnet
+  # prefix, IPv6 route and security rules, per-instance addresses) is picked up.
+  vcn_ipv6_cidr           = try(oci_core_vcn.vcn.ipv6cidr_blocks[0], null)
+  ipv6_ready              = local.vcn_ipv6_cidr != null
+  public_subnet_ipv6_cidr = local.ipv6_ready ? cidrsubnet(local.vcn_ipv6_cidr, 8, 0) : null
 }

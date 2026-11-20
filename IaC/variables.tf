@@ -108,6 +108,35 @@ variable "instance_peer_ssh_cidrs" {
   }
 }
 
+variable "instance_peer_ssh_ipv6_cidrs" {
+  description = "IPv6 prefixes allowed to SSH into public instances (IPv4 rules do not match IPv6 traffic)."
+  type        = list(string)
+  default     = []
+  validation {
+    condition     = alltrue([for cidr in var.instance_peer_ssh_ipv6_cidrs : can(cidrhost(cidr, 0)) && strcontains(cidr, ":")])
+    error_message = "Each entry must be a valid IPv6 address or prefix in CIDR notation."
+  }
+}
+
+variable "tailscale_ipv6_underlay" {
+  description = <<-EOT
+    Allow Tailscale (UDP source port 41641) to use IPv6 as its WireGuard underlay.
+    Disabled by default: the Jio <-> OCI IPv6 path has a PMTU black hole that
+    silently drops full-size WireGuard packets, which breaks SSH over the tailnet
+    while small probes still succeed. With this false, IPv6 egress is allowed for
+    everything except UDP from port 41641, so hosts never advertise an IPv6
+    endpoint and Tailscale keeps using the IPv4 direct path.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "tailscale_port" {
+  description = "UDP port tailscaled listens on (services.tailscale.port on the NixOS hosts)."
+  type        = number
+  default     = 41641
+}
+
 variable "TAILSCALE_AUTH_KEY" {
   description = "Tailscale Auth Key to automatically join the Tailnet"
   type        = string

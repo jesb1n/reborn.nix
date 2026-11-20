@@ -23,11 +23,13 @@ plan: check-auth
 		sops exec-file $(ENV).tfvars \
 		'tofu plan -var-file={} -var="config_file_profile=$(ENV)"'
 
+# Optional: TARGET=<resource address> limits the apply (e.g. the IPv6 pass-1
+# rollout needs TARGET=oci_core_vcn.vcn, see locals.tf).
 deploy: check-auth
 	SOPS_AGE_KEY_FILE=$(SOPS_AGE_KEY_FILE) \
 	env $$(SOPS_AGE_KEY_FILE=$(SOPS_AGE_KEY_FILE) sops -d secrets/$(ENV).env) \
 		sops exec-file $(ENV).tfvars \
-		'tofu apply -var-file={} -var="config_file_profile=$(ENV)"'
+		'tofu apply -var-file={} -var="config_file_profile=$(ENV)" $(if $(TARGET),-target=$(TARGET))'
 
 edit:
 	@EDITOR="$(EDITOR)" SOPS_AGE_KEY_FILE=$(SOPS_AGE_KEY_FILE) sops $(ENV).tfvars; \

@@ -25,3 +25,20 @@ output "micro2_public_ip" {
   description = "Public IP of micro2 instance"
   value       = oci_core_instance.micro_instances["micro2"].public_ip
 }
+
+output "vcn_ipv6_cidr" {
+  description = "Oracle-allocated /56 IPv6 prefix of the VCN"
+  value       = local.vcn_ipv6_cidr
+}
+
+output "arm_instance_ipv6" {
+  description = "IPv6 address of the ARM instance"
+  value       = try(oci_core_ipv6.arm[0].ip_address, null)
+}
+
+output "micro_instances_ipv6" {
+  description = "IPv6 addresses of micro instances"
+  value = {
+    for k, v in oci_core_ipv6.micro : k => v.ip_address
+  }
+}
