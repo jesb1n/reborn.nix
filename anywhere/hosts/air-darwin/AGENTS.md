@@ -70,11 +70,12 @@ Touch ID sudo and the firewall change to take effect.
 - **Desktop apps:** `aside` and `transmission` are re-added as casks at the
   owner's request, and `claude` is the Claude desktop app (distinct from the
   `claude-code` CLI cask).
+- **Browser:** Zen (`zen` cask) replaced Arc at the owner's request.
 
 ## Dropped on purpose (do not re-add without asking)
 
 Casks: `cloudflare-warp`, `cursor`, `hermes-desktop`, `loom`, `utm`, `vlc`,
-`telegram`, `google-chrome`, `handy`, `antigravity`.
+`telegram`, `google-chrome`, `handy`, `antigravity`, `arc`.
 Packages: `ripgrep`, `fd`, `yq-go`, `tmux`, `nmap`, `sshpass`, `immich-cli`,
 `iterm2`. These were on the previous install and the owner chose to leave them out.
 

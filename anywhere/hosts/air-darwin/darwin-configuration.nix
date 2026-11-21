@@ -83,7 +83,6 @@
   homebrew = {
     enable = true;
     casks = [
-      "arc"
       "aside"
       "bitwarden"
       "claude"
@@ -96,6 +95,7 @@
       "visual-studio-code"
       "warp"
       "whatsapp"
+      "zen"
     ];
   };
 
